@@ -1,0 +1,27 @@
+# Postgres local para desarrollo (la API corre con `npm run start:dev` en el host).
+# Si fintrack-api ya usa el puerto 5432, deja DB_PORT=5433 en .env (ver .env.example).
+name: terminalops-api
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: terminalops-postgres
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_DATABASE}
+    ports:
+      - '${DB_PORT:-5433}:5432'
+    volumes:
+      - terminalops_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  terminalops_postgres_data:

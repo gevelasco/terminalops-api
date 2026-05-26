@@ -1,0 +1,48 @@
+# Despliegue API + Postgres (producción / QA). Desarrollo diario: docker-compose.local.yml + npm.
+version: '3.9'
+
+name: terminalops-api
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      POSTGRES_DB: ${DB_DATABASE}
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - terminalops_db_data:/var/lib/postgresql/data
+    networks:
+      - backend
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      DB_HOST: db
+      DB_PORT: 5432
+    ports:
+      - '${PORT:-4000}:4000'
+    networks:
+      - backend
+
+volumes:
+  terminalops_db_data:
+
+networks:
+  backend:
+    driver: bridge
