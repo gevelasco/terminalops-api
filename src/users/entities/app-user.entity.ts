@@ -14,14 +14,11 @@ import { UserPreferences } from 'src/users/entities/user-preferences.entity';
 
 @Entity({ schema: TERMINALOPS_SCHEMA, name: 'app_user' })
 export class AppUser {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
+  @PrimaryGeneratedColumn()
+  id: number;
 
-  @Column({ name: 'public_id', type: 'int', unique: true })
-  publicId: number;
-
-  @Column({ name: 'company_id', type: 'uuid' })
-  companyId: string;
+  @Column({ name: 'company_id', type: 'int' })
+  companyId: number;
 
   @Column()
   username: string;

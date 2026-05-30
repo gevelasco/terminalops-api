@@ -11,8 +11,8 @@ import { TERMINALOPS_SCHEMA } from 'src/common/constants/schema-name';
 
 @Entity({ schema: TERMINALOPS_SCHEMA, name: 'client_billing' })
 export class ClientBilling {
-  @PrimaryColumn({ name: 'client_id', type: 'uuid' })
-  clientId: string;
+  @PrimaryColumn({ name: 'client_id', type: 'int' })
+  clientId: number;
 
   @Column({ name: 'invoice_legal_name', nullable: true })
   invoiceLegalName?: string;

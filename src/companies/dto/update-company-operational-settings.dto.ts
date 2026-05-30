@@ -28,6 +28,11 @@ export class UpdateCompanyOperationalSettingsDto {
   @IsBoolean()
   operationalAnalysisEnabled?: boolean;
 
+  @ApiPropertyOptional({ description: 'Estimación automática de diesel en maniobras' })
+  @IsOptional()
+  @IsBoolean()
+  dieselControlEnabled?: boolean;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsBoolean()

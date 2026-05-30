@@ -8,6 +8,8 @@ import { ClientsModule } from './clients/clients.module';
 import { CompaniesModule } from './companies/companies.module';
 import { EquipmentModule } from './equipment/equipment.module';
 import { ExpensesModule } from './expenses/expenses.module';
+import { DestinationRatesModule } from './destination-rates/destination-rates.module';
+import { OperationConfigurationsModule } from './operation-configurations/operation-configurations.module';
 import { GeoModule } from './geo/geo.module';
 import { OperatorsModule } from './operators/operators.module';
 import { TripsModule } from './trips/trips.module';
@@ -41,6 +43,8 @@ import EnvConfig from './types/env-config.type';
     EquipmentModule,
     TripsModule,
     ExpensesModule,
+    DestinationRatesModule,
+    OperationConfigurationsModule,
     GeoModule,
   ],
   controllers: [AppController],

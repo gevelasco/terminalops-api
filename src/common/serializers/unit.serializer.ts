@@ -2,22 +2,25 @@ import { Unit } from 'src/units/entities/unit.entity';
 import { Equipment } from 'src/equipment/entities/equipment.entity';
 import { toIsoString } from 'src/common/utils/iso-date.util';
 import { profileToFleetMeta } from 'src/units/mappers/unit-fleet-meta.mapper';
+import { FleetAssetTenure } from 'src/fleet/entities/fleet-asset-tenure.entity';
+
+export type SerializeUnitOptions = { tenure?: FleetAssetTenure | null };
 
 export function serializeUnit(
   unit: Unit,
-  companyPublicId: number,
+  options?: SerializeUnitOptions,
 ): Record<string, unknown> {
   const fleetMeta = profileToFleetMeta(
     unit.fleetProfile,
     unit.maintenanceEntries,
     unit.fleetDocuments,
+    options?.tenure,
   );
 
   return {
-    id: unit.publicId,
-    companyId: companyPublicId,
+    id: unit.id,
+    companyId: unit.companyId,
     plate: unit.plate,
-    type: unit.type,
     capacityKg: unit.capacityKg,
     status: unit.status,
     serialNumber: unit.serialNumber ?? undefined,
@@ -25,9 +28,7 @@ export function serializeUnit(
     trailerBrandAbbr: unit.trailerBrandAbbr ?? undefined,
     trailerYear: unit.trailerYear ?? undefined,
     fleetMeta,
-    equipment: (unit.equipment ?? []).map((e) =>
-      serializeEquipmentRef(e, companyPublicId, unit.publicId),
-    ),
+    equipment: (unit.equipment ?? []).map((e) => serializeEquipmentRef(e, unit.id)),
     createdAt: toIsoString(unit.createdAt),
     updatedAt: toIsoString(unit.updatedAt),
   };
@@ -35,13 +36,12 @@ export function serializeUnit(
 
 function serializeEquipmentRef(
   equipment: Equipment,
-  companyPublicId: number,
-  unitPublicId: number,
+  unitId: number,
 ): Record<string, unknown> {
   return {
-    id: equipment.publicId,
-    companyId: companyPublicId,
-    unitId: unitPublicId,
+    id: equipment.id,
+    companyId: equipment.companyId,
+    unitId,
     name: equipment.name,
     serialNumber: equipment.serialNumber,
     lastServiceDate: equipment.lastServiceDate ?? undefined,

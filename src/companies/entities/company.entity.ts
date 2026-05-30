@@ -12,11 +12,8 @@ import { AppUser } from 'src/users/entities/app-user.entity';
 
 @Entity({ schema: TERMINALOPS_SCHEMA, name: 'companies' })
 export class Company {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
-
-  @Column({ name: 'public_id', type: 'int', unique: true })
-  publicId: number;
+  @PrimaryGeneratedColumn()
+  id: number;
 
   @Column()
   name: string;
@@ -74,6 +71,16 @@ export class Company {
     nullable: true,
   })
   maintenanceDateControlChangedAt?: Date;
+
+  @Column({ name: 'diesel_control_enabled', default: true })
+  dieselControlEnabled: boolean;
+
+  @Column({
+    name: 'diesel_control_changed_at',
+    type: 'timestamptz',
+    nullable: true,
+  })
+  dieselControlChangedAt?: Date;
 
   @Column({ name: 'operational_center_postal_code', nullable: true, length: 5 })
   operationalCenterPostalCode?: string;

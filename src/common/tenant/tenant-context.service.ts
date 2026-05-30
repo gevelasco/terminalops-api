@@ -12,9 +12,9 @@ export class TenantContextService {
     private readonly companiesRepo: Repository<Company>,
   ) {}
 
-  async resolveInternalId(publicId: number): Promise<string | null> {
+  async resolveInternalId(companyId: number): Promise<number | null> {
     const row = await this.companiesRepo.findOne({
-      where: { publicId },
+      where: { id: companyId },
       select: ['id'],
     });
     return row?.id ?? null;
@@ -22,21 +22,21 @@ export class TenantContextService {
 
   async assertAccessAndResolve(
     user: AuthUser,
-    publicCompanyId: number,
-  ): Promise<string> {
-    assertCompanyAccess(user, publicCompanyId);
-    const internalId = await this.resolveInternalId(publicCompanyId);
-    if (!internalId) {
-      throw new NotFoundException(`Company ${publicCompanyId} not found`);
+    companyId: number,
+  ): Promise<number> {
+    assertCompanyAccess(user, companyId);
+    const id = await this.resolveInternalId(companyId);
+    if (!id) {
+      throw new NotFoundException(`Company ${companyId} not found`);
     }
-    return internalId;
+    return id;
   }
 
-  async resolveInternalIdFromAuthUser(user: AuthUser): Promise<string> {
-    const publicId = Number(user.companyId);
-    if (!Number.isFinite(publicId)) {
+  async resolveInternalIdFromAuthUser(user: AuthUser): Promise<number> {
+    const companyId = Number(user.companyId);
+    if (!Number.isFinite(companyId)) {
       throw new ForbiddenException('Invalid company in session');
     }
-    return this.assertAccessAndResolve(user, publicId);
+    return this.assertAccessAndResolve(user, companyId);
   }
 }

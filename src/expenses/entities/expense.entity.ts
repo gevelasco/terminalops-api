@@ -15,17 +15,14 @@ import { Unit } from 'src/units/entities/unit.entity';
 
 @Entity({ schema: TERMINALOPS_SCHEMA, name: 'expenses' })
 export class Expense {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
+  @PrimaryGeneratedColumn()
+  id: number;
 
-  @Column({ name: 'public_id', type: 'int', unique: true })
-  publicId: number;
+  @Column({ name: 'company_id', type: 'int' })
+  companyId: number;
 
-  @Column({ name: 'company_id', type: 'uuid' })
-  companyId: string;
-
-  @Column({ name: 'trip_id', type: 'uuid', nullable: true })
-  tripId?: string;
+  @Column({ name: 'trip_id', type: 'int', nullable: true })
+  tripId?: number;
 
   @Column()
   category: string;
@@ -45,14 +42,14 @@ export class Expense {
   @Column({ type: 'text', nullable: true })
   description?: string;
 
-  @Column({ name: 'related_unit_id', type: 'uuid', nullable: true })
-  relatedUnitId?: string;
+  @Column({ name: 'related_unit_id', type: 'int', nullable: true })
+  relatedUnitId?: number;
 
-  @Column({ name: 'related_equipment_id', type: 'uuid', nullable: true })
-  relatedEquipmentId?: string;
+  @Column({ name: 'related_equipment_id', type: 'int', nullable: true })
+  relatedEquipmentId?: number;
 
-  @Column({ name: 'related_operator_id', type: 'uuid', nullable: true })
-  relatedOperatorId?: string;
+  @Column({ name: 'related_operator_id', type: 'int', nullable: true })
+  relatedOperatorId?: number;
 
   @Column({ name: 'is_operational_provision', default: false })
   isOperationalProvision: boolean;

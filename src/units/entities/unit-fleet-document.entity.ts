@@ -4,11 +4,11 @@ import { Unit } from 'src/units/entities/unit.entity';
 
 @Entity({ schema: TERMINALOPS_SCHEMA, name: 'unit_fleet_documents' })
 export class UnitFleetDocument {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
+  @PrimaryGeneratedColumn()
+  id: number;
 
-  @Column({ name: 'unit_id', type: 'uuid' })
-  unitId: string;
+  @Column({ name: 'unit_id', type: 'int' })
+  unitId: number;
 
   @Column({ name: 'document_kind' })
   documentKind: string;

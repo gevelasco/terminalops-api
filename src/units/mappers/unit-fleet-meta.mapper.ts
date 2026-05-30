@@ -2,6 +2,8 @@ import { UnitFleetDocument } from 'src/units/entities/unit-fleet-document.entity
 import { FleetMaintenanceEntry } from 'src/units/entities/fleet-maintenance-entry.entity';
 import { UnitFleetProfile } from 'src/units/entities/unit-fleet-profile.entity';
 import type { CreateUnitFleetMetaDto } from 'src/units/dto/create-unit-fleet-meta.dto';
+import { FleetAssetTenure } from 'src/fleet/entities/fleet-asset-tenure.entity';
+import { mergeTenureIntoFleetMeta } from 'src/fleet/mappers/fleet-asset-tenure.mapper';
 
 function emptyDateToUndefined(value?: string): string | undefined {
   const t = value?.trim();
@@ -31,7 +33,7 @@ const DOCUMENT_KINDS = [
 ] as const;
 
 export function fleetMetaDtoToProfile(
-  unitId: string,
+  unitId: number,
   meta: CreateUnitFleetMetaDto,
 ): Partial<UnitFleetProfile> {
   return {
@@ -39,12 +41,6 @@ export function fleetMetaDtoToProfile(
     trailerBrandName: meta.trailerBrandName?.trim() || undefined,
     trailerVersion: meta.trailerVersion?.trim() || undefined,
     trailerColor: meta.trailerColor?.trim() || undefined,
-    trailerTenureMode: meta.trailerTenureMode || undefined,
-    trailerCommercialValue: numToDb(meta.trailerCommercialValue),
-    trailerRecurringPaymentAmount: numToDb(meta.trailerRecurringPaymentAmount),
-    trailerRecurringPaymentDate: emptyDateToUndefined(meta.trailerRecurringPaymentDate),
-    trailerRecurringInstallmentCount: meta.trailerRecurringInstallmentCount,
-    trailerManagementOwnerPayout: numToDb(meta.trailerManagementOwnerPayout),
     transmissionType: meta.transmissionType?.trim() || undefined,
     transmissionSpeeds: meta.transmissionSpeeds?.trim() || undefined,
     grossVehicleWeightLb: meta.grossVehicleWeightLb?.trim() || undefined,
@@ -71,6 +67,7 @@ export function fleetMetaDtoToProfile(
       meta.verificationDoubleArticulatedCost,
     ),
     insurancePolicyNumber: meta.insurancePolicyNumber?.trim() || undefined,
+    insuranceCarrierName: meta.insuranceCarrierName?.trim() || undefined,
     insurancePaymentCadence: meta.insurancePaymentCadence?.trim() || undefined,
     insuranceContractDate: emptyDateToUndefined(meta.insuranceContractDate),
     insuranceCost: numToDb(meta.insuranceCost),
@@ -85,7 +82,7 @@ export function fleetMetaDtoToProfile(
 }
 
 export function fleetMetaDtoToDocuments(
-  unitId: string,
+  unitId: number,
   meta: CreateUnitFleetMetaDto,
 ): Partial<UnitFleetDocument>[] {
   const rows: Partial<UnitFleetDocument>[] = [];
@@ -112,7 +109,7 @@ export function fleetMetaDtoToDocuments(
 }
 
 export function fleetMetaDtoToMaintenanceEntries(
-  unitId: string,
+  unitId: number,
   meta: CreateUnitFleetMetaDto,
 ): Partial<FleetMaintenanceEntry>[] {
   if (!meta.maintenanceEntries?.length) {
@@ -145,8 +142,9 @@ export function profileToFleetMeta(
   profile: UnitFleetProfile | undefined,
   maintenanceEntries: FleetMaintenanceEntry[] | undefined,
   documents: UnitFleetDocument[] | undefined,
+  tenure?: FleetAssetTenure | null,
 ): Record<string, unknown> | undefined {
-  if (!profile && !maintenanceEntries?.length && !documents?.length) {
+  if (!profile && !maintenanceEntries?.length && !documents?.length && !tenure) {
     return undefined;
   }
 
@@ -155,17 +153,6 @@ export function profileToFleetMeta(
         trailerBrandName: profile.trailerBrandName ?? undefined,
         trailerVersion: profile.trailerVersion ?? undefined,
         trailerColor: profile.trailerColor ?? undefined,
-        trailerTenureMode: profile.trailerTenureMode ?? undefined,
-        trailerCommercialValue: dbNumToApi(profile.trailerCommercialValue),
-        trailerRecurringPaymentAmount: dbNumToApi(
-          profile.trailerRecurringPaymentAmount,
-        ),
-        trailerRecurringPaymentDate: profile.trailerRecurringPaymentDate ?? undefined,
-        trailerRecurringInstallmentCount:
-          profile.trailerRecurringInstallmentCount ?? undefined,
-        trailerManagementOwnerPayout: dbNumToApi(
-          profile.trailerManagementOwnerPayout,
-        ),
         transmissionType: profile.transmissionType ?? undefined,
         transmissionSpeeds: profile.transmissionSpeeds ?? undefined,
         grossVehicleWeightLb: profile.grossVehicleWeightLb ?? undefined,
@@ -195,6 +182,7 @@ export function profileToFleetMeta(
           profile.verificationDoubleArticulatedCost,
         ),
         insurancePolicyNumber: profile.insurancePolicyNumber ?? undefined,
+        insuranceCarrierName: profile.insuranceCarrierName ?? undefined,
         insurancePaymentCadence: profile.insurancePaymentCadence ?? undefined,
         insuranceContractDate: profile.insuranceContractDate ?? undefined,
         insuranceCost: dbNumToApi(profile.insuranceCost),
@@ -228,5 +216,9 @@ export function profileToFleetMeta(
   meta.documentPolicyNames = documentNamesByKind(documents, 'policy');
   meta.documentOwnershipNames = documentNamesByKind(documents, 'ownership');
 
-  return meta;
+  const withTenure = mergeTenureIntoFleetMeta(
+    Object.keys(meta).length > 0 ? meta : undefined,
+    tenure,
+  );
+  return withTenure && Object.keys(withTenure).length > 0 ? withTenure : undefined;
 }

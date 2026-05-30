@@ -11,8 +11,8 @@ import { TERMINALOPS_SCHEMA } from 'src/common/constants/schema-name';
 
 @Entity({ schema: TERMINALOPS_SCHEMA, name: 'client_payment_terms' })
 export class ClientPaymentTerms {
-  @PrimaryColumn({ name: 'client_id', type: 'uuid' })
-  clientId: string;
+  @PrimaryColumn({ name: 'client_id', type: 'int' })
+  clientId: number;
 
   @Column({ name: 'has_credit', default: false })
   hasCredit: boolean;
@@ -25,6 +25,9 @@ export class ClientPaymentTerms {
 
   @Column({ name: 'commercial_health', default: 'not_evaluated' })
   commercialHealth: string;
+
+  @Column({ name: 'default_payment_method', nullable: true })
+  defaultPaymentMethod?: string;
 
   @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
   updatedAt: Date;

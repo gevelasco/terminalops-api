@@ -5,16 +5,16 @@ import {
 } from '@nestjs/common';
 import { CompaniesService } from 'src/companies/companies.service';
 
-/** Resuelve :companyId numérico (public_id) al UUID interno del tenant. */
+/** Validates :companyId exists and returns the numeric tenant id. */
 @Injectable()
-export class TenantCompanyPipe implements PipeTransform<number, Promise<string>> {
+export class TenantCompanyPipe implements PipeTransform<number, Promise<number>> {
   constructor(private readonly companiesService: CompaniesService) {}
 
-  async transform(publicId: number): Promise<string> {
-    const internalId = await this.companiesService.resolveInternalId(publicId);
-    if (!internalId) {
-      throw new NotFoundException(`Company ${publicId} not found`);
+  async transform(companyId: number): Promise<number> {
+    const id = await this.companiesService.resolveInternalId(companyId);
+    if (!id) {
+      throw new NotFoundException(`Company ${companyId} not found`);
     }
-    return internalId;
+    return id;
   }
 }

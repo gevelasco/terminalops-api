@@ -11,8 +11,8 @@ import { Operator } from 'src/operators/entities/operator.entity';
 
 @Entity({ schema: TERMINALOPS_SCHEMA, name: 'operator_emergency_contacts' })
 export class OperatorEmergencyContact {
-  @PrimaryColumn({ name: 'operator_id', type: 'uuid' })
-  operatorId: string;
+  @PrimaryColumn({ name: 'operator_id', type: 'int' })
+  operatorId: number;
 
   @Column({ default: '' })
   name: string;

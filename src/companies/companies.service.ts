@@ -29,13 +29,15 @@ export class CompaniesService {
         subscriptionStatus: 'active',
         operationalAnalysisEnabled: true,
         operationalAnalysisChangedAt: now,
+        dieselControlEnabled: true,
+        dieselControlChangedAt: now,
       }),
     );
     const fresh = await this.repo.findOne({ where: { id: saved.id } });
     return fresh ?? saved;
   }
 
-  async findOne(id: string) {
+  async findOne(id: number) {
     const row = await this.repo.findOne({ where: { id } });
     if (!row) {
       throw new NotFoundException(`Company ${id} not found`);
@@ -43,42 +45,44 @@ export class CompaniesService {
     return row;
   }
 
-  async findByPublicId(publicId: number) {
-    const row = await this.repo.findOne({ where: { publicId } });
-    if (!row) {
-      throw new NotFoundException(`Company ${publicId} not found`);
-    }
-    return row;
+  async findById(id: number) {
+    return this.findOne(id);
   }
 
-  async resolveInternalId(publicId: number): Promise<string | null> {
-    return this.tenantContext.resolveInternalId(publicId);
+  async resolveInternalId(companyId: number): Promise<number | null> {
+    return this.tenantContext.resolveInternalId(companyId);
   }
 
   async assertAccessAndResolve(
     user: AuthUser,
-    publicCompanyId: number,
-  ): Promise<string> {
-    return this.tenantContext.assertAccessAndResolve(user, publicCompanyId);
+    companyId: number,
+  ): Promise<number> {
+    return this.tenantContext.assertAccessAndResolve(user, companyId);
   }
 
-  async resolveInternalIdFromAuthUser(user: AuthUser): Promise<string> {
+  async resolveInternalIdFromAuthUser(user: AuthUser): Promise<number> {
     return this.tenantContext.resolveInternalIdFromAuthUser(user);
   }
 
   async updateOperationalSettings(
     user: AuthUser,
-    publicCompanyId: number,
+    companyId: number,
     dto: UpdateCompanyOperationalSettingsDto,
   ) {
     if (user.role !== 'admin' && user.role !== 'superadmin') {
       throw new ForbiddenException('Solo administradores pueden cambiar la configuración operativa');
     }
-    const company = await this.findByPublicId(publicCompanyId);
-    assertCompanyAccess(user, publicCompanyId);
+    const company = await this.findOne(companyId);
+    assertCompanyAccess(user, companyId);
     if (dto.operationalAnalysisEnabled !== undefined) {
       company.operationalAnalysisEnabled = dto.operationalAnalysisEnabled;
       company.operationalAnalysisChangedAt = new Date();
+    }
+    if (dto.dieselControlEnabled !== undefined) {
+      if (company.dieselControlEnabled !== dto.dieselControlEnabled) {
+        company.dieselControlChangedAt = new Date();
+      }
+      company.dieselControlEnabled = dto.dieselControlEnabled;
     }
     if (dto.maintenanceKmControlEnabled !== undefined) {
       if (company.maintenanceKmControlEnabled !== dto.maintenanceKmControlEnabled) {

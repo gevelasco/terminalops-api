@@ -1,8 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import {
+  buildIncidentAuthorLookup,
+  formatIncidentAuthorLabel,
+} from 'src/common/utils/incident-author.util';
+import { Operator } from 'src/operators/entities/operator.entity';
 import { Trip } from 'src/trips/entities/trip.entity';
 import { TripIncident } from 'src/trips/entities/trip-incident.entity';
+import { AppUser } from 'src/users/entities/app-user.entity';
 
 @Injectable()
 export class DashboardService {
@@ -11,9 +17,13 @@ export class DashboardService {
     private readonly tripsRepo: Repository<Trip>,
     @InjectRepository(TripIncident)
     private readonly incidentsRepo: Repository<TripIncident>,
+    @InjectRepository(AppUser)
+    private readonly usersRepo: Repository<AppUser>,
+    @InjectRepository(Operator)
+    private readonly operatorsRepo: Repository<Operator>,
   ) {}
 
-  async listAlerts(companyId: string) {
+  async listAlerts(companyId: number) {
     const [scheduled, inTransit, completed] = await Promise.all([
       this.tripsRepo.count({ where: { companyId, status: 'scheduled' } }),
       this.tripsRepo.count({ where: { companyId, status: 'in_transit' } }),
@@ -44,13 +54,24 @@ export class DashboardService {
     ];
   }
 
-  async listCriticalAlerts(companyId: string) {
-    const incidents = await this.incidentsRepo.find({
-      where: { trip: { companyId } },
-      relations: ['trip'],
-      order: { occurredAt: 'DESC' },
-      take: 50,
-    });
+  async listCriticalAlerts(companyId: number) {
+    const [incidents, users, operators] = await Promise.all([
+      this.incidentsRepo.find({
+        where: { trip: { companyId } },
+        relations: ['trip'],
+        order: { occurredAt: 'DESC' },
+        take: 50,
+      }),
+      this.usersRepo.find({
+        where: { companyId },
+        select: ['username', 'displayName', 'jobTitle', 'role'],
+      }),
+      this.operatorsRepo.find({
+        where: { companyId },
+        select: ['name', 'portalUsername'],
+      }),
+    ]);
+    const authorLookup = buildIncidentAuthorLookup(users, operators);
 
     return incidents.map((i) => ({
       id: i.id,
@@ -61,7 +82,7 @@ export class DashboardService {
       maneuverCode: i.trip?.maneuverCode ?? '',
       clientName: i.trip?.clientName ?? '',
       routeLabel: i.trip ? `${i.trip.origin} → ${i.trip.destination}` : '',
-      authorLabel: i.postedBy,
+      authorLabel: formatIncidentAuthorLabel(i.postedBy, authorLookup),
       detectedAt: i.occurredAt.toISOString(),
     }));
   }

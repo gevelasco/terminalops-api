@@ -39,7 +39,7 @@ export class AuthService {
   }
 
   async refresh(dto: RefreshTokenDto) {
-    let payload: { sub: string };
+    let payload: { sub: string | number };
     try {
       payload = await this.jwtService.verifyAsync(dto.refreshToken, {
         secret: this.config.get('JWT_REFRESH_SECRET', { infer: true }),
@@ -47,7 +47,8 @@ export class AuthService {
     } catch {
       throw new HttpException('Invalid refresh token', HttpStatus.UNAUTHORIZED);
     }
-    const user = await this.usersService.findOne({ id: payload.sub });
+    const userId = Number(payload.sub);
+    const user = await this.usersService.findOne({ id: userId });
     if (!user || user.status === 'disabled') {
       throw new HttpException('User not found', HttpStatus.UNAUTHORIZED);
     }

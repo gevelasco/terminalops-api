@@ -10,14 +10,11 @@ import { Operator } from 'src/operators/entities/operator.entity';
 
 @Entity({ schema: TERMINALOPS_SCHEMA, name: 'operator_documents' })
 export class OperatorDocument {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
+  @PrimaryGeneratedColumn()
+  id: number;
 
-  @Column({ name: 'public_id', type: 'int', unique: true })
-  publicId: number;
-
-  @Column({ name: 'operator_id', type: 'uuid' })
-  operatorId: string;
+  @Column({ name: 'operator_id', type: 'int' })
+  operatorId: number;
 
   @Column({ name: 'file_name' })
   fileName: string;

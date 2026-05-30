@@ -31,13 +31,13 @@ Por defecto el puerto es **5433** (`.env.example`) para no chocar con **fintrack
 ### Opción B — Postgres instalado en macOS
 
 ```bash
-createdb terminalops
+createdb terminalops-dev
 # En .env usa DB_PORT=5432 si tu Postgres local escucha ahí
 ```
 
 ## Migraciones (crear tablas)
 
-Igual que fintrack-api, las tablas se crean con TypeORM migrations leyendo `db/initial-schema.sql` (esquema `terminalops`, 28 tablas normalizadas).
+Igual que fintrack-api, las tablas se crean con TypeORM migrations en `src/migrations/` (esquema `terminalops`, DDL inicial en la primera migración).
 
 ```bash
 npm install
@@ -88,8 +88,10 @@ El JWT incluye `companyId` y `companyName`; el guard valida que `:companyId` coi
 
 Tras `npm run migration:run`, la migración de seed crea:
 
-- Empresa demo: **VSC Logística**
-- Usuario: `gvelasco` / `Admin123`
+- Empresa demo: **TerminalOps Demo** (`id: 1`)
+- Usuario: `gvelasco` / `Admin123` (`id: 1`, `companyId: 1`)
+
+Todos los IDs en la API y la base de datos son **numéricos** (`serial`), al estilo fintrack-api.
 
 ## Módulos principales
 
@@ -113,7 +115,6 @@ Pendiente: S3/documentos, preferencias de usuario en API, despliegue servidor.
 ```
 terminalops-api/
 ├── config/migration.config.ts   # DataSource para CLI TypeORM
-├── db/initial-schema.sql        # DDL inicial (sincronizado con terminalops-app/db)
 ├── src/
 │   ├── main.ts                  # Bootstrap + Swagger
 │   ├── app.module.ts
@@ -132,4 +133,4 @@ terminalops-api/
 
 ## Relación con el frontend
 
-El esquema SQL vive en **`terminalops-api/db/`** (`initial-schema.sql`, migraciones TypeORM). El frontend Angular no incluye DDL ni persistencia local de negocio.
+El esquema SQL vive en **`terminalops-api/src/migrations/`** (migraciones TypeORM). El frontend Angular no incluye DDL ni persistencia local de negocio.

@@ -1,23 +1,22 @@
 import { Expense } from 'src/expenses/entities/expense.entity';
 import { toIsoString } from 'src/common/utils/iso-date.util';
 
-export function serializeExpense(
-  expense: Expense,
-  companyPublicId: number,
-): Record<string, unknown> {
+export function serializeExpense(expense: Expense): Record<string, unknown> {
   return {
-    id: expense.publicId,
-    companyId: companyPublicId,
-    tripId: expense.trip?.publicId ?? null,
+    id: expense.id,
+    companyId: expense.companyId,
+    tripId: expense.trip?.id ?? expense.tripId ?? null,
     category: expense.category,
     amount: expense.amount,
     currency: expense.currency,
     incurredAt: toIsoString(expense.incurredAt),
     kind: expense.kind,
     description: expense.description ?? undefined,
-    relatedUnitId: expense.relatedUnit?.publicId ?? null,
-    relatedEquipmentId: expense.relatedEquipment?.publicId ?? null,
-    relatedOperatorId: expense.relatedOperator?.publicId ?? null,
+    relatedUnitId: expense.relatedUnit?.id ?? expense.relatedUnitId ?? null,
+    relatedEquipmentId:
+      expense.relatedEquipment?.id ?? expense.relatedEquipmentId ?? null,
+    relatedOperatorId:
+      expense.relatedOperator?.id ?? expense.relatedOperatorId ?? null,
     isOperationalProvision: expense.isOperationalProvision,
     invoiceRequired: expense.invoiceRequired,
     createdAt: toIsoString(expense.createdAt),

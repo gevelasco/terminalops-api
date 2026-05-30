@@ -11,6 +11,7 @@ import {
 } from 'typeorm';
 import { ClientBilling } from 'src/clients/entities/client-billing.entity';
 import { ClientContact } from 'src/clients/entities/client-contact.entity';
+import { ClientDelivery } from 'src/clients/entities/client-delivery.entity';
 import { ClientPaymentTerms } from 'src/clients/entities/client-payment-terms.entity';
 import { Company } from 'src/companies/entities/company.entity';
 import { Trip } from 'src/trips/entities/trip.entity';
@@ -18,14 +19,11 @@ import { TERMINALOPS_SCHEMA } from 'src/common/constants/schema-name';
 
 @Entity({ schema: TERMINALOPS_SCHEMA, name: 'clients' })
 export class Client {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
+  @PrimaryGeneratedColumn()
+  id: number;
 
-  @Column({ name: 'public_id', type: 'int', unique: true })
-  publicId: number;
-
-  @Column({ name: 'company_id', type: 'uuid' })
-  companyId: string;
+  @Column({ name: 'company_id', type: 'int' })
+  companyId: number;
 
   @Column()
   name: string;
@@ -50,6 +48,9 @@ export class Client {
 
   @OneToOne(() => ClientPaymentTerms, (p) => p.client)
   paymentTerms?: ClientPaymentTerms;
+
+  @OneToOne(() => ClientDelivery, (d) => d.client)
+  delivery?: ClientDelivery;
 
   @OneToMany(() => ClientContact, (c) => c.client)
   contacts?: ClientContact[];

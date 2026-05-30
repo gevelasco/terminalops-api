@@ -3,11 +3,11 @@ import { TERMINALOPS_SCHEMA } from 'src/common/constants/schema-name';
 
 @Entity({ schema: TERMINALOPS_SCHEMA, name: 'trip_attached_documents' })
 export class TripAttachedDocument {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
+  @PrimaryGeneratedColumn()
+  id: number;
 
-  @Column({ name: 'trip_id', type: 'uuid' })
-  tripId: string;
+  @Column({ name: 'trip_id', type: 'int' })
+  tripId: number;
 
   @Column({ name: 'file_name' })
   fileName: string;

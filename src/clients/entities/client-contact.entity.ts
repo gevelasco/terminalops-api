@@ -10,14 +10,11 @@ import { TERMINALOPS_SCHEMA } from 'src/common/constants/schema-name';
 
 @Entity({ schema: TERMINALOPS_SCHEMA, name: 'client_contacts' })
 export class ClientContact {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
+  @PrimaryGeneratedColumn()
+  id: number;
 
-  @Column({ name: 'public_id', type: 'int', unique: true })
-  publicId: number;
-
-  @Column({ name: 'client_id', type: 'uuid' })
-  clientId: string;
+  @Column({ name: 'client_id', type: 'int' })
+  clientId: number;
 
   @Column()
   name: string;

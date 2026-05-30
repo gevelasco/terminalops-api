@@ -11,8 +11,8 @@ import { Unit } from 'src/units/entities/unit.entity';
 
 @Entity({ schema: TERMINALOPS_SCHEMA, name: 'unit_fleet_profiles' })
 export class UnitFleetProfile {
-  @PrimaryColumn({ name: 'unit_id', type: 'uuid' })
-  unitId: string;
+  @PrimaryColumn({ name: 'unit_id', type: 'int' })
+  unitId: number;
 
   @Column({ name: 'trailer_brand_name', nullable: true })
   trailerBrandName?: string;
@@ -22,42 +22,6 @@ export class UnitFleetProfile {
 
   @Column({ name: 'trailer_color', nullable: true })
   trailerColor?: string;
-
-  @Column({ name: 'trailer_tenure_mode', nullable: true })
-  trailerTenureMode?: string;
-
-  @Column({
-    name: 'trailer_commercial_value',
-    type: 'numeric',
-    precision: 14,
-    scale: 2,
-    nullable: true,
-  })
-  trailerCommercialValue?: string;
-
-  @Column({
-    name: 'trailer_recurring_payment_amount',
-    type: 'numeric',
-    precision: 14,
-    scale: 2,
-    nullable: true,
-  })
-  trailerRecurringPaymentAmount?: string;
-
-  @Column({ name: 'trailer_recurring_payment_date', type: 'date', nullable: true })
-  trailerRecurringPaymentDate?: string;
-
-  @Column({ name: 'trailer_recurring_installment_count', type: 'int', nullable: true })
-  trailerRecurringInstallmentCount?: number;
-
-  @Column({
-    name: 'trailer_management_owner_payout',
-    type: 'numeric',
-    precision: 14,
-    scale: 2,
-    nullable: true,
-  })
-  trailerManagementOwnerPayout?: string;
 
   @Column({ name: 'transmission_type', nullable: true })
   transmissionType?: string;
@@ -166,6 +130,9 @@ export class UnitFleetProfile {
 
   @Column({ name: 'insurance_policy_number', nullable: true })
   insurancePolicyNumber?: string;
+
+  @Column({ name: 'insurance_carrier_name', nullable: true })
+  insuranceCarrierName?: string;
 
   @Column({ name: 'insurance_payment_cadence', nullable: true })
   insurancePaymentCadence?: string;

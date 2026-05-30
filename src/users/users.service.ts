@@ -41,15 +41,15 @@ export class UsersService {
     });
   }
 
-  findByPublicId(publicId: number) {
+  findById(id: number) {
     return this.usersRepo.findOne({
-      where: { publicId },
+      where: { id },
       relations: ['company', 'preferences'],
     });
   }
 
-  async getProfileByPublicId(publicId: number) {
-    const user = await this.findByPublicId(publicId);
+  async getProfileById(id: number) {
+    const user = await this.findById(id);
     if (!user) {
       throw new NotFoundException('Usuario no encontrado');
     }
@@ -61,7 +61,7 @@ export class UsersService {
     const department =
       user.role === 'admin' || user.role === 'superadmin' ? 'Gerencia' : '';
     return {
-      id: user.publicId,
+      id: user.id,
       username: user.username,
       displayName: user.displayName ?? user.username,
       email: user.email ?? '',
@@ -76,12 +76,12 @@ export class UsersService {
       memberSince: toIsoString(user.createdAt),
       department,
       workLocation: user.company?.name ?? '',
-      employeeId: String(user.publicId),
+      employeeId: String(user.id),
     };
   }
 
-  async updateProfile(publicId: number, dto: UpdateUserProfileDto) {
-    const user = await this.findByPublicId(publicId);
+  async updateProfile(id: number, dto: UpdateUserProfileDto) {
+    const user = await this.findById(id);
     if (!user) {
       throw new NotFoundException('Usuario no encontrado');
     }
@@ -140,14 +140,14 @@ export class UsersService {
   }
 
   async updatePassword(
-    publicId: number,
+    id: number,
     currentPassword: string,
     newPassword: string,
   ) {
     const user = await this.usersRepo
       .createQueryBuilder('user')
       .addSelect('user.passwordHash')
-      .where('user.public_id = :publicId', { publicId })
+      .where('user.id = :id', { id })
       .getOne();
 
     if (!user) {
@@ -164,7 +164,7 @@ export class UsersService {
   }
 
   async findUpdateConflict(
-    userId: string,
+    userId: number,
     username: string,
     email: string,
   ): Promise<'username' | 'email' | null> {
@@ -249,7 +249,6 @@ export class UsersService {
     if (emailTaken) {
       return 'email';
     }
-    // El usuario o correo coincide con credencial de otro tenant (login global).
     return 'username';
   }
 
@@ -259,7 +258,7 @@ export class UsersService {
     const department =
       user.role === 'admin' || user.role === 'superadmin' ? 'Gerencia' : '';
     return {
-      id: String(user.publicId),
+      id: String(user.id),
       name: user.displayName ?? user.username,
       firstName,
       lastName,
@@ -272,13 +271,13 @@ export class UsersService {
         ROLE_JOB_TITLES.coordinator,
       photoDataUrl: user.photoDataUrl ?? '',
       role: user.role as AuthUser['role'],
-      companyId: String(user.company?.publicId ?? ''),
+      companyId: String(user.companyId),
       companyName: user.company?.name,
       theme,
       memberSince: toIsoString(user.createdAt),
       department,
       workLocation: user.company?.name ?? '',
-      employeeId: String(user.publicId),
+      employeeId: String(user.id),
       operationalAnalysisEnabled:
         user.company?.operationalAnalysisEnabled ?? true,
       operationalAnalysisChangedAt: toIsoString(
@@ -304,6 +303,8 @@ export class UsersService {
       maintenanceDateControlChangedAt: toIsoString(
         user.company?.maintenanceDateControlChangedAt,
       ),
+      dieselControlEnabled: user.company?.dieselControlEnabled ?? true,
+      dieselControlChangedAt: toIsoString(user.company?.dieselControlChangedAt),
       operationalCenterPostalCode:
         user.company?.operationalCenterPostalCode ?? undefined,
       operationalCenterCityMunicipality:
@@ -332,7 +333,7 @@ export class UsersService {
   }
 
   async createForCompany(
-    companyId: string,
+    companyId: number,
     data: {
       username: string;
       password: string;
@@ -366,7 +367,7 @@ export class UsersService {
     return full;
   }
 
-  async createPreferences(userId: string, theme: ThemeScheme = 'light') {
+  async createPreferences(userId: number, theme: ThemeScheme = 'light') {
     return this.preferencesRepo.save(
       this.preferencesRepo.create({
         userId,
@@ -376,7 +377,7 @@ export class UsersService {
     );
   }
 
-  async updateTheme(userId: string, theme: ThemeScheme) {
+  async updateTheme(userId: number, theme: ThemeScheme) {
     await this.preferencesRepo.update({ userId }, { themeScheme: theme });
   }
 

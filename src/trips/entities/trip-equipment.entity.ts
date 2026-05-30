@@ -5,11 +5,11 @@ import { Trip } from 'src/trips/entities/trip.entity';
 
 @Entity({ schema: TERMINALOPS_SCHEMA, name: 'trip_equipment' })
 export class TripEquipment {
-  @PrimaryColumn({ name: 'trip_id', type: 'uuid' })
-  tripId: string;
+  @PrimaryColumn({ name: 'trip_id', type: 'int' })
+  tripId: number;
 
-  @PrimaryColumn({ name: 'equipment_id', type: 'uuid' })
-  equipmentId: string;
+  @PrimaryColumn({ name: 'equipment_id', type: 'int' })
+  equipmentId: number;
 
   @Column({ type: 'smallint', default: 1 })
   position: number;

@@ -2,7 +2,8 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { serializeUnit } from 'src/common/serializers/unit.serializer';
-import { ResourcePublicIdService } from 'src/common/tenant/resource-public-id.service';
+import { FleetTenureService } from 'src/fleet/fleet-tenure.service';
+import { fleetTenureMapKey } from 'src/fleet/mappers/fleet-asset-tenure.mapper';
 import { FleetMaintenanceEntry } from 'src/units/entities/fleet-maintenance-entry.entity';
 import { UnitFleetDocument } from 'src/units/entities/unit-fleet-document.entity';
 import { UnitFleetProfile } from 'src/units/entities/unit-fleet-profile.entity';
@@ -22,6 +23,8 @@ const UNIT_RELATIONS = [
   'equipment',
 ] as const;
 
+export type UnitsFindAllOptions = { includeTenure?: boolean };
+
 @Injectable()
 export class UnitsService {
   constructor(
@@ -33,73 +36,69 @@ export class UnitsService {
     private readonly maintenanceRepo: Repository<FleetMaintenanceEntry>,
     @InjectRepository(UnitFleetDocument)
     private readonly documentsRepo: Repository<UnitFleetDocument>,
-    private readonly publicIds: ResourcePublicIdService,
+    private readonly fleetTenureService: FleetTenureService,
   ) {}
 
-  async create(companyId: string, companyPublicId: number, dto: CreateUnitDto) {
+  async create(companyId: number, dto: CreateUnitDto) {
     const { fleetMeta, ...core } = dto;
     const saved = await this.repo.save(this.repo.create({ ...core, companyId }));
     if (fleetMeta) {
-      await this.saveFleetMeta(saved.id, fleetMeta);
+      await this.saveFleetMeta(companyId, saved.id, fleetMeta);
     }
-    return this.findOne(companyId, saved.publicId, companyPublicId);
+    return this.findOne(companyId, saved.id);
   }
 
-  async findAll(companyId: string, companyPublicId: number) {
+  async findAll(companyId: number, options?: UnitsFindAllOptions) {
     const rows = await this.repo.find({
       where: { companyId },
       relations: [...UNIT_RELATIONS],
       order: { plate: 'ASC' },
     });
-    return rows.map((row) => serializeUnit(row, companyPublicId));
+    const tenureByKey = options?.includeTenure
+      ? this.fleetTenureService.buildLookupMap(
+          await this.fleetTenureService.findAllForCompany(companyId),
+        )
+      : null;
+    return rows.map((row) =>
+      serializeUnit(row, {
+        tenure: tenureByKey?.get(fleetTenureMapKey({ unitId: row.id })),
+      }),
+    );
   }
 
-  async findOne(
-    companyId: string,
-    unitPublicId: number,
-    companyPublicId: number,
-  ) {
+  async findOne(companyId: number, unitId: number) {
     const row = await this.repo.findOne({
-      where: { companyId, publicId: unitPublicId },
+      where: { companyId, id: unitId },
       relations: [...UNIT_RELATIONS],
     });
     if (!row) {
-      throw new NotFoundException(`Unit ${unitPublicId} not found`);
+      throw new NotFoundException(`Unit ${unitId} not found`);
     }
-    return serializeUnit(row, companyPublicId);
+    const tenure = await this.fleetTenureService.findByUnit(companyId, unitId);
+    return serializeUnit(row, { tenure });
   }
 
-  async update(
-    companyId: string,
-    unitPublicId: number,
-    companyPublicId: number,
-    dto: UpdateUnitDto,
-  ) {
-    const internalId = await this.publicIds.resolveUnitInternalId(
-      companyId,
-      unitPublicId,
-    );
+  async update(companyId: number, unitId: number, dto: UpdateUnitDto) {
+    await this.findOne(companyId, unitId);
     const { fleetMeta, ...core } = dto;
     if (Object.keys(core).length > 0) {
-      await this.repo.update({ id: internalId, companyId }, core);
+      await this.repo.update({ id: unitId, companyId }, core);
     }
     if (fleetMeta !== undefined) {
-      await this.saveFleetMeta(internalId, fleetMeta);
+      await this.saveFleetMeta(companyId, unitId, fleetMeta);
     }
-    return this.findOne(companyId, unitPublicId, companyPublicId);
+    return this.findOne(companyId, unitId);
   }
 
-  async remove(companyId: string, unitPublicId: number) {
-    const internalId = await this.publicIds.resolveUnitInternalId(
-      companyId,
-      unitPublicId,
-    );
-    await this.repo.delete({ id: internalId, companyId });
-    return { id: unitPublicId, deleted: true };
+  async remove(companyId: number, unitId: number) {
+    await this.findOne(companyId, unitId);
+    await this.repo.delete({ id: unitId, companyId });
+    return { id: unitId, deleted: true };
   }
 
   private async saveFleetMeta(
-    unitId: string,
+    companyId: number,
+    unitId: number,
     fleetMeta: NonNullable<CreateUnitDto['fleetMeta']>,
   ): Promise<void> {
     const existing = await this.profileRepo.findOne({ where: { unitId } });
@@ -116,6 +115,8 @@ export class UnitsService {
         ...profileRow,
       }),
     );
+
+    await this.fleetTenureService.upsertFromFleetMeta(companyId, { unitId }, fleetMeta);
 
     if (fleetMeta.maintenanceEntries !== undefined) {
       await this.maintenanceRepo.delete({ unitId });

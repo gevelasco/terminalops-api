@@ -55,7 +55,7 @@ export class CreateTripDto {
   @IsDateString()
   scheduledAt: string;
 
-  @ApiProperty({ enum: ['sencillo', 'full', 'plana'] })
+  @ApiProperty({ example: 'sencillo', description: 'Código de configuración operacional' })
   @IsString()
   operationType: string;
 
@@ -89,10 +89,18 @@ export class CreateTripDto {
   @Min(0)
   creditDays?: number;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ description: 'Distancia OSRM (solo ida)' })
   @IsOptional()
   @IsNumber()
   routeDistanceKm?: number;
+
+  @ApiPropertyOptional({
+    description: 'Si true (default), operationalDistanceKm = routeDistanceKm × 2',
+    default: true,
+  })
+  @IsOptional()
+  @IsBoolean()
+  isRoundTrip?: boolean;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -109,10 +117,96 @@ export class CreateTripDto {
   @IsString()
   dieselAmount?: string;
 
+  @ApiPropertyOptional({
+    description:
+      'Snapshot MXN/L al crear (fuel-estimate). Si omitido, se deriva de litros/monto o FuelPriceService.',
+  })
+  @IsOptional()
+  @IsNumber()
+  dieselPricePerLiterAtCreation?: number;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   clientCharge?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  casetasAmount?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  operatorQuota?: string;
+
+  @ApiPropertyOptional({ enum: ['cash', 'transfer', 'check'] })
+  @IsOptional()
+  @IsString()
+  paymentMethod?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  requiresInvoice?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  originPostalCode?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  originCityMunicipality?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  originLocality?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  destinationPostalCode?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  destinationCityMunicipality?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  destinationLocality?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  operatorLicenseNumber?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  operatorLicenseExpiresLabel?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsDateString()
+  departureAt?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsDateString()
+  arrivedAt?: string;
+
+  @ApiPropertyOptional({
+    enum: ['auto', 'manual'],
+    description: 'Origen del monto de casetas al crear (tarifa operativa vs manual)',
+  })
+  @IsOptional()
+  @IsString()
+  tollCalculationMode?: 'auto' | 'manual';
 
   @ApiPropertyOptional()
   @IsOptional()

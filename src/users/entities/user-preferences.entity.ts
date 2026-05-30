@@ -11,8 +11,8 @@ import { AppUser } from 'src/users/entities/app-user.entity';
 
 @Entity({ schema: TERMINALOPS_SCHEMA, name: 'user_preferences' })
 export class UserPreferences {
-  @PrimaryColumn({ name: 'user_id', type: 'uuid' })
-  userId: string;
+  @PrimaryColumn({ name: 'user_id', type: 'int' })
+  userId: number;
 
   @Column({ name: 'operational_analysis_enabled', default: true })
   operationalAnalysisEnabled: boolean;

@@ -213,6 +213,11 @@ export class CreateUnitFleetMetaDto {
   @IsString()
   insurancePolicyNumber?: string;
 
+  @ApiPropertyOptional({ description: 'Aseguradora o nombre comercial del seguro' })
+  @IsOptional()
+  @IsString()
+  insuranceCarrierName?: string;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()

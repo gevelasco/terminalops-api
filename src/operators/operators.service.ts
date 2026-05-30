@@ -2,7 +2,6 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { serializeOperator } from 'src/common/serializers/operator.serializer';
-import { ResourcePublicIdService } from 'src/common/tenant/resource-public-id.service';
 import { Operator } from 'src/operators/entities/operator.entity';
 import { OperatorDocument } from 'src/operators/entities/operator-document.entity';
 import { OperatorEmergencyContact } from 'src/operators/entities/operator-emergency-contact.entity';
@@ -36,14 +35,9 @@ export class OperatorsService {
     private readonly privateInsuranceRepo: Repository<OperatorPrivateInsurance>,
     @InjectRepository(OperatorDocument)
     private readonly documentsRepo: Repository<OperatorDocument>,
-    private readonly publicIds: ResourcePublicIdService,
   ) {}
 
-  async create(
-    companyId: string,
-    companyPublicId: number,
-    dto: CreateOperatorDto,
-  ) {
+  async create(companyId: number, dto: CreateOperatorDto) {
     const core = this.extractCoreFields(dto);
     const saved = await this.repo.save(
       this.repo.create({
@@ -52,61 +46,43 @@ export class OperatorsService {
       }),
     );
     await this.saveNested(saved.id, dto);
-    return this.findOne(companyId, saved.publicId, companyPublicId);
+    return this.findOne(companyId, saved.id);
   }
 
-  async findAll(companyId: string, companyPublicId: number) {
+  async findAll(companyId: number) {
     const rows = await this.repo.find({
       where: { companyId },
       relations: [...OPERATOR_RELATIONS],
       order: { name: 'ASC' },
     });
-    return rows.map((row) => serializeOperator(row, companyPublicId));
+    return rows.map((row) => serializeOperator(row));
   }
 
-  async findOne(
-    companyId: string,
-    operatorPublicId: number,
-    companyPublicId: number,
-  ) {
+  async findOne(companyId: number, operatorId: number) {
     const row = await this.repo.findOne({
-      where: { companyId, publicId: operatorPublicId },
+      where: { companyId, id: operatorId },
       relations: [...OPERATOR_RELATIONS],
     });
     if (!row) {
-      throw new NotFoundException(`Operator ${operatorPublicId} not found`);
+      throw new NotFoundException(`Operator ${operatorId} not found`);
     }
-    return serializeOperator(row, companyPublicId);
+    return serializeOperator(row);
   }
 
-  async update(
-    companyId: string,
-    operatorPublicId: number,
-    companyPublicId: number,
-    dto: UpdateOperatorDto,
-  ) {
-    const internalId = await this.publicIds.resolveOperatorInternalId(
-      companyId,
-      operatorPublicId,
-    );
+  async update(companyId: number, operatorId: number, dto: UpdateOperatorDto) {
+    await this.findOne(companyId, operatorId);
     const core = this.extractCoreFields(dto);
     if (Object.keys(core).length > 0) {
-      await this.repo.update({ id: internalId, companyId }, core);
+      await this.repo.update({ id: operatorId, companyId }, core);
     }
-    await this.saveNested(internalId, dto);
-    return this.findOne(companyId, operatorPublicId, companyPublicId);
+    await this.saveNested(operatorId, dto);
+    return this.findOne(companyId, operatorId);
   }
 
-  async remove(
-    companyId: string,
-    operatorPublicId: number,
-  ) {
-    const internalId = await this.publicIds.resolveOperatorInternalId(
-      companyId,
-      operatorPublicId,
-    );
-    await this.repo.delete({ id: internalId, companyId });
-    return { id: operatorPublicId, deleted: true };
+  async remove(companyId: number, operatorId: number) {
+    await this.findOne(companyId, operatorId);
+    await this.repo.delete({ id: operatorId, companyId });
+    return { id: operatorId, deleted: true };
   }
 
   private extractCoreFields(
@@ -123,7 +99,7 @@ export class OperatorsService {
   }
 
   private async saveNested(
-    operatorId: string,
+    operatorId: number,
     dto: OperatorNestedPayload,
   ): Promise<void> {
     if (dto.emergencyContact) {
@@ -177,12 +153,12 @@ export class OperatorsService {
         await this.documentsRepo.save(
           await Promise.all(
             dto.documents.map(async (doc, index) => {
-              const internalDocId = await this.resolveDocumentInternalId(
+              const existingDocId = await this.resolveDocumentId(
                 operatorId,
                 doc.id,
               );
               return this.documentsRepo.create({
-                ...(internalDocId ? { id: internalDocId } : {}),
+                ...(existingDocId ? { id: existingDocId } : {}),
                 operatorId,
                 fileName: doc.fileName,
                 slot: doc.slot,
@@ -196,23 +172,19 @@ export class OperatorsService {
     }
   }
 
-  private async resolveDocumentInternalId(
-    operatorId: string,
+  private async resolveDocumentId(
+    operatorId: number,
     ref?: string | number,
-  ): Promise<string | undefined> {
+  ): Promise<number | undefined> {
     if (ref == null || ref === '') {
       return undefined;
     }
-    const raw = typeof ref === 'number' ? String(ref) : ref;
-    if (/^\d+$/.test(raw)) {
-      const row = await this.documentsRepo.findOne({
-        where: { operatorId, publicId: Number(raw) },
-        select: ['id'],
-      });
-      return row?.id;
+    const id = typeof ref === 'number' ? ref : Number(ref);
+    if (!Number.isInteger(id) || id < 1) {
+      return undefined;
     }
     const row = await this.documentsRepo.findOne({
-      where: { operatorId, id: raw },
+      where: { operatorId, id },
       select: ['id'],
     });
     return row?.id;

@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { TenantModule } from 'src/common/tenant/tenant.module';
+import { FleetModule } from 'src/fleet/fleet.module';
 import { FleetMaintenanceEntry } from 'src/units/entities/fleet-maintenance-entry.entity';
 import { UnitFleetDocument } from 'src/units/entities/unit-fleet-document.entity';
 import { UnitFleetProfile } from 'src/units/entities/unit-fleet-profile.entity';
@@ -11,6 +12,7 @@ import { UnitsService } from './units.service';
 @Module({
   imports: [
     TenantModule,
+    FleetModule,
     TypeOrmModule.forFeature([
       Unit,
       UnitFleetProfile,

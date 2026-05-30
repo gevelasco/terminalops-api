@@ -2,15 +2,15 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { serializeClient } from 'src/common/serializers/client.serializer';
-import { ResourcePublicIdService } from 'src/common/tenant/resource-public-id.service';
 import { Client } from 'src/clients/entities/client.entity';
 import { ClientBilling } from 'src/clients/entities/client-billing.entity';
 import { ClientContact } from 'src/clients/entities/client-contact.entity';
+import { ClientDelivery } from 'src/clients/entities/client-delivery.entity';
 import { ClientPaymentTerms } from 'src/clients/entities/client-payment-terms.entity';
 import { CreateClientDto } from './dto/create-client.dto';
 import { UpdateClientDto } from './dto/update-client.dto';
 
-const CLIENT_RELATIONS = ['billing', 'paymentTerms', 'contacts'] as const;
+const CLIENT_RELATIONS = ['billing', 'paymentTerms', 'delivery', 'contacts'] as const;
 
 @Injectable()
 export class ClientsService {
@@ -23,14 +23,11 @@ export class ClientsService {
     private readonly paymentRepo: Repository<ClientPaymentTerms>,
     @InjectRepository(ClientContact)
     private readonly contactsRepo: Repository<ClientContact>,
-    private readonly publicIds: ResourcePublicIdService,
+    @InjectRepository(ClientDelivery)
+    private readonly deliveryRepo: Repository<ClientDelivery>,
   ) {}
 
-  async create(
-    companyId: string,
-    companyPublicId: number,
-    dto: CreateClientDto,
-  ) {
+  async create(companyId: number, dto: CreateClientDto) {
     const client = this.clientsRepo.create({
       companyId,
       name: dto.name,
@@ -40,72 +37,58 @@ export class ClientsService {
     });
     const saved = await this.clientsRepo.save(client);
     await this.saveNested(saved.id, dto);
-    return this.findOne(companyId, saved.publicId, companyPublicId);
+    return this.findOne(companyId, saved.id);
   }
 
-  async findAll(companyId: string, companyPublicId: number) {
+  async findAll(companyId: number) {
     const rows = await this.clientsRepo
       .createQueryBuilder('client')
       .leftJoinAndSelect('client.billing', 'billing')
       .leftJoinAndSelect('client.paymentTerms', 'paymentTerms')
+      .leftJoinAndSelect('client.delivery', 'delivery')
       .leftJoinAndSelect('client.contacts', 'contacts')
       .loadRelationCountAndMap('client.maneuverCount', 'client.trips', 'trip')
       .where('client.companyId = :companyId', { companyId })
       .orderBy('client.name', 'ASC')
       .addOrderBy('contacts.sortOrder', 'ASC')
       .getMany();
-    return rows.map((row) => serializeClient(row, companyPublicId));
+    return rows.map((row) => serializeClient(row));
   }
 
-  async findOne(
-    companyId: string,
-    clientPublicId: number,
-    companyPublicId: number,
-  ) {
+  async findOne(companyId: number, clientId: number) {
     const client = await this.clientsRepo.findOne({
-      where: { companyId, publicId: clientPublicId },
+      where: { companyId, id: clientId },
       relations: [...CLIENT_RELATIONS],
     });
     if (!client) {
-      throw new NotFoundException(`Client ${clientPublicId} not found`);
+      throw new NotFoundException(`Client ${clientId} not found`);
     }
-    return serializeClient(client, companyPublicId);
+    return serializeClient(client);
   }
 
-  async update(
-    companyId: string,
-    clientPublicId: number,
-    companyPublicId: number,
-    dto: UpdateClientDto,
-  ) {
-    const internalId = await this.publicIds.resolveClientInternalId(
-      companyId,
-      clientPublicId,
-    );
-    await this.clientsRepo.update({ id: internalId, companyId }, {
+  async update(companyId: number, clientId: number, dto: UpdateClientDto) {
+    await this.findOne(companyId, clientId);
+    await this.clientsRepo.update({ id: clientId, companyId }, {
       name: dto.name,
       rfc: dto.rfc,
       relationshipStartedOn: dto.relationshipStartedOn,
       notes: dto.notes,
     });
-    if (dto.billing || dto.payment || dto.contacts) {
-      await this.saveNested(internalId, dto);
+    if (dto.billing || dto.payment || dto.contacts || dto.delivery) {
+      await this.saveNested(clientId, dto);
     }
-    return this.findOne(companyId, clientPublicId, companyPublicId);
+    return this.findOne(companyId, clientId);
   }
 
-  async remove(companyId: string, clientPublicId: number) {
-    const internalId = await this.publicIds.resolveClientInternalId(
-      companyId,
-      clientPublicId,
-    );
-    await this.clientsRepo.delete({ id: internalId, companyId });
-    return { id: clientPublicId, deleted: true };
+  async remove(companyId: number, clientId: number) {
+    await this.findOne(companyId, clientId);
+    await this.clientsRepo.delete({ id: clientId, companyId });
+    return { id: clientId, deleted: true };
   }
 
   private async saveNested(
-    clientId: string,
-    dto: Pick<CreateClientDto, 'billing' | 'payment' | 'contacts'>,
+    clientId: number,
+    dto: Pick<CreateClientDto, 'billing' | 'payment' | 'contacts' | 'delivery'>,
   ) {
     if (dto.billing) {
       await this.billingRepo.save(
@@ -127,6 +110,25 @@ export class ClientsService {
             sortOrder: index,
           }),
         ),
+      );
+    }
+    if (dto.delivery) {
+      await this.deliveryRepo.save(
+        this.deliveryRepo.create({
+          clientId,
+          postalCode: dto.delivery.postalCode?.trim() || undefined,
+          cityMunicipality: dto.delivery.cityMunicipality?.trim() || undefined,
+          locality: dto.delivery.locality?.trim() || undefined,
+          settlementConsId: dto.delivery.settlementConsId?.trim() || undefined,
+          latitude:
+            dto.delivery.latitude != null && Number.isFinite(dto.delivery.latitude)
+              ? String(dto.delivery.latitude)
+              : undefined,
+          longitude:
+            dto.delivery.longitude != null && Number.isFinite(dto.delivery.longitude)
+              ? String(dto.delivery.longitude)
+              : undefined,
+        }),
       );
     }
   }

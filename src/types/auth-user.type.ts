@@ -3,7 +3,7 @@ export type UserRole = 'superadmin' | 'admin' | 'coordinator' | 'operator' | 'vi
 export type ThemeScheme = 'light' | 'dark';
 
 export type AuthUser = {
-  /** ID público numérico del usuario (colaborador). */
+  /** ID numérico del usuario (colaborador); string en claims JWT. */
   id: string;
   name: string;
   firstName?: string;
@@ -14,7 +14,7 @@ export type AuthUser = {
   jobTitle?: string;
   photoDataUrl?: string;
   role: UserRole;
-  /** ID público numérico de la empresa (URLs /companies/:id). */
+  /** ID numérico de la empresa (URLs /companies/:id); string en claims JWT. */
   companyId: string;
   companyName?: string;
   theme: ThemeScheme;
@@ -30,6 +30,8 @@ export type AuthUser = {
   maintenanceDatePeriodDefault?: string;
   maintenanceKmControlChangedAt?: string;
   maintenanceDateControlChangedAt?: string;
+  dieselControlEnabled?: boolean;
+  dieselControlChangedAt?: string;
   operationalCenterPostalCode?: string;
   operationalCenterCityMunicipality?: string;
   operationalCenterLocality?: string;

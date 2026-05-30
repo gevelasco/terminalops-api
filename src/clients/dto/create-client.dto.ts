@@ -5,6 +5,7 @@ import {
   IsDateString,
   IsEmail,
   IsInt,
+  IsNumber,
   IsOptional,
   IsString,
   Min,
@@ -65,6 +66,11 @@ export class CreateClientPaymentTermsDto {
   @IsOptional()
   @IsString()
   commercialHealth?: string;
+
+  @ApiPropertyOptional({ enum: ['cash', 'transfer', 'check'] })
+  @IsOptional()
+  @IsString()
+  defaultPaymentMethod?: string;
 }
 
 export class CreateClientContactDto {
@@ -86,6 +92,38 @@ export class CreateClientContactDto {
   @IsOptional()
   @IsEmail()
   email?: string;
+}
+
+export class CreateClientDeliveryDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  postalCode?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  cityMunicipality?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  locality?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  settlementConsId?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber()
+  latitude?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber()
+  longitude?: number;
 }
 
 export class CreateClientDto {
@@ -126,4 +164,10 @@ export class CreateClientDto {
   @ValidateNested({ each: true })
   @Type(() => CreateClientContactDto)
   contacts?: CreateClientContactDto[];
+
+  @ApiPropertyOptional({ type: CreateClientDeliveryDto })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => CreateClientDeliveryDto)
+  delivery?: CreateClientDeliveryDto;
 }

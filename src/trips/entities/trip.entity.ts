@@ -18,14 +18,11 @@ import { Unit } from 'src/units/entities/unit.entity';
 
 @Entity({ schema: TERMINALOPS_SCHEMA, name: 'trips' })
 export class Trip {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
+  @PrimaryGeneratedColumn()
+  id: number;
 
-  @Column({ name: 'public_id', type: 'int', unique: true })
-  publicId: number;
-
-  @Column({ name: 'company_id', type: 'uuid' })
-  companyId: string;
+  @Column({ name: 'company_id', type: 'int' })
+  companyId: number;
 
   @Column({ name: 'maneuver_code' })
   maneuverCode: string;
@@ -36,17 +33,17 @@ export class Trip {
   @Column()
   destination: string;
 
-  @Column({ name: 'client_id', type: 'uuid', nullable: true })
-  clientId?: string;
+  @Column({ name: 'client_id', type: 'int', nullable: true })
+  clientId?: number;
 
   @Column({ name: 'client_name' })
   clientName: string;
 
-  @Column({ name: 'unit_id', type: 'uuid', nullable: true })
-  unitId?: string;
+  @Column({ name: 'unit_id', type: 'int', nullable: true })
+  unitId?: number;
 
-  @Column({ name: 'operator_id', type: 'uuid', nullable: true })
-  operatorId?: string;
+  @Column({ name: 'operator_id', type: 'int', nullable: true })
+  operatorId?: number;
 
   @Column()
   status: string;
@@ -59,6 +56,26 @@ export class Trip {
 
   @Column({ name: 'operation_type' })
   operationType: string;
+
+  @Column({ name: 'operation_configuration_id', type: 'int', nullable: true })
+  operationConfigurationId?: number;
+
+  @Column({ name: 'operation_configuration_name_snapshot', type: 'text', default: '' })
+  operationConfigurationNameSnapshot: string;
+
+  @Column({
+    name: 'operation_configuration_version_snapshot',
+    type: 'int',
+    default: 1,
+  })
+  operationConfigurationVersionSnapshot: number;
+
+  @Column({
+    name: 'operation_configuration_max_equipment_count_snapshot',
+    type: 'smallint',
+    default: 1,
+  })
+  operationConfigurationMaxEquipmentCountSnapshot: number;
 
   @Column({ name: 'load_type' })
   loadType: string;
@@ -90,6 +107,18 @@ export class Trip {
   @Column({ name: 'route_distance_km', type: 'numeric', precision: 10, scale: 2, nullable: true })
   routeDistanceKm?: string;
 
+  @Column({
+    name: 'operational_distance_km',
+    type: 'numeric',
+    precision: 10,
+    scale: 2,
+    nullable: true,
+  })
+  operationalDistanceKm?: string;
+
+  @Column({ name: 'is_round_trip', default: true })
+  isRoundTrip: boolean;
+
   @Column({ name: 'maneuver_kind', nullable: true })
   maneuverKind?: string;
 
@@ -117,14 +146,40 @@ export class Trip {
   @Column({ name: 'operator_license_expires_label', nullable: true })
   operatorLicenseExpiresLabel?: string;
 
+  @Column({ name: 'operator_name_snapshot', nullable: true })
+  operatorNameSnapshot?: string;
+
+  @Column({ name: 'unit_operational_code_snapshot', nullable: true })
+  unitOperationalCodeSnapshot?: string;
+
   @Column({ name: 'diesel_liters', type: 'numeric', precision: 12, scale: 3, nullable: true })
   dieselLiters?: string;
 
   @Column({ name: 'diesel_amount', type: 'numeric', precision: 14, scale: 2, nullable: true })
   dieselAmount?: string;
 
+  /** Precio diesel MXN/L al crear la maniobra (inmutable en updates). */
+  @Column({
+    name: 'diesel_price_per_liter_at_creation',
+    type: 'numeric',
+    precision: 10,
+    scale: 4,
+    nullable: true,
+  })
+  dieselPricePerLiterAtCreation?: string;
+
   @Column({ name: 'casetas_amount', type: 'numeric', precision: 14, scale: 2, nullable: true })
   casetasAmount?: string;
+
+  @Column({ name: 'toll_route_id', type: 'int', nullable: true })
+  tollRouteId?: number;
+
+  @Column({ name: 'toll_calculation_mode', nullable: true })
+  tollCalculationMode?: string;
+
+  /** Casetas solo ida al crear (snapshot inmutable). */
+  @Column({ name: 'route_toll_amount', type: 'numeric', precision: 14, scale: 2, nullable: true })
+  routeTollAmount?: string;
 
   @Column({ name: 'operator_quota', type: 'numeric', precision: 14, scale: 2, nullable: true })
   operatorQuota?: string;

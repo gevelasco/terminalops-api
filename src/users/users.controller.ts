@@ -17,7 +17,7 @@ export class UsersController {
   @Get('me')
   @ApiOperation({ summary: 'Perfil del usuario autenticado' })
   getMe(@LoggedUser() user: AuthUser) {
-    return this.usersService.getProfileByPublicId(Number(user.id));
+    return this.usersService.getProfileById(Number(user.id));
   }
 
   @Patch('me')

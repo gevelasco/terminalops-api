@@ -8,17 +8,18 @@ import {
 } from 'typeorm';
 import { TERMINALOPS_SCHEMA } from 'src/common/constants/schema-name';
 import { Unit } from 'src/units/entities/unit.entity';
+import { Equipment } from 'src/equipment/entities/equipment.entity';
 
 @Entity({ schema: TERMINALOPS_SCHEMA, name: 'fleet_maintenance_entries' })
 export class FleetMaintenanceEntry {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
+  @PrimaryGeneratedColumn()
+  id: number;
 
-  @Column({ name: 'unit_id', type: 'uuid', nullable: true })
-  unitId?: string;
+  @Column({ name: 'unit_id', type: 'int', nullable: true })
+  unitId?: number;
 
-  @Column({ name: 'equipment_id', type: 'uuid', nullable: true })
-  equipmentId?: string;
+  @Column({ name: 'equipment_id', type: 'int', nullable: true })
+  equipmentId?: number;
 
   @Column({ name: 'entry_date', type: 'date', nullable: true })
   entryDate?: string;
@@ -44,4 +45,8 @@ export class FleetMaintenanceEntry {
   @ManyToOne(() => Unit, (u) => u.maintenanceEntries, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'unit_id' })
   unit?: Unit;
+
+  @ManyToOne(() => Equipment, (e) => e.maintenanceEntries, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'equipment_id' })
+  equipment?: Equipment;
 }

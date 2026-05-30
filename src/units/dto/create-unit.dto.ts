@@ -15,10 +15,6 @@ export class CreateUnitDto {
   plate: string;
 
   @ApiProperty()
-  @IsString()
-  type: string;
-
-  @ApiProperty()
   @IsNumber()
   @Min(0)
   capacityKg: number;

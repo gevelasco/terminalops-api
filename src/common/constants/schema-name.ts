@@ -1,2 +1,2 @@
-/** PostgreSQL schema for TerminalOps tables (matches db/initial-schema.sql). */
+/** PostgreSQL schema for TerminalOps tables (see initial migration DDL). */
 export const TERMINALOPS_SCHEMA = 'terminalops';

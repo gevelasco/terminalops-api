@@ -1,14 +1,12 @@
 import { Client } from 'src/clients/entities/client.entity';
 import { ClientContact } from 'src/clients/entities/client-contact.entity';
+import { ClientDelivery } from 'src/clients/entities/client-delivery.entity';
 import { toIsoString } from 'src/common/utils/iso-date.util';
 
-export function serializeClient(
-  client: Client,
-  companyPublicId: number,
-): Record<string, unknown> {
+export function serializeClient(client: Client): Record<string, unknown> {
   return {
-    id: client.publicId,
-    companyId: companyPublicId,
+    id: client.id,
+    companyId: client.companyId,
     name: client.name,
     rfc: client.rfc ?? undefined,
     relationshipStartedOn: client.relationshipStartedOn ?? undefined,
@@ -34,7 +32,11 @@ export function serializeClient(
           creditDays: client.paymentTerms.creditDays,
           approximateCreditAmount: client.paymentTerms.approximateCreditAmount,
           commercialHealth: client.paymentTerms.commercialHealth,
+          defaultPaymentMethod: client.paymentTerms.defaultPaymentMethod ?? undefined,
         }
+      : undefined,
+    delivery: client.delivery
+      ? serializeClientDelivery(client.delivery)
       : undefined,
     contacts: (client.contacts ?? []).map(serializeClientContact),
     createdAt: toIsoString(client.createdAt),
@@ -44,11 +46,24 @@ export function serializeClient(
 
 function serializeClientContact(contact: ClientContact): Record<string, unknown> {
   return {
-    id: contact.publicId,
+    id: contact.id,
     name: contact.name,
     role: contact.role ?? undefined,
     phone: contact.phone ?? undefined,
     email: contact.email ?? undefined,
     sortOrder: contact.sortOrder,
+  };
+}
+
+function serializeClientDelivery(delivery: ClientDelivery): Record<string, unknown> {
+  const lat = delivery.latitude != null ? Number(delivery.latitude) : undefined;
+  const lon = delivery.longitude != null ? Number(delivery.longitude) : undefined;
+  return {
+    postalCode: delivery.postalCode ?? undefined,
+    cityMunicipality: delivery.cityMunicipality ?? undefined,
+    locality: delivery.locality ?? undefined,
+    settlementConsId: delivery.settlementConsId ?? undefined,
+    latitude: lat != null && Number.isFinite(lat) ? lat : undefined,
+    longitude: lon != null && Number.isFinite(lon) ? lon : undefined,
   };
 }

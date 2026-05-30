@@ -15,14 +15,11 @@ import { OperatorPublicInsurance } from 'src/operators/entities/operator-public-
 
 @Entity({ schema: TERMINALOPS_SCHEMA, name: 'operators' })
 export class Operator {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
+  @PrimaryGeneratedColumn()
+  id: number;
 
-  @Column({ name: 'public_id', type: 'int', unique: true })
-  publicId: number;
-
-  @Column({ name: 'company_id', type: 'uuid' })
-  companyId: string;
+  @Column({ name: 'company_id', type: 'int' })
+  companyId: number;
 
   @Column()
   name: string;

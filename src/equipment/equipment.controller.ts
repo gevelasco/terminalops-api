@@ -16,10 +16,6 @@ import type AuthUser from '../types/auth-user.type';
 import { UpdateEquipmentDto } from './dto/update-equipment.dto';
 import { EquipmentService } from './equipment.service';
 
-function companyPublicIdFromUser(user: AuthUser): number {
-  return Number(user.companyId);
-}
-
 @ApiTags('equipment')
 @ApiBearerAuth('access-token')
 @Controller('equipment')
@@ -36,11 +32,7 @@ export class EquipmentController {
     @LoggedUser() user: AuthUser,
   ) {
     const companyId = await this.tenantContext.resolveInternalIdFromAuthUser(user);
-    return this.service.findOne(
-      companyId,
-      equipmentId,
-      companyPublicIdFromUser(user),
-    );
+    return this.service.findOne(companyId, equipmentId);
   }
 
   @Patch(':equipmentId')
@@ -50,12 +42,7 @@ export class EquipmentController {
     @LoggedUser() user: AuthUser,
   ) {
     const companyId = await this.tenantContext.resolveInternalIdFromAuthUser(user);
-    return this.service.update(
-      companyId,
-      equipmentId,
-      companyPublicIdFromUser(user),
-      dto,
-    );
+    return this.service.update(companyId, equipmentId, dto);
   }
 
   @Delete(':equipmentId')

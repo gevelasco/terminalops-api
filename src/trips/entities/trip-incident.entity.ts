@@ -11,14 +11,11 @@ import { Trip } from 'src/trips/entities/trip.entity';
 
 @Entity({ schema: TERMINALOPS_SCHEMA, name: 'trip_incidents' })
 export class TripIncident {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
+  @PrimaryGeneratedColumn()
+  id: number;
 
-  @Column({ name: 'public_id', type: 'int', unique: true })
-  publicId: number;
-
-  @Column({ name: 'trip_id', type: 'uuid' })
-  tripId: string;
+  @Column({ name: 'trip_id', type: 'int' })
+  tripId: number;
 
   @Column()
   description: string;

@@ -4,6 +4,7 @@ import {
   Entity,
   JoinColumn,
   ManyToOne,
+  OneToMany,
   OneToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
@@ -11,20 +12,23 @@ import {
 import { TERMINALOPS_SCHEMA } from 'src/common/constants/schema-name';
 import { EquipmentFleetProfile } from 'src/equipment/entities/equipment-fleet-profile.entity';
 import { Unit } from 'src/units/entities/unit.entity';
+import { FleetMaintenanceEntry } from 'src/units/entities/fleet-maintenance-entry.entity';
+import { EquipmentFleetDocument } from 'src/equipment/entities/equipment-fleet-document.entity';
 
 @Entity({ schema: TERMINALOPS_SCHEMA, name: 'equipment' })
 export class Equipment {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
+  @PrimaryGeneratedColumn()
+  id: number;
 
-  @Column({ name: 'public_id', type: 'int', unique: true })
-  publicId: number;
+  @Column({ name: 'company_id', type: 'int' })
+  companyId: number;
 
-  @Column({ name: 'company_id', type: 'uuid' })
-  companyId: string;
+  @Column({ name: 'unit_id', type: 'int', nullable: true })
+  unitId?: number;
 
-  @Column({ name: 'unit_id', type: 'uuid', nullable: true })
-  unitId?: string;
+  /** `lead` = delantero (pegado al tracto); `rear` = trasero en convoy full. */
+  @Column({ name: 'hitch_position', type: 'text', nullable: true })
+  hitchPosition?: 'lead' | 'rear' | null;
 
   @Column()
   name: string;
@@ -44,6 +48,12 @@ export class Equipment {
   @Column({ nullable: true })
   status?: string;
 
+  @Column({ name: 'trailer_brand_abbr', nullable: true })
+  trailerBrandAbbr?: string;
+
+  @Column({ name: 'trailer_year', nullable: true })
+  trailerYear?: string;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 
@@ -56,4 +66,10 @@ export class Equipment {
 
   @OneToOne(() => EquipmentFleetProfile, (p) => p.equipment)
   fleetProfile?;
+
+  @OneToMany(() => FleetMaintenanceEntry, (e) => e.equipment)
+  maintenanceEntries?: FleetMaintenanceEntry[];
+
+  @OneToMany(() => EquipmentFleetDocument, (d) => d.equipment)
+  fleetDocuments?: EquipmentFleetDocument[];
 }

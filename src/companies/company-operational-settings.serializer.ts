@@ -19,7 +19,7 @@ function dbCoordToApi(value?: string | null): number | undefined {
 
 export function serializeCompanyOperationalSettings(company: Company) {
   return {
-    id: company.publicId,
+    id: company.id,
     name: company.name,
     operationalAnalysisEnabled: company.operationalAnalysisEnabled,
     operationalAnalysisChangedAt: toIsoString(company.operationalAnalysisChangedAt),
@@ -29,6 +29,8 @@ export function serializeCompanyOperationalSettings(company: Company) {
     maintenanceDateControlEnabled: company.maintenanceDateControlEnabled,
     maintenanceDatePeriodDefault: company.maintenanceDatePeriodDefault ?? undefined,
     maintenanceDateControlChangedAt: toIsoString(company.maintenanceDateControlChangedAt),
+    dieselControlEnabled: company.dieselControlEnabled,
+    dieselControlChangedAt: toIsoString(company.dieselControlChangedAt),
     operationalCenterPostalCode: company.operationalCenterPostalCode ?? undefined,
     operationalCenterCityMunicipality:
       company.operationalCenterCityMunicipality ?? undefined,

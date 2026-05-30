@@ -1,10 +1,8 @@
 /** Códigos de invitación válidos (hardcoded hasta tener gestión en BD). */
 export const VALID_INVITATION_CODES = [
-  'VSC-GRUPO-2026-A',
-  'VSC-GRUPO-2026-B',
-  'TERMINAL-INV-001',
-  'TERMINAL-INV-002',
-  'AXOLOTL-ACCESS',
+  'TX9X-GRUP-2026-1V4N',
+  'VK7J-TERM-A995-S4UL',
+  'NBBB-AXOL-994A-G3RM',
 ] as const;
 
 export type InvitationCode = (typeof VALID_INVITATION_CODES)[number];

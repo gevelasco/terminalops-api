@@ -7,14 +7,10 @@ import { toIsoString } from 'src/common/utils/iso-date.util';
 
 export type OperatorApiResponse = Record<string, unknown>;
 
-export function serializeOperator(
-  operator: Operator,
-  companyPublicId: number,
-): OperatorApiResponse {
-  const operatorPublicId = operator.publicId;
+export function serializeOperator(operator: Operator): OperatorApiResponse {
   return {
-    id: operatorPublicId,
-    companyId: companyPublicId,
+    id: operator.id,
+    companyId: operator.companyId,
     name: operator.name,
     portalUsername: operator.portalUsername ?? null,
     photoDataUrl: operator.photoDataUrl ?? '',
@@ -35,26 +31,26 @@ export function serializeOperator(
     createdAt: toIsoString(operator.createdAt),
     updatedAt: toIsoString(operator.updatedAt),
     emergencyContact: operator.emergencyContact
-      ? serializeEmergencyContact(operator.emergencyContact, operatorPublicId)
+      ? serializeEmergencyContact(operator.emergencyContact, operator.id)
       : undefined,
     publicInsurance: operator.publicInsurance
-      ? serializePublicInsurance(operator.publicInsurance, operatorPublicId)
+      ? serializePublicInsurance(operator.publicInsurance, operator.id)
       : undefined,
     privateInsurance: operator.privateInsurance
-      ? serializePrivateInsurance(operator.privateInsurance, operatorPublicId)
+      ? serializePrivateInsurance(operator.privateInsurance, operator.id)
       : undefined,
     documents: (operator.documents ?? []).map((d) =>
-      serializeOperatorDocument(d, operatorPublicId),
+      serializeOperatorDocument(d, operator.id),
     ),
   };
 }
 
 function serializeEmergencyContact(
   row: OperatorEmergencyContact,
-  operatorPublicId: number,
+  operatorId: number,
 ): Record<string, unknown> {
   return {
-    operatorId: operatorPublicId,
+    operatorId,
     name: row.name,
     relationship: row.relationship,
     phone: row.phone,
@@ -66,10 +62,10 @@ function serializeEmergencyContact(
 
 function serializePublicInsurance(
   row: OperatorPublicInsurance,
-  operatorPublicId: number,
+  operatorId: number,
 ): Record<string, unknown> {
   return {
-    operatorId: operatorPublicId,
+    operatorId,
     nss: row.nss,
     imssAltaDate: row.imssAltaDate ?? null,
     infonavit: row.infonavit,
@@ -83,10 +79,10 @@ function serializePublicInsurance(
 
 function serializePrivateInsurance(
   row: OperatorPrivateInsurance,
-  operatorPublicId: number,
+  operatorId: number,
 ): Record<string, unknown> {
   return {
-    operatorId: operatorPublicId,
+    operatorId,
     carrier: row.carrier,
     policyNumber: row.policyNumber,
     validFrom: row.validFrom ?? null,
@@ -101,11 +97,11 @@ function serializePrivateInsurance(
 
 function serializeOperatorDocument(
   row: OperatorDocument,
-  operatorPublicId: number,
+  operatorId: number,
 ): Record<string, unknown> {
   return {
-    id: row.publicId,
-    operatorId: operatorPublicId,
+    id: row.id,
+    operatorId,
     fileName: row.fileName,
     slot: row.slot,
     addedAt: row.addedAt,

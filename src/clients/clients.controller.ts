@@ -20,10 +20,6 @@ import type AuthUser from '../types/auth-user.type';
 import { ClientsService } from './clients.service';
 import { UpdateClientDto } from './dto/update-client.dto';
 
-function companyPublicIdFromUser(user: AuthUser): number {
-  return Number(user.companyId);
-}
-
 @ApiTags('clients')
 @ApiBearerAuth('access-token')
 @Controller('clients')
@@ -35,17 +31,13 @@ export class ClientsController {
   ) {}
 
   @Get(':clientId')
-  @ApiOperation({ summary: 'Get client by public id (tenant-scoped)' })
+  @ApiOperation({ summary: 'Get client by id (tenant-scoped)' })
   async findOne(
     @Param('clientId', ParseIntPipe) clientId: number,
     @LoggedUser() user: AuthUser,
   ) {
     const companyId = await this.tenantContext.resolveInternalIdFromAuthUser(user);
-    return this.clientsService.findOne(
-      companyId,
-      clientId,
-      companyPublicIdFromUser(user),
-    );
+    return this.clientsService.findOne(companyId, clientId);
   }
 
   @Patch(':clientId')
@@ -55,12 +47,7 @@ export class ClientsController {
     @LoggedUser() user: AuthUser,
   ) {
     const companyId = await this.tenantContext.resolveInternalIdFromAuthUser(user);
-    return this.clientsService.update(
-      companyId,
-      clientId,
-      companyPublicIdFromUser(user),
-      dto,
-    );
+    return this.clientsService.update(companyId, clientId, dto);
   }
 
   @Delete(':clientId')

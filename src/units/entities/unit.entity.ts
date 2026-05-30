@@ -15,20 +15,14 @@ import { UnitFleetProfile } from 'src/units/entities/unit-fleet-profile.entity';
 
 @Entity({ schema: TERMINALOPS_SCHEMA, name: 'units' })
 export class Unit {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
+  @PrimaryGeneratedColumn()
+  id: number;
 
-  @Column({ name: 'public_id', type: 'int', unique: true })
-  publicId: number;
-
-  @Column({ name: 'company_id', type: 'uuid' })
-  companyId: string;
+  @Column({ name: 'company_id', type: 'int' })
+  companyId: number;
 
   @Column()
   plate: string;
-
-  @Column()
-  type: string;
 
   @Column({ name: 'capacity_kg', type: 'int' })
   capacityKg: number;

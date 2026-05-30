@@ -16,10 +16,6 @@ import type AuthUser from '../types/auth-user.type';
 import { UpdateOperatorDto } from './dto/update-operator.dto';
 import { OperatorsService } from './operators.service';
 
-function companyPublicIdFromUser(user: AuthUser): number {
-  return Number(user.companyId);
-}
-
 @ApiTags('operators')
 @ApiBearerAuth('access-token')
 @Controller('operators')
@@ -36,11 +32,7 @@ export class OperatorsController {
     @LoggedUser() user: AuthUser,
   ) {
     const companyId = await this.tenantContext.resolveInternalIdFromAuthUser(user);
-    return this.service.findOne(
-      companyId,
-      operatorId,
-      companyPublicIdFromUser(user),
-    );
+    return this.service.findOne(companyId, operatorId);
   }
 
   @Patch(':operatorId')
@@ -50,12 +42,7 @@ export class OperatorsController {
     @LoggedUser() user: AuthUser,
   ) {
     const companyId = await this.tenantContext.resolveInternalIdFromAuthUser(user);
-    return this.service.update(
-      companyId,
-      operatorId,
-      companyPublicIdFromUser(user),
-      dto,
-    );
+    return this.service.update(companyId, operatorId, dto);
   }
 
   @Delete(':operatorId')

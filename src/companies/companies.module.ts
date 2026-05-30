@@ -6,6 +6,8 @@ import { UnitsModule } from '../units/units.module';
 import { EquipmentModule } from '../equipment/equipment.module';
 import { TripsModule } from '../trips/trips.module';
 import { ExpensesModule } from '../expenses/expenses.module';
+import { DestinationRatesModule } from '../destination-rates/destination-rates.module';
+import { OperationConfigurationsModule } from '../operation-configurations/operation-configurations.module';
 import { DashboardModule } from '../dashboard/dashboard.module';
 import { Company } from 'src/companies/entities/company.entity';
 import { CompaniesController } from './companies.controller';
@@ -20,6 +22,8 @@ import { CompaniesService } from './companies.service';
     EquipmentModule,
     TripsModule,
     ExpensesModule,
+    DestinationRatesModule,
+    OperationConfigurationsModule,
     DashboardModule,
   ],
   controllers: [CompaniesController],

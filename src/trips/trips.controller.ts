@@ -19,10 +19,6 @@ import { CancelTripDto } from './dto/cancel-trip.dto';
 import { UpdateTripDto } from './dto/update-trip.dto';
 import { TripsService } from './trips.service';
 
-function companyPublicIdFromUser(user: AuthUser): number {
-  return Number(user.companyId);
-}
-
 @ApiTags('trips')
 @ApiBearerAuth('access-token')
 @Controller('trips')
@@ -39,7 +35,7 @@ export class TripsController {
     @LoggedUser() user: AuthUser,
   ) {
     const companyId = await this.tenantContext.resolveInternalIdFromAuthUser(user);
-    return this.service.findOne(companyId, tripId, companyPublicIdFromUser(user));
+    return this.service.findOne(companyId, tripId);
   }
 
   @Patch(':tripId')
@@ -49,12 +45,7 @@ export class TripsController {
     @LoggedUser() user: AuthUser,
   ) {
     const companyId = await this.tenantContext.resolveInternalIdFromAuthUser(user);
-    return this.service.update(
-      companyId,
-      tripId,
-      companyPublicIdFromUser(user),
-      dto,
-    );
+    return this.service.update(companyId, tripId, dto);
   }
 
   @Post(':tripId/cancel')
@@ -65,12 +56,7 @@ export class TripsController {
     @LoggedUser() user: AuthUser,
   ) {
     const companyId = await this.tenantContext.resolveInternalIdFromAuthUser(user);
-    return this.service.cancel(
-      companyId,
-      tripId,
-      companyPublicIdFromUser(user),
-      dto,
-    );
+    return this.service.cancel(companyId, tripId, dto);
   }
 
   @Post(':tripId/incidents')
@@ -80,12 +66,7 @@ export class TripsController {
     @LoggedUser() user: AuthUser,
   ) {
     const companyId = await this.tenantContext.resolveInternalIdFromAuthUser(user);
-    return this.service.addIncident(
-      companyId,
-      tripId,
-      companyPublicIdFromUser(user),
-      dto,
-    );
+    return this.service.addIncident(companyId, tripId, dto);
   }
 
   @Patch(':tripId/client-collected')
@@ -95,12 +76,7 @@ export class TripsController {
     @LoggedUser() user: AuthUser,
   ) {
     const companyId = await this.tenantContext.resolveInternalIdFromAuthUser(user);
-    return this.service.setClientCollected(
-      companyId,
-      tripId,
-      companyPublicIdFromUser(user),
-      collected,
-    );
+    return this.service.setClientCollected(companyId, tripId, collected);
   }
 
   @Delete(':tripId')
