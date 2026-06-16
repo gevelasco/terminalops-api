@@ -3,6 +3,13 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { serializeUnit } from 'src/common/serializers/unit.serializer';
 import { FleetTenureService } from 'src/fleet/fleet-tenure.service';
+import { FleetBrandsService } from 'src/fleet/fleet-brands.service';
+import {
+  FLEET_BRAND_TYPE_UNIT,
+  resolveFleetBrandNameFromPayload,
+  resolveFleetVersionNameFromPayload,
+} from 'src/fleet/utils/fleet-brand-from-payload.util';
+import { TripFleetStatusSyncService } from 'src/trips/lifecycle/trip-fleet-status-sync.service';
 import { fleetTenureMapKey } from 'src/fleet/mappers/fleet-asset-tenure.mapper';
 import { FleetMaintenanceEntry } from 'src/units/entities/fleet-maintenance-entry.entity';
 import { UnitFleetDocument } from 'src/units/entities/unit-fleet-document.entity';
@@ -37,10 +44,13 @@ export class UnitsService {
     @InjectRepository(UnitFleetDocument)
     private readonly documentsRepo: Repository<UnitFleetDocument>,
     private readonly fleetTenureService: FleetTenureService,
+    private readonly fleetStatusSync: TripFleetStatusSyncService,
+    private readonly fleetBrandsService: FleetBrandsService,
   ) {}
 
   async create(companyId: number, dto: CreateUnitDto) {
     const { fleetMeta, ...core } = dto;
+    await this.ensureUnitBrand(companyId, fleetMeta, core.trailerBrandAbbr);
     const saved = await this.repo.save(this.repo.create({ ...core, companyId }));
     if (fleetMeta) {
       await this.saveFleetMeta(companyId, saved.id, fleetMeta);
@@ -49,6 +59,8 @@ export class UnitsService {
   }
 
   async findAll(companyId: number, options?: UnitsFindAllOptions) {
+    await this.fleetStatusSync.reconcileCompanyFleetOperationalStatus(companyId);
+
     const rows = await this.repo.find({
       where: { companyId },
       relations: [...UNIT_RELATIONS],
@@ -81,6 +93,7 @@ export class UnitsService {
   async update(companyId: number, unitId: number, dto: UpdateUnitDto) {
     await this.findOne(companyId, unitId);
     const { fleetMeta, ...core } = dto;
+    await this.ensureUnitBrand(companyId, fleetMeta, core.trailerBrandAbbr);
     if (Object.keys(core).length > 0) {
       await this.repo.update({ id: unitId, companyId }, core);
     }
@@ -141,6 +154,29 @@ export class UnitsService {
           documentRows.map((row) => this.documentsRepo.create(row)),
         );
       }
+    }
+  }
+
+  private async ensureUnitBrand(
+    companyId: number,
+    fleetMeta: CreateUnitDto['fleetMeta'] | UpdateUnitDto['fleetMeta'] | undefined,
+    trailerBrandAbbr?: string,
+  ): Promise<void> {
+    const brandName = resolveFleetBrandNameFromPayload(fleetMeta, trailerBrandAbbr);
+    if (!brandName) {
+      return;
+    }
+    const brand = await this.fleetBrandsService.findOrCreateBrand(
+      companyId,
+      FLEET_BRAND_TYPE_UNIT,
+      brandName,
+    );
+    if (!brand) {
+      return;
+    }
+    const versionName = resolveFleetVersionNameFromPayload(fleetMeta);
+    if (versionName) {
+      await this.fleetBrandsService.findOrCreateVersion(brand.id, versionName);
     }
   }
 }

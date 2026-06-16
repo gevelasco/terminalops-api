@@ -1,4 +1,12 @@
-import { IsEmail, IsIn, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import {
+  IsBoolean,
+  IsEmail,
+  IsIn,
+  IsOptional,
+  IsString,
+  MaxLength,
+  MinLength,
+} from 'class-validator';
 
 export class UpdateUserProfileDto {
   @IsOptional()
@@ -35,4 +43,8 @@ export class UpdateUserProfileDto {
   @IsOptional()
   @IsIn(['light', 'dark'])
   theme?: 'light' | 'dark';
+
+  @IsOptional()
+  @IsBoolean()
+  controlAutomaticRecognition?: boolean;
 }

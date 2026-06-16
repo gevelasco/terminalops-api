@@ -9,6 +9,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { Client } from 'src/clients/entities/client.entity';
+import { DestinationRate } from 'src/destination-rates/entities/destination-rate.entity';
 import { TERMINALOPS_SCHEMA } from 'src/common/constants/schema-name';
 import { Equipment } from 'src/equipment/entities/equipment.entity';
 import { Operator } from 'src/operators/entities/operator.entity';
@@ -47,12 +48,6 @@ export class Trip {
 
   @Column()
   status: string;
-
-  @Column({ name: 'programmed_at', type: 'timestamptz' })
-  programmedAt: Date;
-
-  @Column({ name: 'scheduled_at', type: 'timestamptz' })
-  scheduledAt: Date;
 
   @Column({ name: 'operation_type' })
   operationType: string;
@@ -98,6 +93,42 @@ export class Trip {
   @Column({ name: 'return_at', type: 'timestamptz', nullable: true })
   returnAt?: Date;
 
+  @Column({ name: 'planned_departure_at', type: 'timestamptz' })
+  plannedDepartureAt: Date;
+
+  @Column({ name: 'planned_arrival_at', type: 'timestamptz' })
+  plannedArrivalAt: Date;
+
+  @Column({ name: 'planned_completion_at', type: 'timestamptz' })
+  plannedCompletionAt: Date;
+
+  @Column({ name: 'status_changed_at', type: 'timestamptz', nullable: true })
+  statusChangedAt?: Date;
+
+  @Column({ name: 'status_changed_by', nullable: true })
+  statusChangedBy?: string;
+
+  @Column({ name: 'completed_at', type: 'timestamptz', nullable: true })
+  completedAt?: Date;
+
+  @Column({ name: 'is_delayed', default: false })
+  isDelayed: boolean;
+
+  @Column({ name: 'delay_phase', nullable: true })
+  delayPhase?: string;
+
+  @Column({ name: 'delay_departure_minutes', type: 'int', nullable: true })
+  delayDepartureMinutes?: number;
+
+  @Column({ name: 'delay_arrival_minutes', type: 'int', nullable: true })
+  delayArrivalMinutes?: number;
+
+  @Column({ name: 'delay_completion_minutes', type: 'int', nullable: true })
+  delayCompletionMinutes?: number;
+
+  @Column({ name: 'open_incident_count', type: 'int', default: 0 })
+  openIncidentCount: number;
+
   @Column({ name: 'credit_days', type: 'int', default: 0 })
   creditDays: number;
 
@@ -139,6 +170,9 @@ export class Trip {
 
   @Column({ name: 'destination_locality', nullable: true })
   destinationLocality?: string;
+
+  @Column({ name: 'destination_rate_id', type: 'int', nullable: true })
+  destinationRateId?: number;
 
   @Column({ name: 'operator_license_number', nullable: true })
   operatorLicenseNumber?: string;
@@ -222,6 +256,10 @@ export class Trip {
   @ManyToOne(() => Operator, { onDelete: 'SET NULL' })
   @JoinColumn({ name: 'operator_id' })
   operator?: Operator;
+
+  @ManyToOne(() => DestinationRate, (rate) => rate.trips, { onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'destination_rate_id' })
+  destinationRate?: DestinationRate;
 
   @OneToMany(() => TripEquipment, (te) => te.trip)
   tripEquipment?: TripEquipment[];

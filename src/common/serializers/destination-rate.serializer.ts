@@ -25,12 +25,49 @@ export function serializeDestinationRate(
   row: DestinationRate,
 ): Record<string, unknown> {
   const prices = (row.prices ?? []).map((p) => serializeDestinationRatePrice(p));
+  const originCenter = row.originOperationalCenter;
   return {
     id: row.id,
     companyId: row.companyId,
+    originOperationalCenterId:
+      originCenter?.id ?? row.originOperationalCenterId,
+    originOperationalCenterName: originCenter?.name,
+    originOperationalCenterCode: originCenter?.code,
+    originPostalCode: row.originPostalCode,
+    originCityMunicipality: row.originCityMunicipality,
+    originLocality: row.originLocality,
+    originLatitude:
+      row.originLatitude != null ? Number(row.originLatitude) : undefined,
+    originLongitude:
+      row.originLongitude != null ? Number(row.originLongitude) : undefined,
     postalCode: row.postalCode,
     cityMunicipality: row.cityMunicipality,
     locality: row.locality,
+    destinationLatitude:
+      row.destinationLatitude != null ? Number(row.destinationLatitude) : undefined,
+    destinationLongitude:
+      row.destinationLongitude != null ? Number(row.destinationLongitude) : undefined,
+    routeDistanceKm:
+      row.routeDistanceKm != null ? Number(row.routeDistanceKm) : undefined,
+    operationalDistanceKm:
+      row.operationalDistanceKm != null
+        ? Number(row.operationalDistanceKm)
+        : undefined,
+    isRoundTrip: row.isRoundTrip,
+    distanceCalculatedAt: row.distanceCalculatedAt
+      ? toIsoString(row.distanceCalculatedAt)
+      : undefined,
+    estimatedArrivalTimeValue:
+      row.estimatedArrivalTimeValue != null
+        ? Number(row.estimatedArrivalTimeValue)
+        : undefined,
+    estimatedReturnTimeValue:
+      row.estimatedReturnTimeValue != null
+        ? Number(row.estimatedReturnTimeValue)
+        : undefined,
+    estimatedTimeUnit: row.estimatedTimeUnit ?? undefined,
+    maneuverCount:
+      typeof row.maneuverCount === 'number' ? row.maneuverCount : undefined,
     prices,
     active: row.active,
     notes: row.notes ?? undefined,

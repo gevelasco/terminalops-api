@@ -47,13 +47,31 @@ export class CreateTripDto {
   @IsString()
   status: string;
 
-  @ApiProperty()
+  /**
+   * Contrato frontend (obligatorio): el cliente MUST enviar plannedDepartureAt,
+   * plannedArrivalAt y plannedCompletionAt. Sin estos valores el backend rechaza
+   * la creación con 400.
+   */
+  @ApiProperty({
+    description:
+      'REQUIRED — Salida planificada de patio (planned_departure_at). El frontend MUST enviar este campo.',
+  })
   @IsDateString()
-  programmedAt: string;
+  plannedDepartureAt: string;
 
-  @ApiProperty()
+  @ApiProperty({
+    description:
+      'REQUIRED — Llegada planificada a destino (planned_arrival_at). El frontend MUST enviar este campo.',
+  })
   @IsDateString()
-  scheduledAt: string;
+  plannedArrivalAt: string;
+
+  @ApiProperty({
+    description:
+      'REQUIRED — Fin planificado de maniobra (planned_completion_at). El frontend MUST enviar este campo.',
+  })
+  @IsDateString()
+  plannedCompletionAt: string;
 
   @ApiProperty({ example: 'sencillo', description: 'Código de configuración operacional' })
   @IsString()
@@ -200,6 +218,11 @@ export class CreateTripDto {
   @IsDateString()
   arrivedAt?: string;
 
+  @ApiPropertyOptional({ description: 'Fin planificado legacy (alias de plannedCompletionAt)' })
+  @IsOptional()
+  @IsDateString()
+  returnAt?: string;
+
   @ApiPropertyOptional({
     enum: ['auto', 'manual'],
     description: 'Origen del monto de casetas al crear (tarifa operativa vs manual)',
@@ -212,4 +235,14 @@ export class CreateTripDto {
   @IsOptional()
   @IsBoolean()
   hasClientBilling?: boolean;
+
+  @ApiPropertyOptional({ description: 'ID público de la tarifa origen→destino aplicada' })
+  @IsOptional()
+  @IsString()
+  destinationRateId?: string;
+
+  @ApiPropertyOptional({ description: 'ID público del centro operativo de origen' })
+  @IsOptional()
+  @IsString()
+  originOperationalCenterId?: string;
 }

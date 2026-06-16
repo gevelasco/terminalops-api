@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { FleetModule } from 'src/fleet/fleet.module';
 import { Operator } from 'src/operators/entities/operator.entity';
 import { OperatorDocument } from 'src/operators/entities/operator-document.entity';
 import { OperatorEmergencyContact } from 'src/operators/entities/operator-emergency-contact.entity';
@@ -10,6 +11,7 @@ import { OperatorsService } from './operators.service';
 
 @Module({
   imports: [
+    FleetModule,
     TypeOrmModule.forFeature([
       Operator,
       OperatorEmergencyContact,

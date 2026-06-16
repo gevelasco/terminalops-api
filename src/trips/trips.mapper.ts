@@ -4,6 +4,7 @@ import { Equipment } from 'src/equipment/entities/equipment.entity';
 import { Trip } from 'src/trips/entities/trip.entity';
 import { TripIncident } from 'src/trips/entities/trip-incident.entity';
 import { tripDieselPricePerLiterAtCreation } from 'src/trips/trip-diesel-price.util';
+import { exposeTripActualSchedule } from 'src/trips/actual-schedule/resolve-exposed-actual-schedule';
 import { operationalKmFromStoredTrip } from 'src/trips/trip-operational-distance.util';
 import { buildUnitOperationalId } from 'src/common/utils/unit-operational-id.util';
 
@@ -44,6 +45,7 @@ export function mapTripToResponse(
     const row = equipmentCatalog.find((e) => e.id === id);
     return row?.id ?? id;
   });
+  const exposedActual = exposeTripActualSchedule(trip);
 
   return {
     id: trip.id,
@@ -60,8 +62,19 @@ export function mapTripToResponse(
     operatorName: resolveOperatorDisplayName(trip),
     unitOperationalCode: resolveUnitDisplayCode(trip),
     status: trip.status,
-    programmedAt: trip.programmedAt.toISOString(),
-    scheduledAt: trip.scheduledAt.toISOString(),
+    createdAt: trip.createdAt.toISOString(),
+    plannedDepartureAt: trip.plannedDepartureAt.toISOString(),
+    plannedArrivalAt: trip.plannedArrivalAt.toISOString(),
+    plannedCompletionAt: trip.plannedCompletionAt.toISOString(),
+    statusChangedAt: trip.statusChangedAt?.toISOString() ?? null,
+    statusChangedBy: trip.statusChangedBy ?? null,
+    completedAt: trip.completedAt?.toISOString() ?? null,
+    isDelayed: trip.isDelayed ?? false,
+    delayPhase: trip.delayPhase ?? 'none',
+    delayDepartureMinutes: trip.delayDepartureMinutes ?? null,
+    delayArrivalMinutes: trip.delayArrivalMinutes ?? null,
+    delayCompletionMinutes: trip.delayCompletionMinutes ?? null,
+    openIncidentCount: trip.openIncidentCount ?? 0,
     operationType: trip.operationType,
     operationConfigurationId: trip.operationConfigurationId ?? null,
     operationConfigurationCode: trip.operationType,
@@ -75,9 +88,9 @@ export function mapTripToResponse(
     approximateWeightTons: trip.approximateWeightTons,
     equipment: equipmentLabels,
     equipmentIds: equipmentPublicIds,
-    departureAt: trip.departureAt?.toISOString() ?? null,
-    arrivedAt: trip.arrivedAt?.toISOString() ?? null,
-    returnAt: trip.returnAt?.toISOString() ?? null,
+    departureAt: exposedActual.departureAt?.toISOString() ?? null,
+    arrivedAt: exposedActual.arrivedAt?.toISOString() ?? null,
+    returnAt: exposedActual.returnAt?.toISOString() ?? null,
     creditDays: trip.creditDays,
     hasIncident: trip.hasIncident,
     incidents: (trip.incidents ?? []).map((i) => mapIncident(i, authorLookup)),
@@ -95,6 +108,7 @@ export function mapTripToResponse(
     destinationPostalCode: trip.destinationPostalCode,
     destinationCityMunicipality: trip.destinationCityMunicipality,
     destinationLocality: trip.destinationLocality,
+    destinationRateId: trip.destinationRateId ?? null,
     operatorLicenseNumber: trip.operatorLicenseNumber,
     operatorLicenseExpiresLabel: trip.operatorLicenseExpiresLabel,
     dieselLiters: trip.dieselLiters?.toString(),
@@ -125,5 +139,10 @@ function mapIncident(i: TripIncident, authorLookup?: IncidentAuthorLookup) {
       ? formatIncidentAuthorLabel(i.postedBy, authorLookup)
       : i.postedBy,
     severity: i.severity,
+    status: i.status ?? 'open',
+    category: i.category ?? undefined,
+    openedAt: (i.openedAt ?? i.occurredAt).toISOString(),
+    closedAt: i.closedAt?.toISOString() ?? null,
+    resolutionNotes: i.resolutionNotes ?? undefined,
   };
 }

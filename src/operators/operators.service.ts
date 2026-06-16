@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { serializeOperator } from 'src/common/serializers/operator.serializer';
+import { TripFleetStatusSyncService } from 'src/trips/lifecycle/trip-fleet-status-sync.service';
 import { Operator } from 'src/operators/entities/operator.entity';
 import { OperatorDocument } from 'src/operators/entities/operator-document.entity';
 import { OperatorEmergencyContact } from 'src/operators/entities/operator-emergency-contact.entity';
@@ -35,6 +36,7 @@ export class OperatorsService {
     private readonly privateInsuranceRepo: Repository<OperatorPrivateInsurance>,
     @InjectRepository(OperatorDocument)
     private readonly documentsRepo: Repository<OperatorDocument>,
+    private readonly fleetStatusSync: TripFleetStatusSyncService,
   ) {}
 
   async create(companyId: number, dto: CreateOperatorDto) {
@@ -50,6 +52,8 @@ export class OperatorsService {
   }
 
   async findAll(companyId: number) {
+    await this.fleetStatusSync.reconcileCompanyFleetOperationalStatus(companyId);
+
     const rows = await this.repo.find({
       where: { companyId },
       relations: [...OPERATOR_RELATIONS],

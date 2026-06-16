@@ -1,6 +1,8 @@
 import {
   BadRequestException,
   Injectable,
+  InternalServerErrorException,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -12,7 +14,9 @@ import {
 import { parseOptionalNumericId } from 'src/common/utils/tenant.util';
 import { AppUser } from 'src/users/entities/app-user.entity';
 import { Client } from 'src/clients/entities/client.entity';
+import { Company } from 'src/companies/entities/company.entity';
 import { Equipment } from 'src/equipment/entities/equipment.entity';
+import { ExpensesService } from 'src/expenses/expenses.service';
 import { Operator } from 'src/operators/entities/operator.entity';
 import { Trip } from 'src/trips/entities/trip.entity';
 import { TripEquipment } from 'src/trips/entities/trip-equipment.entity';
@@ -21,9 +25,13 @@ import { Unit } from 'src/units/entities/unit.entity';
 import { AddIncidentDto } from './dto/add-incident.dto';
 import { CancelTripDto } from './dto/cancel-trip.dto';
 import { CreateTripDto } from './dto/create-trip.dto';
+import { UpdateActualScheduleDto } from './dto/update-actual-schedule.dto';
 import { UpdateTripDto } from './dto/update-trip.dto';
+import type { ClientCargoHistoryResponseDto } from './dto/client-cargo-history.dto';
 import { mapTripToResponse } from './trips.mapper';
 import { FuelPriceService } from 'src/fuel/fuel-price.service';
+import { DestinationRatesService } from 'src/destination-rates/destination-rates.service';
+import { OperationalCentersService } from 'src/operational-centers/operational-centers.service';
 import { OperationConfigurationsService } from 'src/operation-configurations/operation-configurations.service';
 import { buildUnitOperationalId } from 'src/common/utils/unit-operational-id.util';
 import { normalizeOperationConfigCode } from 'src/common/utils/operation-config-code.util';
@@ -32,9 +40,37 @@ import {
   formatManeuverCode,
   maneuverCodePrefixFromClientName,
 } from './maneuver-code.util';
+import {
+  MISSING_PLANNED_FIELDS_REASON,
+  parseRequiredPlannedScheduleFromCreateDto,
+  REQUIRED_PLANNED_SCHEDULE_MESSAGE,
+  validatePlannedScheduleUpdate,
+} from './lifecycle/resolve-planned-schedule';
+import { TripFleetStatusSyncService } from './lifecycle/trip-fleet-status-sync.service';
+import { TripLifecycleService } from './lifecycle/trip-lifecycle.service';
+import { rejectLegacyScheduleFields } from './reject-legacy-trip-schedule-fields';
+import { SCHEDULE_UPDATE_INCIDENT_CATEGORY } from './actual-schedule/actual-schedule.constants';
+import type { ActualScheduleFieldKey } from './actual-schedule/actual-schedule.constants';
+import { buildConsolidatedScheduleUpdateIncidentDescription } from './actual-schedule/actual-schedule-incident.util';
+import {
+  applyActualScheduleDeltas,
+  assertActualScheduleChronology,
+  detectActualScheduleDeltas,
+  parseOptionalIsoDate,
+  rejectDisallowedActualScheduleBodyKeys,
+} from './actual-schedule/actual-schedule-update.util';
+import type AuthUser from 'src/types/auth-user.type';
+import type { TripsMapResponseDto } from './dto/trip-map-item.dto';
+import {
+  buildTripsMapMeta,
+  mapTripToMapItem,
+  type TripGeoResolverContext,
+} from './trip-geo-resolver.util';
 
 @Injectable()
 export class TripsService {
+  private readonly logger = new Logger(TripsService.name);
+
   constructor(
     @InjectRepository(Trip)
     private readonly tripsRepo: Repository<Trip>,
@@ -46,6 +82,8 @@ export class TripsService {
     private readonly equipmentRepo: Repository<Equipment>,
     @InjectRepository(Client)
     private readonly clientsRepo: Repository<Client>,
+    @InjectRepository(Company)
+    private readonly companiesRepo: Repository<Company>,
     @InjectRepository(Unit)
     private readonly unitsRepo: Repository<Unit>,
     @InjectRepository(Operator)
@@ -54,6 +92,11 @@ export class TripsService {
     private readonly usersRepo: Repository<AppUser>,
     private readonly fuelPriceService: FuelPriceService,
     private readonly operationConfigurations: OperationConfigurationsService,
+    private readonly destinationRates: DestinationRatesService,
+    private readonly operationalCenters: OperationalCentersService,
+    private readonly tripLifecycle: TripLifecycleService,
+    private readonly fleetStatusSync: TripFleetStatusSyncService,
+    private readonly expensesService: ExpensesService,
   ) {}
 
   private tripRelations = [
@@ -69,12 +112,114 @@ export class TripsService {
       this.tripsRepo.find({
         where: { companyId },
         relations: [...this.tripRelations],
-        order: { scheduledAt: 'DESC' },
+        order: { createdAt: 'DESC' },
       }),
       this.equipmentRepo.find({ where: { companyId } }),
       this.loadAuthorLookup(companyId),
     ]);
     return trips.map((t) => mapTripToResponse(t, equipment, authorLookup));
+  }
+
+  async findForMap(companyId: number): Promise<TripsMapResponseDto> {
+    const [trips, defaultCenter, operationalCenters] = await Promise.all([
+      this.tripsRepo
+        .createQueryBuilder('trip')
+        .leftJoinAndSelect('trip.destinationRate', 'rate')
+        .leftJoinAndSelect('trip.client', 'client')
+        .leftJoinAndSelect('client.delivery', 'delivery')
+        .where('trip.companyId = :companyId', { companyId })
+        .andWhere('trip.status IN (:...statuses)', {
+          statuses: ['scheduled', 'in_transit'],
+        })
+        .orderBy('trip.plannedDepartureAt', 'ASC')
+        .getMany(),
+      this.operationalCenters.getDefaultEntity(companyId),
+      this.operationalCenters.findAllEntities(companyId),
+    ]);
+
+    const items = await Promise.all(
+      trips.map(async (trip) => {
+        const matchedRateDestination =
+          await this.resolveMatchedRateDestinationForMap(
+            companyId,
+            trip,
+            defaultCenter.id,
+          );
+        const ctx: TripGeoResolverContext = {
+          defaultCenter,
+          operationalCenters,
+          matchedRateDestination,
+        };
+        return mapTripToMapItem(trip, ctx);
+      }),
+    );
+
+    return {
+      items,
+      meta: buildTripsMapMeta(items),
+    };
+  }
+
+  private async resolveMatchedRateDestinationForMap(
+    companyId: number,
+    trip: Trip,
+    defaultCenterId: number,
+  ): Promise<TripGeoResolverContext['matchedRateDestination']> {
+    const rate = trip.destinationRate;
+    if (
+      this.hasGeoCoords(rate?.destinationLatitude, rate?.destinationLongitude)
+    ) {
+      return null;
+    }
+
+    const delivery = trip.client?.delivery;
+    if (this.hasGeoCoords(delivery?.latitude, delivery?.longitude)) {
+      return null;
+    }
+
+    const destinationPostalCode = trip.destinationPostalCode?.trim();
+    const destinationLocality = trip.destinationLocality?.trim();
+    if (!destinationPostalCode || !destinationLocality) {
+      return null;
+    }
+
+    const matched = await this.destinationRates.findMatchingRate(companyId, {
+      originOperationalCenterId: defaultCenterId,
+      destinationPostalCode,
+      destinationLocality,
+    });
+    if (!matched) {
+      return null;
+    }
+
+    return {
+      destinationLatitude: matched.destinationLatitude,
+      destinationLongitude: matched.destinationLongitude,
+      originLatitude: matched.originLatitude,
+      originLongitude: matched.originLongitude,
+      postalCode: matched.postalCode,
+      locality: matched.locality,
+      cityMunicipality: matched.cityMunicipality,
+    };
+  }
+
+  private hasGeoCoords(
+    latitude: string | number | null | undefined,
+    longitude: string | number | null | undefined,
+  ): boolean {
+    const lat =
+      latitude == null || latitude === ''
+        ? NaN
+        : typeof latitude === 'number'
+          ? latitude
+          : Number(latitude);
+    const lng =
+      longitude == null || longitude === ''
+        ? NaN
+        : typeof longitude === 'number'
+          ? longitude
+          : Number(longitude);
+    return Number.isFinite(lat) && Number.isFinite(lng);
   }
 
   async findOne(companyId: number, tripId: number) {
@@ -86,7 +231,72 @@ export class TripsService {
     return mapTripToResponse(trip, equipment, authorLookup);
   }
 
-  async create(companyId: number, dto: CreateTripDto) {
+  async findClientCargoHistory(
+    companyId: number,
+    clientIdRef: string,
+  ): Promise<ClientCargoHistoryResponseDto> {
+    const clientId = await this.resolveClientId(companyId, clientIdRef);
+    if (!clientId) {
+      return { items: [] };
+    }
+
+    const rows = await this.tripsRepo.find({
+      where: { companyId, clientId },
+      select: {
+        cargoDescription: true,
+        operationType: true,
+        containerType: true,
+        loadType: true,
+        approximateWeightTons: true,
+        createdAt: true,
+      },
+      order: { createdAt: 'DESC' },
+    });
+
+    const seen = new Set<string>();
+    const items: ClientCargoHistoryResponseDto['items'] = [];
+
+    for (const row of rows) {
+      const raw = row.cargoDescription?.trim() ?? '';
+      if (!raw) {
+        continue;
+      }
+      const key = this.normalizeCargoDescription(raw);
+      if (seen.has(key)) {
+        continue;
+      }
+      seen.add(key);
+      items.push({
+        description: raw,
+        operationType: row.operationType,
+        containerType: row.containerType,
+        loadType: row.loadType,
+        approximateWeightTons: row.approximateWeightTons?.trim() ?? '',
+      });
+    }
+
+    return { items };
+  }
+
+  async create(
+    companyId: number,
+    dto: CreateTripDto,
+    rawBody: Record<string, unknown> = {},
+  ) {
+    rejectLegacyScheduleFields(rawBody);
+    let planned;
+    try {
+      planned = parseRequiredPlannedScheduleFromCreateDto(dto);
+    } catch (err) {
+      if (
+        err instanceof BadRequestException &&
+        err.message === REQUIRED_PLANNED_SCHEDULE_MESSAGE
+      ) {
+        this.logInvalidCreateAttempt(companyId, dto);
+      }
+      throw err;
+    }
+
     const seq = await this.nextManeuverSequence(companyId);
     const prefix = maneuverCodePrefixFromClientName(dto.clientName ?? '');
     const maneuverCode =
@@ -103,8 +313,31 @@ export class TripsService {
     }
 
     const isRoundTrip = dto.isRoundTrip !== false;
+    const defaultOriginCenter = await this.operationalCenters.getDefaultEntity(companyId);
+    const originCenterId =
+      parseOptionalNumericId(dto.originOperationalCenterId) ??
+      defaultOriginCenter.id;
+    const destinationRateId = await this.destinationRates.resolveRateIdForTrip(
+      companyId,
+      dto.destinationRateId,
+      {
+        originOperationalCenterId: originCenterId,
+        destinationPostalCode: dto.destinationPostalCode,
+        destinationLocality: dto.destinationLocality,
+      },
+    );
+    let routeDistanceKm = dto.routeDistanceKm;
+    if (destinationRateId != null && routeDistanceKm == null) {
+      const matchedRate = await this.destinationRates.getRateEntity(
+        companyId,
+        destinationRateId,
+      );
+      if (matchedRate?.routeDistanceKm) {
+        routeDistanceKm = Number(matchedRate.routeDistanceKm);
+      }
+    }
     const distanceFields = this.resolveDistanceFieldsForPersist(
-      dto.routeDistanceKm,
+      routeDistanceKm,
       isRoundTrip,
     );
 
@@ -134,6 +367,9 @@ export class TripsService {
         : Promise.resolve(null),
     ]);
 
+    const initialStatus = dto.status ?? 'scheduled';
+    const createdAt = new Date();
+
     const entity = this.tripsRepo.create({
       companyId,
       maneuverCode,
@@ -143,9 +379,14 @@ export class TripsService {
       clientName: dto.clientName,
       unitId: resolvedUnitId,
       operatorId: resolvedOperatorId,
-      status: dto.status ?? 'scheduled',
-      programmedAt: new Date(dto.programmedAt),
-      scheduledAt: new Date(dto.scheduledAt),
+      status: initialStatus,
+      plannedDepartureAt: planned.plannedDepartureAt,
+      plannedArrivalAt: planned.plannedArrivalAt,
+      plannedCompletionAt: planned.plannedCompletionAt,
+      statusChangedAt: createdAt,
+      statusChangedBy: 'system',
+      isDelayed: false,
+      openIncidentCount: 0,
       operationType: operationSnapshot.code,
       operationConfigurationId: operationSnapshot.id,
       operationConfigurationNameSnapshot: operationSnapshot.nameSnapshot,
@@ -175,18 +416,19 @@ export class TripsService {
       destinationPostalCode: dto.destinationPostalCode,
       destinationCityMunicipality: dto.destinationCityMunicipality,
       destinationLocality: dto.destinationLocality,
+      destinationRateId,
       operatorLicenseNumber: dto.operatorLicenseNumber,
       operatorLicenseExpiresLabel: dto.operatorLicenseExpiresLabel,
       operatorNameSnapshot: operatorRow?.name?.trim() || undefined,
       unitOperationalCodeSnapshot: unitRow
         ? buildUnitOperationalId(unitRow)
         : undefined,
-      departureAt: dto.departureAt ? new Date(dto.departureAt) : undefined,
-      arrivedAt: dto.arrivedAt ? new Date(dto.arrivedAt) : undefined,
       tollCalculationMode: dto.tollCalculationMode,
       hasClientBilling: dto.hasClientBilling ?? !!dto.clientName?.trim(),
     });
-    const trip = await this.tripsRepo.save(entity);
+    let trip = await this.tripsRepo.save(entity);
+
+    await this.tripLifecycle.applyLifecycleChainForTrip(trip, new Date(), 'system');
 
     if (dto.equipmentIds?.length) {
       const equipmentIds = await this.resolveEquipmentIds(
@@ -196,25 +438,69 @@ export class TripsService {
       await this.syncEquipment(trip.id, equipmentIds);
     }
 
+    const tripForFleetSync = await this.getTripEntity(companyId, trip.id);
+    await this.fleetStatusSync.syncForTrip(tripForFleetSync);
+
+    const company = await this.companiesRepo.findOne({
+      where: { id: companyId },
+      select: ['id', 'operationalAnalysisEnabled'],
+    });
+    if (company?.operationalAnalysisEnabled !== false) {
+      try {
+        await this.expensesService.createAutoExpensesForTrip(companyId, trip);
+      } catch (err) {
+        this.logger.error(
+          `Auto expenses failed for trip ${trip.id} (company ${companyId})`,
+          err instanceof Error ? err.stack : String(err),
+        );
+        await this.rollbackCreatedTrip(companyId, trip.id);
+        throw new InternalServerErrorException(
+          'No se pudo crear la maniobra: falló el registro de gastos automáticos.',
+        );
+      }
+    }
+
     return this.findOne(companyId, trip.id);
   }
 
-  async update(companyId: number, tripId: number, dto: UpdateTripDto) {
-    await this.getTripEntity(companyId, tripId);
+  async update(
+    companyId: number,
+    tripId: number,
+    dto: UpdateTripDto,
+    rawBody: Record<string, unknown> = {},
+  ) {
+    rejectLegacyScheduleFields(rawBody);
+    const trip = await this.getTripEntity(companyId, tripId);
+    const previousUnitId = trip.unitId ?? null;
+    const previousOperatorId = trip.operatorId ?? null;
+    const previousEquipmentIds = (trip.tripEquipment ?? []).map(
+      (row) => row.equipmentId,
+    );
     const {
       equipmentIds,
-      programmedAt,
-      scheduledAt,
+      plannedDepartureAt,
+      plannedArrivalAt,
+      plannedCompletionAt,
       routeDistanceKm,
       isRoundTrip,
       clientId,
       unitId,
       operatorId,
       operationType,
+      departureAt: _ignoredDepartureAt,
+      arrivedAt: _ignoredArrivedAt,
+      returnAt: _ignoredReturnAt,
       dieselPricePerLiterAtCreation: _immutablePrice,
       tollCalculationMode: _immutableTollMode,
+      destinationRateId: _destinationRateId,
+      originOperationalCenterId: _originOperationalCenterId,
       ...rest
     } = dto;
+    const plannedPatch = validatePlannedScheduleUpdate(trip, {
+      plannedDepartureAt,
+      plannedArrivalAt,
+      plannedCompletionAt,
+    });
     const distanceFields =
       routeDistanceKm !== undefined
         ? this.resolveDistanceFieldsForPersist(
@@ -238,8 +524,15 @@ export class TripsService {
           operationConfigurationMaxEquipmentCountSnapshot:
             operationPatch.maxEquipmentCountSnapshot,
         }),
-        ...(programmedAt && { programmedAt: new Date(programmedAt) }),
-        ...(scheduledAt && { scheduledAt: new Date(scheduledAt) }),
+        ...(plannedPatch.plannedDepartureAt && {
+          plannedDepartureAt: plannedPatch.plannedDepartureAt,
+        }),
+        ...(plannedPatch.plannedArrivalAt && {
+          plannedArrivalAt: plannedPatch.plannedArrivalAt,
+        }),
+        ...(plannedPatch.plannedCompletionAt && {
+          plannedCompletionAt: plannedPatch.plannedCompletionAt,
+        }),
         ...(distanceFields && {
           routeDistanceKm: distanceFields.routeDistanceKm,
           operationalDistanceKm: distanceFields.operationalDistanceKm,
@@ -269,6 +562,67 @@ export class TripsService {
       );
       await this.syncEquipment(tripId, resolvedEquipmentIds);
     }
+
+    const resourceAssignmentChanged =
+      unitId !== undefined ||
+      operatorId !== undefined ||
+      equipmentIds !== undefined;
+
+    const updatedTrip = await this.getTripEntity(companyId, tripId);
+    if (resourceAssignmentChanged) {
+      const releasedUnitIds: number[] = [];
+      const releasedOperatorIds: number[] = [];
+      const releasedEquipmentIds: number[] = [];
+
+      if (
+        unitId !== undefined &&
+        previousUnitId != null &&
+        previousUnitId !== updatedTrip.unitId
+      ) {
+        releasedUnitIds.push(previousUnitId);
+      }
+      if (
+        operatorId !== undefined &&
+        previousOperatorId != null &&
+        previousOperatorId !== updatedTrip.operatorId
+      ) {
+        releasedOperatorIds.push(previousOperatorId);
+      }
+      if (equipmentIds !== undefined) {
+        const currentEquipmentIdSet = new Set(
+          (updatedTrip.tripEquipment ?? []).map((row) => row.equipmentId),
+        );
+        for (const equipmentId of previousEquipmentIds) {
+          if (!currentEquipmentIdSet.has(equipmentId)) {
+            releasedEquipmentIds.push(equipmentId);
+          }
+        }
+      }
+
+      await this.fleetStatusSync.syncForTripAfterUpdate(
+        {
+          id: updatedTrip.id,
+          companyId: updatedTrip.companyId,
+          status: updatedTrip.status,
+          unitId: updatedTrip.unitId,
+          operatorId: updatedTrip.operatorId,
+        },
+        {
+          unitIds: releasedUnitIds,
+          operatorIds: releasedOperatorIds,
+          equipmentIds: releasedEquipmentIds,
+        },
+      );
+    } else {
+      await this.fleetStatusSync.syncForTrip({
+        id: updatedTrip.id,
+        companyId: updatedTrip.companyId,
+        status: updatedTrip.status,
+        unitId: updatedTrip.unitId,
+        operatorId: updatedTrip.operatorId,
+      });
+    }
+
     return this.findOne(companyId, tripId);
   }
 
@@ -293,20 +647,149 @@ export class TripsService {
         cancellationNote: note || undefined,
       },
     );
+    await this.fleetStatusSync.syncForTrip({
+      id: trip.id,
+      companyId: trip.companyId,
+      status: 'cancelled',
+      unitId: trip.unitId,
+      operatorId: trip.operatorId,
+    });
     return this.findOne(companyId, tripId);
   }
 
   async addIncident(companyId: number, tripId: number, dto: AddIncidentDto) {
     const trip = await this.getTripEntity(companyId, tripId);
+    const openedAt = new Date();
     await this.incidentsRepo.save(
       this.incidentsRepo.create({
         tripId: trip.id,
         description: dto.description.trim(),
         postedBy: dto.postedBy.trim(),
-        occurredAt: new Date(),
+        occurredAt: openedAt,
+        status: 'open',
+        openedAt,
+        category: dto.category?.trim() || 'other',
       }),
     );
-    await this.tripsRepo.update({ id: trip.id, companyId }, { hasIncident: true });
+    await this.tripsRepo.update(
+      { id: trip.id, companyId },
+      {
+        hasIncident: true,
+        openIncidentCount: (trip.openIncidentCount ?? 0) + 1,
+      },
+    );
+    return this.findOne(companyId, tripId);
+  }
+
+  async updateActualSchedule(
+    companyId: number,
+    tripId: number,
+    dto: UpdateActualScheduleDto,
+    rawBody: Record<string, unknown>,
+    user: AuthUser,
+  ) {
+    rejectDisallowedActualScheduleBodyKeys(rawBody);
+    const trip = await this.getTripEntity(companyId, tripId);
+
+    if (trip.status !== 'in_transit') {
+      throw new BadRequestException(
+        'Solo maniobras en curso pueden actualizar fechas reales.',
+      );
+    }
+
+    const hasAnyDateField =
+      dto.departureAt !== undefined ||
+      dto.arrivedAt !== undefined ||
+      dto.returnAt !== undefined;
+
+    if (!hasAnyDateField) {
+      throw new BadRequestException(
+        'Indica al menos una fecha real para actualizar.',
+      );
+    }
+
+    const incoming: Partial<Record<ActualScheduleFieldKey, Date>> = {};
+    if (dto.departureAt !== undefined) {
+      incoming.departureAt = parseOptionalIsoDate(
+        dto.departureAt,
+        'departureAt',
+      )!;
+    }
+    if (dto.arrivedAt !== undefined) {
+      incoming.arrivedAt = parseOptionalIsoDate(dto.arrivedAt, 'arrivedAt')!;
+    }
+    if (dto.returnAt !== undefined) {
+      incoming.returnAt = parseOptionalIsoDate(dto.returnAt, 'returnAt')!;
+    }
+
+    const current = {
+      departureAt: trip.departureAt ?? null,
+      arrivedAt: trip.arrivedAt ?? null,
+      returnAt: trip.returnAt ?? null,
+    };
+
+    const deltas = detectActualScheduleDeltas(current, incoming);
+    if (deltas.length === 0) {
+      throw new BadRequestException('No hay cambios en fechas reales.');
+    }
+
+    if (
+      trip.status === 'in_transit' &&
+      deltas.some((delta) => delta.field === 'departureAt')
+    ) {
+      throw new BadRequestException(
+        'No se puede modificar la salida real en maniobras en curso.',
+      );
+    }
+
+    const justification = dto.justification?.trim() ?? '';
+    if (!justification) {
+      throw new BadRequestException(
+        'La justificación es obligatoria cuando se modifican fechas reales.',
+      );
+    }
+
+    const nextValues = applyActualScheduleDeltas(current, deltas);
+    assertActualScheduleChronology(nextValues, {
+      plannedDepartureAt: trip.plannedDepartureAt,
+      plannedArrivalAt: trip.plannedArrivalAt,
+      plannedCompletionAt: trip.plannedCompletionAt,
+    });
+
+    const patch: Partial<Pick<typeof trip, 'departureAt' | 'arrivedAt' | 'returnAt'>> =
+      {};
+    for (const delta of deltas) {
+      patch[delta.field] = delta.next;
+    }
+
+    await this.tripsRepo.update({ id: trip.id, companyId }, patch);
+
+    const openedAt = new Date();
+    const authorDisplayName = user.name?.trim() || user.username?.trim() || 'Usuario';
+    await this.incidentsRepo.save(
+      this.incidentsRepo.create({
+        tripId: trip.id,
+        description: buildConsolidatedScheduleUpdateIncidentDescription({
+          deltas,
+          planned: {
+            plannedDepartureAt: trip.plannedDepartureAt,
+            plannedArrivalAt: trip.plannedArrivalAt,
+            plannedCompletionAt: trip.plannedCompletionAt,
+          },
+          justification,
+          authorDisplayName,
+        }),
+        postedBy: user.username.trim(),
+        occurredAt: openedAt,
+        status: 'closed',
+        openedAt,
+        closedAt: openedAt,
+        category: SCHEDULE_UPDATE_INCIDENT_CATEGORY,
+      }),
+    );
+
+    await this.tripLifecycle.refreshDelayMetricsForTrip(trip.id, openedAt);
+
     return this.findOne(companyId, tripId);
   }
 
@@ -339,6 +822,23 @@ export class TripsService {
     await this.getTripEntity(companyId, tripId);
     await this.tripsRepo.delete({ id: tripId, companyId });
     return { id: tripId, deleted: true };
+  }
+
+  private logInvalidCreateAttempt(
+    companyId: number,
+    dto: CreateTripDto,
+  ): void {
+    this.logger.warn({
+      event_type: 'trip.invalid_create_attempt',
+      reason: MISSING_PLANNED_FIELDS_REASON,
+      companyId,
+      clientName: dto.clientName,
+      origin: dto.origin,
+      destination: dto.destination,
+      hasPlannedDepartureAt: Boolean(dto.plannedDepartureAt?.trim()),
+      hasPlannedArrivalAt: Boolean(dto.plannedArrivalAt?.trim()),
+      hasPlannedCompletionAt: Boolean(dto.plannedCompletionAt?.trim()),
+    });
   }
 
   private async getTripEntity(companyId: number, tripId: number) {
@@ -393,6 +893,18 @@ export class TripsService {
     if (rows.length) {
       await this.tripEquipmentRepo.save(rows);
     }
+  }
+
+  private normalizeCargoDescription(value: string): string {
+    return value.trim().replace(/\s+/g, ' ');
+  }
+
+  private async rollbackCreatedTrip(
+    companyId: number,
+    tripId: number,
+  ): Promise<void> {
+    await this.tripEquipmentRepo.delete({ tripId });
+    await this.tripsRepo.delete({ id: tripId, companyId });
   }
 
   private async resolveClientId(

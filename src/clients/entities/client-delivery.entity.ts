@@ -2,12 +2,14 @@ import {
   Column,
   Entity,
   JoinColumn,
+  ManyToOne,
   OneToOne,
   PrimaryColumn,
   UpdateDateColumn,
 } from 'typeorm';
 import { Client } from 'src/clients/entities/client.entity';
 import { TERMINALOPS_SCHEMA } from 'src/common/constants/schema-name';
+import { DestinationRate } from 'src/destination-rates/entities/destination-rate.entity';
 
 @Entity({ schema: TERMINALOPS_SCHEMA, name: 'client_delivery' })
 export class ClientDelivery {
@@ -32,8 +34,18 @@ export class ClientDelivery {
   @Column({ type: 'numeric', precision: 10, scale: 7, nullable: true })
   longitude?: string;
 
+  @Column({ name: 'destination_rate_id', type: 'int', nullable: true })
+  destinationRateId?: number;
+
+  @Column({ name: 'is_unpriced_route', default: false })
+  isUnpricedRoute: boolean;
+
   @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
   updatedAt: Date;
+
+  @ManyToOne(() => DestinationRate, { onDelete: 'SET NULL', nullable: true })
+  @JoinColumn({ name: 'destination_rate_id' })
+  destinationRate?: DestinationRate;
 
   @OneToOne(() => Client, (c) => c.delivery, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'client_id' })

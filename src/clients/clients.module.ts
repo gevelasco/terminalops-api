@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { DestinationRatesModule } from 'src/destination-rates/destination-rates.module';
+import { OperationalCentersModule } from 'src/operational-centers/operational-centers.module';
 import { Client } from 'src/clients/entities/client.entity';
 import { ClientBilling } from 'src/clients/entities/client-billing.entity';
 import { ClientContact } from 'src/clients/entities/client-contact.entity';
@@ -17,6 +19,8 @@ import { ClientsService } from './clients.service';
       ClientContact,
       ClientDelivery,
     ]),
+    DestinationRatesModule,
+    OperationalCentersModule,
   ],
   controllers: [ClientsController],
   providers: [ClientsService],

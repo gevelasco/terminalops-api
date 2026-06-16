@@ -34,7 +34,7 @@ FROM terminalops.companies c
 CROSS JOIN (
   VALUES
     ('sencillo', 'Sencillo', 1::smallint),
-    ('full', 'Full', 2::smallint),
+    ('full', 'Doble articulado', 2::smallint),
     ('plana', 'Plana', 1::smallint)
 ) AS v(code, name, max_equipment_count)
 ON CONFLICT DO NOTHING;

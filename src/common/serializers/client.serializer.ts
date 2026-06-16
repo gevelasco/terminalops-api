@@ -65,5 +65,7 @@ function serializeClientDelivery(delivery: ClientDelivery): Record<string, unkno
     settlementConsId: delivery.settlementConsId ?? undefined,
     latitude: lat != null && Number.isFinite(lat) ? lat : undefined,
     longitude: lon != null && Number.isFinite(lon) ? lon : undefined,
+    destinationRateId: delivery.destinationRateId ?? undefined,
+    isUnpricedRoute: delivery.isUnpricedRoute ?? false,
   };
 }

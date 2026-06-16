@@ -8,8 +8,10 @@ import {
   Patch,
   Post,
   Query,
+  Req,
   UseGuards,
 } from '@nestjs/common';
+import type { Request } from 'express';
 import {
   ApiBearerAuth,
   ApiOperation,
@@ -35,9 +37,13 @@ import { ExpensesService } from '../expenses/expenses.service';
 import { CreateExpenseDto } from '../expenses/dto/create-expense.dto';
 import { DestinationRatesService } from '../destination-rates/destination-rates.service';
 import { CreateDestinationRateDto } from '../destination-rates/dto/create-destination-rate.dto';
+import { CheckDestinationRateRouteQueryDto } from '../destination-rates/dto/check-destination-rate-route.dto';
 import { OperationConfigurationsService } from '../operation-configurations/operation-configurations.service';
 import { CreateOperationConfigurationDto } from '../operation-configurations/dto/create-operation-configuration.dto';
+import { OperationalCentersService } from '../operational-centers/operational-centers.service';
 import { DashboardService } from '../dashboard/dashboard.service';
+import { FleetOverviewService } from '../fleet/fleet-overview.service';
+import { FleetBrandsService } from '../fleet/fleet-brands.service';
 import { CompaniesService } from './companies.service';
 import { UpdateCompanyOperationalSettingsDto } from './dto/update-company-operational-settings.dto';
 import { serializeCompanyOperationalSettings } from './company-operational-settings.serializer';
@@ -47,6 +53,17 @@ import { serializeCompanyOperationalSettings } from './company-operational-setti
 function parseIncludeFleetTenure(value?: string): boolean {
   const v = value?.trim().toLowerCase();
   return v === '1' || v === 'true' || v === 'yes';
+}
+
+function parseTripIdsQuery(value?: string): number[] | undefined {
+  if (value == null || value.trim() === '') {
+    return undefined;
+  }
+  const ids = value
+    .split(',')
+    .map((part) => Number(part.trim()))
+    .filter((id) => Number.isFinite(id) && id > 0);
+  return ids;
 }
 
 @ApiTags('companies')
@@ -65,7 +82,10 @@ export class CompaniesController {
     private readonly expensesService: ExpensesService,
     private readonly destinationRatesService: DestinationRatesService,
     private readonly operationConfigurationsService: OperationConfigurationsService,
+    private readonly operationalCentersService: OperationalCentersService,
     private readonly dashboardService: DashboardService,
+    private readonly fleetOverviewService: FleetOverviewService,
+    private readonly fleetBrandsService: FleetBrandsService,
   ) {}
 
   @Get(':companyId')
@@ -76,7 +96,8 @@ export class CompaniesController {
   ) {
     assertCompanyAccess(user, companyId);
     const company = await this.companiesService.findOne(companyId);
-    return serializeCompanyOperationalSettings(company);
+    const center = await this.operationalCentersService.getDefaultEntity(companyId);
+    return serializeCompanyOperationalSettings(company, center.name);
   }
 
   @Patch(':companyId/settings/operational')
@@ -91,7 +112,22 @@ export class CompaniesController {
       companyId,
       dto,
     );
-    return serializeCompanyOperationalSettings(company);
+    const center = await this.operationalCentersService.getDefaultEntity(companyId);
+    return serializeCompanyOperationalSettings(company, center.name);
+  }
+
+  @Get(':companyId/clients/:clientId/cargo-history')
+  @ApiOperation({ summary: 'Historial de cargas del cliente (desde maniobras)' })
+  async getClientCargoHistory(
+    @Param('companyId', ParseIntPipe) companyId: number,
+    @Param('clientId') clientId: string,
+    @LoggedUser() user: AuthUser,
+  ) {
+    const tenantId = await this.companiesService.assertAccessAndResolve(
+      user,
+      companyId,
+    );
+    return this.tripsService.findClientCargoHistory(tenantId, clientId);
   }
 
   @Get(':companyId/clients')
@@ -200,6 +236,19 @@ export class CompaniesController {
     return this.equipmentService.create(tenantId, dto);
   }
 
+  @Get(':companyId/trips/map')
+  @ApiOperation({ summary: 'Maniobras activas con coordenadas resueltas para mapa operativo' })
+  async listTripsMap(
+    @Param('companyId', ParseIntPipe) companyId: number,
+    @LoggedUser() user: AuthUser,
+  ) {
+    const tenantId = await this.companiesService.assertAccessAndResolve(
+      user,
+      companyId,
+    );
+    return this.tripsService.findForMap(tenantId);
+  }
+
   @Get(':companyId/trips')
   async listTrips(
     @Param('companyId', ParseIntPipe) companyId: number,
@@ -216,13 +265,14 @@ export class CompaniesController {
   async createTrip(
     @Param('companyId', ParseIntPipe) companyId: number,
     @Body() dto: CreateTripDto,
+    @Req() req: Request,
     @LoggedUser() user: AuthUser,
   ) {
     const tenantId = await this.companiesService.assertAccessAndResolve(
       user,
       companyId,
     );
-    return this.tripsService.create(tenantId, dto);
+    return this.tripsService.create(tenantId, dto, req.body as Record<string, unknown>);
   }
 
   @Post(':companyId/trips/fuel-estimate')
@@ -266,6 +316,33 @@ export class CompaniesController {
       companyId,
     );
     return this.operationConfigurationsService.create(tenantId, dto);
+  }
+
+  @Get(':companyId/operational-centers')
+  @ApiOperation({ summary: 'Centros operativos de la empresa' })
+  async listOperationalCenters(
+    @Param('companyId', ParseIntPipe) companyId: number,
+    @LoggedUser() user: AuthUser,
+  ) {
+    const tenantId = await this.companiesService.assertAccessAndResolve(
+      user,
+      companyId,
+    );
+    return this.operationalCentersService.findAll(tenantId);
+  }
+
+  @Get(':companyId/destination-rates/check-exists')
+  @ApiOperation({ summary: 'Verificar si ya existe tarifa para una ruta origen→destino' })
+  async checkDestinationRateExists(
+    @Param('companyId', ParseIntPipe) companyId: number,
+    @Query() query: CheckDestinationRateRouteQueryDto,
+    @LoggedUser() user: AuthUser,
+  ) {
+    const tenantId = await this.companiesService.assertAccessAndResolve(
+      user,
+      companyId,
+    );
+    return this.destinationRatesService.checkRouteExists(tenantId, query);
   }
 
   @Get(':companyId/destination-rates')
@@ -317,6 +394,36 @@ export class CompaniesController {
       companyId,
     );
     return this.expensesService.create(tenantId, dto);
+  }
+
+  @Get(':companyId/fleet/catalog')
+  @ApiOperation({ summary: 'Catálogo de marcas de Flota (unidades y equipos)' })
+  async fleetCatalog(
+    @Param('companyId', ParseIntPipe) companyId: number,
+    @LoggedUser() user: AuthUser,
+  ) {
+    const tenantId = await this.companiesService.assertAccessAndResolve(
+      user,
+      companyId,
+    );
+    return this.fleetBrandsService.listCatalog(tenantId);
+  }
+
+  @Get(':companyId/fleet/overview')
+  @ApiOperation({
+    summary: 'Read model UI de Flota (unidades, convoy, maniobras activas, mantenimiento)',
+  })
+  async fleetOverview(
+    @Param('companyId', ParseIntPipe) companyId: number,
+    @LoggedUser() user: AuthUser,
+    @Query('tripIds') tripIds?: string,
+  ) {
+    const tenantId = await this.companiesService.assertAccessAndResolve(
+      user,
+      companyId,
+    );
+    const parsedTripIds = parseTripIdsQuery(tripIds);
+    return this.fleetOverviewService.listOverview(tenantId, parsedTripIds);
   }
 
   @Get(':companyId/dashboard/alerts')

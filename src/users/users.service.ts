@@ -37,14 +37,14 @@ export class UsersService {
   findOne(where: FindOptionsWhere<AppUser>) {
     return this.usersRepo.findOne({
       where,
-      relations: ['company', 'preferences'],
+      relations: ['company', 'company.primaryOperationalCenter', 'preferences'],
     });
   }
 
   findById(id: number) {
     return this.usersRepo.findOne({
       where: { id },
-      relations: ['company', 'preferences'],
+      relations: ['company', 'company.primaryOperationalCenter', 'preferences'],
     });
   }
 
@@ -77,6 +77,11 @@ export class UsersService {
       department,
       workLocation: user.company?.name ?? '',
       employeeId: String(user.id),
+      controlAutomaticRecognition:
+        user.preferences?.controlAutomaticRecognition ?? false,
+      controlAutomaticRecognitionChangedAt: toIsoString(
+        user.preferences?.controlAutomaticRecognitionChangedAt,
+      ),
     };
   }
 
@@ -130,6 +135,13 @@ export class UsersService {
 
     if (dto.theme) {
       await this.updateTheme(user.id, dto.theme);
+    }
+
+    if (dto.controlAutomaticRecognition !== undefined) {
+      await this.updateControlAutomaticRecognition(
+        user.id,
+        dto.controlAutomaticRecognition,
+      );
     }
 
     const fresh = await this.findOne({ id: user.id });
@@ -305,6 +317,14 @@ export class UsersService {
       ),
       dieselControlEnabled: user.company?.dieselControlEnabled ?? true,
       dieselControlChangedAt: toIsoString(user.company?.dieselControlChangedAt),
+      controlAutomaticRecognition:
+        user.preferences?.controlAutomaticRecognition ?? false,
+      controlAutomaticRecognitionChangedAt: toIsoString(
+        user.preferences?.controlAutomaticRecognitionChangedAt,
+      ),
+      operationalCenterName:
+        user.company?.primaryOperationalCenter?.name?.trim() ||
+        'Centro Principal',
       operationalCenterPostalCode:
         user.company?.operationalCenterPostalCode ?? undefined,
       operationalCenterCityMunicipality:
@@ -373,12 +393,25 @@ export class UsersService {
         userId,
         themeScheme: theme,
         operationalAnalysisEnabled: true,
+        controlAutomaticRecognition: false,
       }),
     );
   }
 
   async updateTheme(userId: number, theme: ThemeScheme) {
     await this.preferencesRepo.update({ userId }, { themeScheme: theme });
+  }
+
+  async updateControlAutomaticRecognition(userId: number, enabled: boolean) {
+    let prefs = await this.preferencesRepo.findOne({ where: { userId } });
+    if (!prefs) {
+      prefs = await this.createPreferences(userId);
+    }
+    if (prefs.controlAutomaticRecognition !== enabled) {
+      prefs.controlAutomaticRecognitionChangedAt = new Date();
+    }
+    prefs.controlAutomaticRecognition = enabled;
+    await this.preferencesRepo.save(prefs);
   }
 
   private resolveTheme(value?: string): ThemeScheme {

@@ -9,6 +9,7 @@ import { Company } from 'src/companies/entities/company.entity';
 import { assertCompanyAccess } from '../common/utils/tenant.util';
 import AuthUser from '../types/auth-user.type';
 import { TenantContextService } from '../common/tenant/tenant-context.service';
+import { OperationalCentersService } from '../operational-centers/operational-centers.service';
 import { CreateCompanyDto } from './dto/create-company.dto';
 import { UpdateCompanyOperationalSettingsDto } from './dto/update-company-operational-settings.dto';
 
@@ -18,6 +19,7 @@ export class CompaniesService {
     @InjectRepository(Company)
     private readonly repo: Repository<Company>,
     private readonly tenantContext: TenantContextService,
+    private readonly operationalCenters: OperationalCentersService,
   ) {}
 
   async create(dto: CreateCompanyDto) {
@@ -34,7 +36,9 @@ export class CompaniesService {
       }),
     );
     const fresh = await this.repo.findOne({ where: { id: saved.id } });
-    return fresh ?? saved;
+    const company = fresh ?? saved;
+    await this.operationalCenters.ensureDefaultCenterForCompany(company.id);
+    return company;
   }
 
   async findOne(id: number) {
@@ -127,6 +131,10 @@ export class CompaniesService {
       company.operationalCenterLongitude = String(dto.operationalCenterLongitude);
     }
     const saved = await this.repo.save(company);
+    await this.operationalCenters.syncPrimaryFromCompanyColumns(
+      saved,
+      dto.operationalCenterName,
+    );
     return saved;
   }
 }

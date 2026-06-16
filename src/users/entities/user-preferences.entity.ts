@@ -27,6 +27,16 @@ export class UserPreferences {
   })
   operationalAnalysisChangedAt: Date;
 
+  @Column({ name: 'control_automatic_recognition', default: false })
+  controlAutomaticRecognition: boolean;
+
+  @Column({
+    name: 'control_automatic_recognition_changed_at',
+    type: 'timestamptz',
+    nullable: true,
+  })
+  controlAutomaticRecognitionChangedAt?: Date;
+
   @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
   updatedAt: Date;
 

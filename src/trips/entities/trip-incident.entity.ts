@@ -26,6 +26,24 @@ export class TripIncident {
   @Column({ name: 'posted_by' })
   postedBy: string;
 
+  @Column({ default: 'open' })
+  status: string;
+
+  @Column({ nullable: true })
+  category?: string;
+
+  @Column({ name: 'opened_at', type: 'timestamptz', nullable: true })
+  openedAt?: Date;
+
+  @Column({ name: 'closed_at', type: 'timestamptz', nullable: true })
+  closedAt?: Date;
+
+  @Column({ name: 'closed_by_user_id', type: 'int', nullable: true })
+  closedByUserId?: number;
+
+  @Column({ name: 'resolution_notes', nullable: true, type: 'text' })
+  resolutionNotes?: string;
+
   @Column({ nullable: true })
   severity?: string;
 

@@ -4,6 +4,13 @@ import { Repository } from 'typeorm';
 import { serializeEquipment } from 'src/common/serializers/equipment.serializer';
 import { parseOptionalNumericId } from 'src/common/utils/tenant.util';
 import { FleetTenureService } from 'src/fleet/fleet-tenure.service';
+import { FleetBrandsService } from 'src/fleet/fleet-brands.service';
+import {
+  FLEET_BRAND_TYPE_EQUIPMENT,
+  resolveFleetBrandNameFromPayload,
+  resolveFleetVersionNameFromPayload,
+} from 'src/fleet/utils/fleet-brand-from-payload.util';
+import { TripFleetStatusSyncService } from 'src/trips/lifecycle/trip-fleet-status-sync.service';
 import { fleetTenureMapKey } from 'src/fleet/mappers/fleet-asset-tenure.mapper';
 import { EquipmentFleetDocument } from 'src/equipment/entities/equipment-fleet-document.entity';
 import { Equipment } from 'src/equipment/entities/equipment.entity';
@@ -35,10 +42,13 @@ export class EquipmentService {
     @InjectRepository(EquipmentFleetDocument)
     private readonly documentsRepo: Repository<EquipmentFleetDocument>,
     private readonly fleetTenureService: FleetTenureService,
+    private readonly fleetStatusSync: TripFleetStatusSyncService,
+    private readonly fleetBrandsService: FleetBrandsService,
   ) {}
 
   async create(companyId: number, dto: CreateEquipmentDto) {
     const { fleetMeta, unitId: unitIdRef, hitchPosition, ...core } = dto;
+    await this.ensureEquipmentBrand(companyId, fleetMeta, core.trailerBrandAbbr);
     const unitId = unitIdRef
       ? await this.resolveUnitId(companyId, unitIdRef)
       : undefined;
@@ -61,6 +71,8 @@ export class EquipmentService {
   }
 
   async findAll(companyId: number, options?: EquipmentFindAllOptions) {
+    await this.fleetStatusSync.reconcileCompanyFleetOperationalStatus(companyId);
+
     const rows = await this.repo.find({
       where: { companyId },
       relations: ['unit', 'fleetProfile', 'maintenanceEntries', 'fleetDocuments'],
@@ -124,6 +136,11 @@ export class EquipmentService {
         equipmentId,
       );
     }
+    await this.ensureEquipmentBrand(
+      companyId,
+      fleetMeta,
+      typeof rest.trailerBrandAbbr === 'string' ? rest.trailerBrandAbbr : undefined,
+    );
     if (Object.keys(corePatch).length > 0) {
       await this.repo.update({ id: equipmentId, companyId }, corePatch);
     }
@@ -225,6 +242,29 @@ export class EquipmentService {
           documentRows.map((row) => this.documentsRepo.create(row)),
         );
       }
+    }
+  }
+
+  private async ensureEquipmentBrand(
+    companyId: number,
+    fleetMeta: CreateEquipmentDto['fleetMeta'] | UpdateEquipmentDto['fleetMeta'] | undefined,
+    trailerBrandAbbr?: string,
+  ): Promise<void> {
+    const brandName = resolveFleetBrandNameFromPayload(fleetMeta, trailerBrandAbbr);
+    if (!brandName) {
+      return;
+    }
+    const brand = await this.fleetBrandsService.findOrCreateBrand(
+      companyId,
+      FLEET_BRAND_TYPE_EQUIPMENT,
+      brandName,
+    );
+    if (!brand) {
+      return;
+    }
+    const versionName = resolveFleetVersionNameFromPayload(fleetMeta);
+    if (versionName) {
+      await this.fleetBrandsService.findOrCreateVersion(brand.id, versionName);
     }
   }
 }

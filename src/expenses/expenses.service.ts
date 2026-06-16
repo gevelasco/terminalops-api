@@ -10,6 +10,7 @@ import { Trip } from 'src/trips/entities/trip.entity';
 import { Unit } from 'src/units/entities/unit.entity';
 import { CreateExpenseDto } from './dto/create-expense.dto';
 import { UpdateExpenseDto } from './dto/update-expense.dto';
+import { buildTripAutoExpenses } from 'src/trips/trip-auto-expenses.util';
 
 @Injectable()
 export class ExpensesService {
@@ -51,6 +52,32 @@ export class ExpensesService {
       }),
     );
     return this.findOne(companyId, saved.id);
+  }
+
+  /** Gastos operativos automáticos tras crear una maniobra (control operativo asistido). */
+  async createAutoExpensesForTrip(companyId: number, trip: Trip): Promise<void> {
+    const drafts = buildTripAutoExpenses(trip);
+    if (drafts.length === 0) {
+      return;
+    }
+
+    await this.repo.save(
+      drafts.map((draft) =>
+        this.repo.create({
+          companyId,
+          tripId: trip.id,
+          category: draft.category,
+          amount: draft.amount,
+          currency: draft.currency,
+          incurredAt: draft.incurredAt,
+          kind: draft.kind,
+          description: draft.description,
+          relatedUnitId: draft.relatedUnitId,
+          relatedOperatorId: draft.relatedOperatorId,
+          isOperationalProvision: draft.isOperationalProvision,
+        }),
+      ),
+    );
   }
 
   async findAll(companyId: number) {

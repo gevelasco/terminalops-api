@@ -39,19 +39,19 @@ export function assertEquipmentHitchAssignmentAllowed(params: {
 
   if (others.length >= 2) {
     throw new BadRequestException(
-      'La tractora ya tiene dos remolques enganchados (convoy full). Desenganche uno antes de continuar.',
+      'La tractora ya tiene dos equipos enganchados (convoy full). Desenganche uno antes de continuar.',
     );
   }
 
   if (isSecond) {
     if (others.length === 0) {
       throw new BadRequestException(
-        'Solo hay cupo para primer remolque en esta tractora.',
+        'Solo hay cupo para primer equipo en esta tractora.',
       );
     }
     if (rearOther) {
       throw new BadRequestException(
-        'Ya hay un segundo remolque configurado en esta tractora.',
+        'Ya hay un segundo equipo configurado en esta tractora.',
       );
     }
     return;
@@ -63,7 +63,7 @@ export function assertEquipmentHitchAssignmentAllowed(params: {
 
   if (leadOther) {
     throw new BadRequestException(
-      'Ya hay un primer remolque en esta tractora. Use posición trasera o desenganche el otro equipo.',
+      'Ya hay un primer equipo en esta tractora. Use posición trasera o desenganche el otro equipo.',
     );
   }
 }

@@ -32,6 +32,9 @@ export type AuthUser = {
   maintenanceDateControlChangedAt?: string;
   dieselControlEnabled?: boolean;
   dieselControlChangedAt?: string;
+  controlAutomaticRecognition?: boolean;
+  controlAutomaticRecognitionChangedAt?: string;
+  operationalCenterName?: string;
   operationalCenterPostalCode?: string;
   operationalCenterCityMunicipality?: string;
   operationalCenterLocality?: string;

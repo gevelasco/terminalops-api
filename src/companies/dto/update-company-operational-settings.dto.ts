@@ -54,6 +54,12 @@ export class UpdateCompanyOperationalSettingsDto {
   @IsIn(MAINTENANCE_DATE_PERIODS)
   maintenanceDatePeriodDefault?: MaintenanceDatePeriod;
 
+  @ApiPropertyOptional({ example: 'Patio Colima' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  operationalCenterName?: string;
+
   @ApiPropertyOptional({ example: '64000' })
   @IsOptional()
   @IsString()

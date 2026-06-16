@@ -2,12 +2,15 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  JoinColumn,
+  ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
 import { Client } from 'src/clients/entities/client.entity';
 import { TERMINALOPS_SCHEMA } from 'src/common/constants/schema-name';
+import { OperationalCenter } from 'src/operational-centers/entities/operational-center.entity';
 import { AppUser } from 'src/users/entities/app-user.entity';
 
 @Entity({ schema: TERMINALOPS_SCHEMA, name: 'companies' })
@@ -112,6 +115,9 @@ export class Company {
   })
   operationalCenterLongitude?: string;
 
+  @Column({ name: 'primary_operational_center_id', type: 'int', nullable: true })
+  primaryOperationalCenterId?: number;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 
@@ -123,4 +129,8 @@ export class Company {
 
   @OneToMany(() => Client, (c) => c.company)
   clients?: Client[];
+
+  @ManyToOne(() => OperationalCenter, { onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'primary_operational_center_id' })
+  primaryOperationalCenter?: OperationalCenter;
 }

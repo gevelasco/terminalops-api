@@ -17,10 +17,16 @@ function dbCoordToApi(value?: string | null): number | undefined {
   return Number.isFinite(n) ? n : undefined;
 }
 
-export function serializeCompanyOperationalSettings(company: Company) {
+export function serializeCompanyOperationalSettings(
+  company: Company,
+  operationalCenterName?: string,
+) {
+  const centerName =
+    operationalCenterName?.trim() || 'Centro Principal';
   return {
     id: company.id,
     name: company.name,
+    operationalCenterName: centerName,
     operationalAnalysisEnabled: company.operationalAnalysisEnabled,
     operationalAnalysisChangedAt: toIsoString(company.operationalAnalysisChangedAt),
     maintenanceKmControlEnabled: company.maintenanceKmControlEnabled,
