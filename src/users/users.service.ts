@@ -392,7 +392,6 @@ export class UsersService {
       this.preferencesRepo.create({
         userId,
         themeScheme: theme,
-        operationalAnalysisEnabled: true,
         controlAutomaticRecognition: false,
       }),
     );

@@ -14,18 +14,8 @@ export class UserPreferences {
   @PrimaryColumn({ name: 'user_id', type: 'int' })
   userId: number;
 
-  @Column({ name: 'operational_analysis_enabled', default: true })
-  operationalAnalysisEnabled: boolean;
-
   @Column({ name: 'theme_scheme', default: 'light' })
   themeScheme: string;
-
-  @Column({
-    name: 'operational_analysis_changed_at',
-    type: 'timestamptz',
-    default: () => 'now()',
-  })
-  operationalAnalysisChangedAt: Date;
 
   @Column({ name: 'control_automatic_recognition', default: false })
   controlAutomaticRecognition: boolean;
