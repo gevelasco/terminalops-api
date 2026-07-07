@@ -13,6 +13,7 @@ import { TripAuditService } from './lifecycle/trip-audit.service';
 import { TripLifecycleScheduler } from './lifecycle/trip-lifecycle.scheduler';
 import { TripFleetStatusSyncService } from './lifecycle/trip-fleet-status-sync.service';
 import { TripLifecycleService } from './lifecycle/trip-lifecycle.service';
+import { UnitTripOdometerModule } from 'src/units/unit-trip-odometer.module';
 import { FuelPriceModule } from 'src/fuel/fuel-price.module';
 import { DestinationRatesModule } from 'src/destination-rates/destination-rates.module';
 import { OperationalCentersModule } from 'src/operational-centers/operational-centers.module';
@@ -42,6 +43,7 @@ import { TripsService } from './trips.service';
       AppUser,
     ]),
     ExpensesModule,
+    UnitTripOdometerModule,
   ],
   controllers: [TripsController],
   providers: [

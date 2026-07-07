@@ -1,22 +1,22 @@
 import type { FleetOverviewRenewalStatus } from './dto/fleet-overview.dto';
+import {
+  type CompanyMaintenancePolicyContext,
+  maintenanceKmRemainingFromCounter,
+} from 'src/units/company-maintenance-policy.util';
 
 export type FleetMetaLike = {
   lastMaintenanceDate?: string | null;
   maintenanceNextDateOverride?: string | null;
-  maintenanceAlertByKm?: boolean | null;
-  maintenanceKmRemaining?: number | null;
-  maintenanceKmInterval?: number | null;
-  maintenanceTripKmAtLastService?: number | null;
+  maintenanceKmCounter?: number | null;
   tireCondition?: string | null;
   verificationPhysMechDate?: string | null;
   verificationEmissionsDate?: string | null;
   verificationDoubleArticulatedApplies?: boolean | null;
   verificationDoubleArticulatedDate?: string | null;
   insuranceContractDate?: string | null;
+  insuranceLastPaymentDate?: string | null;
   insurancePaymentCadence?: string | null;
 };
-
-const MAINT_CYCLE_MO = 6;
 
 function parseYmd(value: string): Date | null {
   const t = value.trim();
@@ -78,13 +78,19 @@ function renewalBucketFromLast(
   return renewalBucketFromTargetYmd(target);
 }
 
-function maintenanceBucket(meta: FleetMetaLike | undefined): FleetOverviewRenewalStatus {
+function maintenanceBucket(
+  meta: FleetMetaLike | undefined,
+  policy?: CompanyMaintenancePolicyContext,
+): FleetOverviewRenewalStatus {
   if (!meta) {
     return 'na';
   }
-  if (meta.maintenanceAlertByKm === true) {
-    const rem = meta.maintenanceKmRemaining;
-    if (rem == null || !Number.isFinite(rem)) {
+  if (policy?.kmControlEnabled) {
+    const rem = maintenanceKmRemainingFromCounter(
+      meta.maintenanceKmCounter ?? 0,
+      policy.kmIntervalDefault,
+    );
+    if (rem == null) {
       return 'na';
     }
     if (rem <= 0) {
@@ -95,11 +101,21 @@ function maintenanceBucket(meta: FleetMetaLike | undefined): FleetOverviewRenewa
     }
     return 'ok';
   }
+  if (policy?.dateControlEnabled) {
+    const override = meta.maintenanceNextDateOverride?.trim();
+    if (override) {
+      return renewalBucketFromTargetYmd(override);
+    }
+    return renewalBucketFromLast(
+      meta.lastMaintenanceDate,
+      policy.datePeriodMonths,
+    );
+  }
   const override = meta.maintenanceNextDateOverride?.trim();
   if (override) {
     return renewalBucketFromTargetYmd(override);
   }
-  return renewalBucketFromLast(meta.lastMaintenanceDate, MAINT_CYCLE_MO);
+  return renewalBucketFromLast(meta.lastMaintenanceDate, 6);
 }
 
 function verificationBucket(meta: FleetMetaLike | undefined): FleetOverviewRenewalStatus {
@@ -129,14 +145,46 @@ function verificationBucket(meta: FleetMetaLike | undefined): FleetOverviewRenew
   return worst;
 }
 
+function insuranceCadenceMonths(cadence: string | undefined): number {
+  const raw = (cadence ?? '').trim().toLowerCase();
+  if (raw.includes('semanal') || raw.includes('weekly')) {
+    return 0;
+  }
+  if (raw.includes('mensual') || raw.includes('monthly')) {
+    return 1;
+  }
+  if (raw.includes('trimestral') || raw.includes('quarterly')) {
+    return 3;
+  }
+  if (raw.includes('anual') || raw.includes('annual')) {
+    return 12;
+  }
+  return 12;
+}
+
 function insuranceBucket(meta: FleetMetaLike | undefined): FleetOverviewRenewalStatus {
-  const contract = meta?.insuranceContractDate?.trim();
-  if (!contract) {
+  const anchor =
+    meta?.insuranceLastPaymentDate?.trim() || meta?.insuranceContractDate?.trim();
+  if (!anchor) {
     return 'na';
   }
-  const cadence = (meta?.insurancePaymentCadence ?? '').trim().toLowerCase();
-  const months = cadence.includes('anual') || cadence.includes('year') ? 12 : 6;
-  return renewalBucketFromLast(contract, months);
+  const months = insuranceCadenceMonths(meta?.insurancePaymentCadence ?? undefined);
+  if (months === 0) {
+    const start = parseYmd(anchor);
+    if (!start) {
+      return 'na';
+    }
+    const next = new Date(start.getTime() + 7 * 86400000);
+    const days = Math.round((next.getTime() - Date.now()) / 86400000);
+    if (days < 0) {
+      return 'due';
+    }
+    if (days <= 30) {
+      return 'soon';
+    }
+    return 'ok';
+  }
+  return renewalBucketFromLast(anchor, months);
 }
 
 export function renewalStatusLabel(bucket: FleetOverviewRenewalStatus): string {
@@ -164,7 +212,10 @@ export function fmtMxDateYmd(ymd: string | null | undefined): string | null {
   }).format(d);
 }
 
-export function nextMaintenanceDateLabel(meta: FleetMetaLike | undefined): string | null {
+export function nextMaintenanceDateLabel(
+  meta: FleetMetaLike | undefined,
+  policy?: CompanyMaintenancePolicyContext,
+): string | null {
   if (!meta) {
     return null;
   }
@@ -176,12 +227,16 @@ export function nextMaintenanceDateLabel(meta: FleetMetaLike | undefined): strin
   if (!last) {
     return null;
   }
-  const target = addMonthsYmd(last, MAINT_CYCLE_MO);
+  const months = policy?.dateControlEnabled
+    ? policy.datePeriodMonths
+    : 6;
+  const target = addMonthsYmd(last, months);
   return target ? fmtMxDateYmd(target) : null;
 }
 
 export function buildMaintenanceSummary(
   meta: FleetMetaLike | undefined,
+  policy?: CompanyMaintenancePolicyContext,
 ): {
   lastMaintenanceDate?: string;
   nextMaintenanceDate?: string;
@@ -193,19 +248,21 @@ export function buildMaintenanceSummary(
   insuranceRenewal: FleetOverviewRenewalStatus;
   inspectionRenewal: FleetOverviewRenewalStatus;
 } {
-  const maintenanceRenewal = maintenanceBucket(meta);
+  const maintenanceRenewal = maintenanceBucket(meta, policy);
   const insuranceRenewal = insuranceBucket(meta);
   const inspectionRenewal = verificationBucket(meta);
 
-  const kmRemaining = meta?.maintenanceKmRemaining;
+  const counter = meta?.maintenanceKmCounter;
   const kmSince =
-    typeof kmRemaining === 'number' && Number.isFinite(kmRemaining)
-      ? Math.max(0, (meta?.maintenanceKmInterval ?? 0) - kmRemaining)
+    policy?.kmControlEnabled &&
+    typeof counter === 'number' &&
+    Number.isFinite(counter)
+      ? Math.max(0, counter)
       : undefined;
 
   return {
     lastMaintenanceDate: fmtMxDateYmd(meta?.lastMaintenanceDate) ?? undefined,
-    nextMaintenanceDate: nextMaintenanceDateLabel(meta) ?? undefined,
+    nextMaintenanceDate: nextMaintenanceDateLabel(meta, policy) ?? undefined,
     kmSinceLastMaintenance: kmSince,
     tireStatus: meta?.tireCondition?.trim() || undefined,
     insuranceStatus: renewalStatusLabel(insuranceRenewal),
@@ -215,3 +272,5 @@ export function buildMaintenanceSummary(
     inspectionRenewal,
   };
 }
+
+export type { CompanyMaintenancePolicyContext };

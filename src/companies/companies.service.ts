@@ -13,6 +13,10 @@ import { OperationalCentersService } from '../operational-centers/operational-ce
 import { CreateCompanyDto } from './dto/create-company.dto';
 import { UpdateCompanyOperationalSettingsDto } from './dto/update-company-operational-settings.dto';
 
+function roundDieselPrice(n: number): number {
+  return Math.round(n * 10000) / 10000;
+}
+
 @Injectable()
 export class CompaniesService {
   constructor(
@@ -31,6 +35,8 @@ export class CompaniesService {
         subscriptionStatus: 'active',
         operationalAnalysisEnabled: true,
         operationalAnalysisChangedAt: now,
+        tripAssistPrefillEnabled: false,
+        tripAutoMaintenanceProvisionPercent: '5',
         dieselControlEnabled: true,
         dieselControlChangedAt: now,
       }),
@@ -82,6 +88,17 @@ export class CompaniesService {
       company.operationalAnalysisEnabled = dto.operationalAnalysisEnabled;
       company.operationalAnalysisChangedAt = new Date();
     }
+    if (dto.tripAssistPrefillEnabled !== undefined) {
+      if (company.tripAssistPrefillEnabled !== dto.tripAssistPrefillEnabled) {
+        company.tripAssistPrefillChangedAt = new Date();
+      }
+      company.tripAssistPrefillEnabled = dto.tripAssistPrefillEnabled;
+    }
+    if (dto.tripAutoMaintenanceProvisionPercent !== undefined) {
+      company.tripAutoMaintenanceProvisionPercent = String(
+        dto.tripAutoMaintenanceProvisionPercent,
+      );
+    }
     if (dto.dieselControlEnabled !== undefined) {
       if (company.dieselControlEnabled !== dto.dieselControlEnabled) {
         company.dieselControlChangedAt = new Date();
@@ -93,6 +110,10 @@ export class CompaniesService {
         company.maintenanceKmControlChangedAt = new Date();
       }
       company.maintenanceKmControlEnabled = dto.maintenanceKmControlEnabled;
+      if (dto.maintenanceKmControlEnabled) {
+        company.maintenanceDateControlEnabled = false;
+        company.maintenanceDatePeriodDefault = undefined;
+      }
       if (!dto.maintenanceKmControlEnabled) {
         company.maintenanceKmIntervalDefault = undefined;
       }
@@ -105,6 +126,10 @@ export class CompaniesService {
         company.maintenanceDateControlChangedAt = new Date();
       }
       company.maintenanceDateControlEnabled = dto.maintenanceDateControlEnabled;
+      if (dto.maintenanceDateControlEnabled) {
+        company.maintenanceKmControlEnabled = false;
+        company.maintenanceKmIntervalDefault = undefined;
+      }
       if (!dto.maintenanceDateControlEnabled) {
         company.maintenanceDatePeriodDefault = undefined;
       }
@@ -112,29 +137,52 @@ export class CompaniesService {
     if (dto.maintenanceDatePeriodDefault !== undefined) {
       company.maintenanceDatePeriodDefault = dto.maintenanceDatePeriodDefault;
     }
-    if (dto.operationalCenterPostalCode !== undefined) {
-      company.operationalCenterPostalCode = dto.operationalCenterPostalCode;
-    }
-    if (dto.operationalCenterCityMunicipality !== undefined) {
-      company.operationalCenterCityMunicipality = dto.operationalCenterCityMunicipality;
-    }
-    if (dto.operationalCenterLocality !== undefined) {
-      company.operationalCenterLocality = dto.operationalCenterLocality;
-    }
-    if (dto.operationalCenterSettlementConsId !== undefined) {
-      company.operationalCenterSettlementConsId = dto.operationalCenterSettlementConsId;
-    }
-    if (dto.operationalCenterLatitude !== undefined) {
-      company.operationalCenterLatitude = String(dto.operationalCenterLatitude);
-    }
-    if (dto.operationalCenterLongitude !== undefined) {
-      company.operationalCenterLongitude = String(dto.operationalCenterLongitude);
-    }
+
     const saved = await this.repo.save(company);
-    await this.operationalCenters.syncPrimaryFromCompanyColumns(
-      saved,
-      dto.operationalCenterName,
-    );
+    const primaryCenter =
+      await this.operationalCenters.updatePrimaryCenterFromOperationalSettings(
+        companyId,
+        {
+          operationalCenterName: dto.operationalCenterName,
+          operationalCenterPostalCode: dto.operationalCenterPostalCode,
+          operationalCenterCityMunicipality: dto.operationalCenterCityMunicipality,
+          operationalCenterLocality: dto.operationalCenterLocality,
+          operationalCenterSettlementConsId: dto.operationalCenterSettlementConsId,
+          operationalCenterLatitude: dto.operationalCenterLatitude,
+          operationalCenterLongitude: dto.operationalCenterLongitude,
+        },
+      );
+    if (primaryCenter.id !== saved.primaryOperationalCenterId) {
+      saved.primaryOperationalCenterId = primaryCenter.id;
+    }
     return saved;
+  }
+
+  async updateDieselReferencePrice(
+    user: AuthUser,
+    companyId: number,
+    pricePerLiter: number,
+  ): Promise<Company> {
+    if (user.role !== 'admin' && user.role !== 'superadmin') {
+      throw new ForbiddenException(
+        'Solo administradores pueden actualizar el precio de referencia de diésel',
+      );
+    }
+    const company = await this.findOne(companyId);
+    assertCompanyAccess(user, companyId);
+    if (!company.dieselControlEnabled) {
+      throw new ForbiddenException(
+        'El control de diésel está desactivado para esta empresa',
+      );
+    }
+
+    const now = new Date();
+    company.dieselReferencePricePerLiter = String(roundDieselPrice(pricePerLiter));
+    company.dieselReferencePriceUpdatedAt = now;
+    const userId = Number.parseInt(user.id, 10);
+    company.dieselReferencePriceUpdatedByUserId =
+      Number.isFinite(userId) && userId > 0 ? userId : undefined;
+
+    return this.repo.save(company);
   }
 }

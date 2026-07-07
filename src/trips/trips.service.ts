@@ -1,12 +1,16 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   InternalServerErrorException,
   Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, IsNull } from 'typeorm';
+import { isAdminRole } from 'src/common/constants/app-modules';
+import { assertTripBitacoraAccess } from 'src/common/utils/module-permission.util';
+import type AuthUser from 'src/types/auth-user.type';
 import {
   buildIncidentAuthorLookup,
   type IncidentAuthorLookup,
@@ -16,6 +20,8 @@ import { AppUser } from 'src/users/entities/app-user.entity';
 import { Client } from 'src/clients/entities/client.entity';
 import { Company } from 'src/companies/entities/company.entity';
 import { Equipment } from 'src/equipment/entities/equipment.entity';
+import { assertFleetResourceActive } from 'src/fleet/fleet-resource-active.util';
+import { assertFleetResourceAssignableForTrip } from 'src/fleet/fleet-resource-assignable.util';
 import { ExpensesService } from 'src/expenses/expenses.service';
 import { Operator } from 'src/operators/entities/operator.entity';
 import { Trip } from 'src/trips/entities/trip.entity';
@@ -26,6 +32,15 @@ import { AddIncidentDto } from './dto/add-incident.dto';
 import { CancelTripDto } from './dto/cancel-trip.dto';
 import { CreateTripDto } from './dto/create-trip.dto';
 import { UpdateActualScheduleDto } from './dto/update-actual-schedule.dto';
+import type { ListTripLinkOptionsQueryDto } from './dto/list-trip-link-options-query.dto';
+import { isFleetLinkOptionsSearchAllowed } from 'src/fleet/fleet-link-options-search.util';
+import type { ListTripsQueryDto } from './dto/list-trips-query.dto';
+import {
+  applyTripListFilters,
+  normalizeTripListLimit,
+} from './trips-list.util';
+import { tripNotDeletedSql } from './trip-visibility.util';
+import { mapTripLinkOption } from './trip-link-option.mapper';
 import { UpdateTripDto } from './dto/update-trip.dto';
 import type { ClientCargoHistoryResponseDto } from './dto/client-cargo-history.dto';
 import { mapTripToResponse } from './trips.mapper';
@@ -48,10 +63,18 @@ import {
 } from './lifecycle/resolve-planned-schedule';
 import { TripFleetStatusSyncService } from './lifecycle/trip-fleet-status-sync.service';
 import { TripLifecycleService } from './lifecycle/trip-lifecycle.service';
+import { UnitTripOdometerService } from 'src/units/unit-trip-odometer.service';
 import { rejectLegacyScheduleFields } from './reject-legacy-trip-schedule-fields';
+import { rejectClientTripStatusMutation } from './trip-status-lock.util';
+import { assertResourceNotOnActiveTrip } from './trip-fleet-assignment-guard.util';
+import {
+  assertNoSnapshotMutation,
+  assertNoSnapshotMutationDto,
+} from './trip-snapshot-immutability.util';
 import { SCHEDULE_UPDATE_INCIDENT_CATEGORY } from './actual-schedule/actual-schedule.constants';
 import type { ActualScheduleFieldKey } from './actual-schedule/actual-schedule.constants';
 import { buildConsolidatedScheduleUpdateIncidentDescription } from './actual-schedule/actual-schedule-incident.util';
+import { syncTripIncidentMarkers } from './trip-incident-markers.util';
 import {
   applyActualScheduleDeltas,
   assertActualScheduleChronology,
@@ -59,13 +82,19 @@ import {
   parseOptionalIsoDate,
   rejectDisallowedActualScheduleBodyKeys,
 } from './actual-schedule/actual-schedule-update.util';
-import type AuthUser from 'src/types/auth-user.type';
 import type { TripsMapResponseDto } from './dto/trip-map-item.dto';
 import {
   buildTripsMapMeta,
   mapTripToMapItem,
   type TripGeoResolverContext,
 } from './trip-geo-resolver.util';
+
+export interface TripsListResult {
+  items: ReturnType<typeof mapTripToResponse>[];
+  total: number;
+  page: number;
+  limit: number;
+}
 
 @Injectable()
 export class TripsService {
@@ -96,6 +125,7 @@ export class TripsService {
     private readonly operationalCenters: OperationalCentersService,
     private readonly tripLifecycle: TripLifecycleService,
     private readonly fleetStatusSync: TripFleetStatusSyncService,
+    private readonly unitTripOdometer: UnitTripOdometerService,
     private readonly expensesService: ExpensesService,
   ) {}
 
@@ -107,20 +137,100 @@ export class TripsService {
     'incidents',
   ] as const;
 
-  async findAll(companyId: number) {
+  async findAll(companyId: number, query?: ListTripsQueryDto): Promise<TripsListResult> {
+    await this.tripLifecycle.ensureCompanyLifecycleFresh(companyId);
+
+    const limit = normalizeTripListLimit(query?.limit);
+    const page = Math.max(1, query?.page ?? 1);
+
+    const baseQb = this.tripsRepo.createQueryBuilder('trip');
+    applyTripListFilters(baseQb, companyId, query);
+    const total = await baseQb.clone().getCount();
+
+    const rowsQb = this.tripsRepo
+      .createQueryBuilder('trip')
+      .leftJoinAndSelect('trip.client', 'client')
+      .leftJoinAndSelect('trip.unit', 'unit')
+      .leftJoinAndSelect('trip.operator', 'operator')
+      .leftJoinAndSelect('trip.tripEquipment', 'tripEquipment')
+      .leftJoinAndSelect('trip.incidents', 'incidents');
+    applyTripListFilters(rowsQb, companyId, query);
+    rowsQb.orderBy('trip.createdAt', 'DESC');
+
+    if (limit > 0) {
+      rowsQb.skip((page - 1) * limit).take(limit);
+    }
+
     const [trips, equipment, authorLookup] = await Promise.all([
-      this.tripsRepo.find({
-        where: { companyId },
-        relations: [...this.tripRelations],
-        order: { createdAt: 'DESC' },
-      }),
+      rowsQb.getMany(),
       this.equipmentRepo.find({ where: { companyId } }),
       this.loadAuthorLookup(companyId),
     ]);
-    return trips.map((t) => mapTripToResponse(t, equipment, authorLookup));
+
+    return {
+      items: trips.map((t) => mapTripToResponse(t, equipment, authorLookup)),
+      total,
+      page: limit > 0 ? page : 1,
+      limit: limit > 0 ? limit : total,
+    };
+  }
+
+  /** Opciones ligeras para vincular gastos u otros formularios (sin joins pesados). */
+  async findLinkOptions(
+    companyId: number,
+    query: ListTripLinkOptionsQueryDto = {},
+  ) {
+    const limit = Math.min(Math.max(query.limit ?? 50, 1), 100);
+    const idRaw = query.id?.trim();
+    if (idRaw) {
+      const id = Number(idRaw);
+      if (Number.isFinite(id) && id > 0) {
+        const row = await this.tripsRepo.findOne({
+          where: { companyId, id },
+          select: [
+            'id',
+            'maneuverCode',
+            'status',
+            'falseManeuver',
+            'plannedDepartureAt',
+          ],
+        });
+        return { items: row ? [mapTripLinkOption(row)] : [] };
+      }
+      return { items: [] };
+    }
+
+    const search = query.search?.trim();
+    if (!isFleetLinkOptionsSearchAllowed(search)) {
+      return { items: [] };
+    }
+
+    const qb = this.tripsRepo
+      .createQueryBuilder('trip')
+      .select([
+        'trip.id',
+        'trip.maneuverCode',
+        'trip.status',
+        'trip.falseManeuver',
+        'trip.plannedDepartureAt',
+      ])
+      .where('trip.companyId = :companyId', { companyId })
+      .andWhere(tripNotDeletedSql('trip'))
+      .orderBy('trip.plannedDepartureAt', 'DESC')
+      .take(limit);
+
+    qb.andWhere(
+      '(trip.maneuver_code ILIKE :q OR CAST(trip.id AS TEXT) ILIKE :q)',
+      { q: `%${search}%` },
+    );
+
+    const rows = await qb.getMany();
+    return { items: rows.map(mapTripLinkOption) };
   }
 
   async findForMap(companyId: number): Promise<TripsMapResponseDto> {
+    await this.tripLifecycle.ensureCompanyLifecycleFresh(companyId);
+
     const [trips, defaultCenter, operationalCenters] = await Promise.all([
       this.tripsRepo
         .createQueryBuilder('trip')
@@ -128,6 +238,7 @@ export class TripsService {
         .leftJoinAndSelect('trip.client', 'client')
         .leftJoinAndSelect('client.delivery', 'delivery')
         .where('trip.companyId = :companyId', { companyId })
+        .andWhere(tripNotDeletedSql('trip'))
         .andWhere('trip.status IN (:...statuses)', {
           statuses: ['scheduled', 'in_transit'],
         })
@@ -223,6 +334,8 @@ export class TripsService {
   }
 
   async findOne(companyId: number, tripId: number) {
+    await this.tripLifecycle.ensureTripLifecycleFresh(companyId, tripId);
+
     const [trip, equipment, authorLookup] = await Promise.all([
       this.getTripEntity(companyId, tripId),
       this.equipmentRepo.find({ where: { companyId } }),
@@ -241,7 +354,7 @@ export class TripsService {
     }
 
     const rows = await this.tripsRepo.find({
-      where: { companyId, clientId },
+      where: { companyId, clientId, deletedAt: IsNull() },
       select: {
         cargoDescription: true,
         operationType: true,
@@ -284,6 +397,8 @@ export class TripsService {
     rawBody: Record<string, unknown> = {},
   ) {
     rejectLegacyScheduleFields(rawBody);
+    rejectClientTripStatusMutation(rawBody);
+    rejectClientTripStatusMutation(dto as unknown as Record<string, unknown>);
     let planned;
     try {
       planned = parseRequiredPlannedScheduleFromCreateDto(dto);
@@ -367,7 +482,7 @@ export class TripsService {
         : Promise.resolve(null),
     ]);
 
-    const initialStatus = dto.status ?? 'scheduled';
+    const initialStatus = 'scheduled';
     const createdAt = new Date();
 
     const entity = this.tripsRepo.create({
@@ -407,6 +522,7 @@ export class TripsService {
       dieselPricePerLiterAtCreation,
       casetasAmount: dto.casetasAmount,
       operatorQuota: dto.operatorQuota,
+      perDiemAmount: dto.perDiemAmount,
       clientCharge: dto.clientCharge,
       paymentMethod: dto.paymentMethod,
       requiresInvoice: dto.requiresInvoice,
@@ -443,17 +559,41 @@ export class TripsService {
 
     const company = await this.companiesRepo.findOne({
       where: { id: companyId },
-      select: ['id', 'operationalAnalysisEnabled'],
+      select: [
+        'id',
+        'operationalAnalysisEnabled',
+        'tripAutoMaintenanceProvisionPercent',
+      ],
     });
     if (company?.operationalAnalysisEnabled !== false) {
+      const rawPercent = company?.tripAutoMaintenanceProvisionPercent;
+      const provisionPercent =
+        rawPercent != null && rawPercent !== ''
+          ? Number(rawPercent)
+          : 5;
+      const safePercent =
+        Number.isFinite(provisionPercent) && provisionPercent >= 0
+          ? provisionPercent
+          : 5;
       try {
-        await this.expensesService.createAutoExpensesForTrip(companyId, trip);
+        await this.expensesService.createAutoExpensesForTrip(
+          companyId,
+          trip,
+          safePercent,
+        );
       } catch (err) {
         this.logger.error(
           `Auto expenses failed for trip ${trip.id} (company ${companyId})`,
           err instanceof Error ? err.stack : String(err),
         );
-        await this.rollbackCreatedTrip(companyId, trip.id);
+        const tripForRollback = await this.getTripEntity(companyId, trip.id);
+        await this.rollbackCreatedTrip(companyId, trip.id, {
+          unitId: tripForRollback.unitId ?? null,
+          operatorId: tripForRollback.operatorId ?? null,
+          equipmentIds: (tripForRollback.tripEquipment ?? []).map(
+            (row) => row.equipmentId,
+          ),
+        });
         throw new InternalServerErrorException(
           'No se pudo crear la maniobra: falló el registro de gastos automáticos.',
         );
@@ -470,6 +610,10 @@ export class TripsService {
     rawBody: Record<string, unknown> = {},
   ) {
     rejectLegacyScheduleFields(rawBody);
+    rejectClientTripStatusMutation(rawBody);
+    rejectClientTripStatusMutation(dto as unknown as Record<string, unknown>);
+    assertNoSnapshotMutation(rawBody);
+    assertNoSnapshotMutationDto(dto);
     const trip = await this.getTripEntity(companyId, tripId);
     const previousUnitId = trip.unitId ?? null;
     const previousOperatorId = trip.operatorId ?? null;
@@ -481,7 +625,6 @@ export class TripsService {
       plannedDepartureAt,
       plannedArrivalAt,
       plannedCompletionAt,
-      routeDistanceKm,
       isRoundTrip,
       clientId,
       unitId,
@@ -492,8 +635,6 @@ export class TripsService {
       returnAt: _ignoredReturnAt,
       dieselPricePerLiterAtCreation: _immutablePrice,
       tollCalculationMode: _immutableTollMode,
-      destinationRateId: _destinationRateId,
-      originOperationalCenterId: _originOperationalCenterId,
       ...rest
     } = dto;
     const plannedPatch = validatePlannedScheduleUpdate(trip, {
@@ -501,17 +642,45 @@ export class TripsService {
       plannedArrivalAt,
       plannedCompletionAt,
     });
-    const distanceFields =
-      routeDistanceKm !== undefined
-        ? this.resolveDistanceFieldsForPersist(
-            routeDistanceKm,
-            isRoundTrip !== undefined ? isRoundTrip : true,
-          )
-        : undefined;
     const operationPatch =
       operationType !== undefined
         ? await this.resolveOperationConfigSnapshot(companyId, operationType)
         : null;
+
+    let resolvedUnitIdForPatch: number | undefined | null = undefined;
+    let resolvedOperatorIdForPatch: number | undefined | null = undefined;
+    const assignmentSnapshotPatch: {
+      unitOperationalCodeSnapshot?: string;
+      operatorNameSnapshot?: string;
+    } = {};
+
+    if (unitId !== undefined) {
+      resolvedUnitIdForPatch = unitId
+        ? await this.resolveUnitId(companyId, unitId, tripId)
+        : undefined;
+      const unitRow = resolvedUnitIdForPatch
+        ? await this.unitsRepo.findOne({
+            where: { id: resolvedUnitIdForPatch, companyId },
+          })
+        : null;
+      assignmentSnapshotPatch.unitOperationalCodeSnapshot = unitRow
+        ? buildUnitOperationalId(unitRow)
+        : undefined;
+    }
+
+    if (operatorId !== undefined) {
+      resolvedOperatorIdForPatch = operatorId
+        ? await this.resolveOperatorId(companyId, operatorId, tripId)
+        : undefined;
+      const operatorRow = resolvedOperatorIdForPatch
+        ? await this.operatorsRepo.findOne({
+            where: { id: resolvedOperatorIdForPatch, companyId },
+          })
+        : null;
+      assignmentSnapshotPatch.operatorNameSnapshot =
+        operatorRow?.name?.trim() || undefined;
+    }
+
     await this.tripsRepo.update(
       { id: tripId, companyId },
       {
@@ -533,25 +702,20 @@ export class TripsService {
         ...(plannedPatch.plannedCompletionAt && {
           plannedCompletionAt: plannedPatch.plannedCompletionAt,
         }),
-        ...(distanceFields && {
-          routeDistanceKm: distanceFields.routeDistanceKm,
-          operationalDistanceKm: distanceFields.operationalDistanceKm,
-          ...(isRoundTrip !== undefined && { isRoundTrip: isRoundTrip !== false }),
-        }),
+        ...(isRoundTrip !== undefined && { isRoundTrip: isRoundTrip !== false }),
         ...(clientId !== undefined && {
           clientId: clientId
             ? await this.resolveClientId(companyId, clientId)
             : undefined,
         }),
+        ...(unitId !== undefined && { unitId: resolvedUnitIdForPatch }),
+        ...(operatorId !== undefined && { operatorId: resolvedOperatorIdForPatch }),
         ...(unitId !== undefined && {
-          unitId: unitId
-            ? await this.resolveUnitId(companyId, unitId)
-            : undefined,
+          unitOperationalCodeSnapshot:
+            assignmentSnapshotPatch.unitOperationalCodeSnapshot,
         }),
         ...(operatorId !== undefined && {
-          operatorId: operatorId
-            ? await this.resolveOperatorId(companyId, operatorId)
-            : undefined,
+          operatorNameSnapshot: assignmentSnapshotPatch.operatorNameSnapshot,
         }),
       },
     );
@@ -559,6 +723,7 @@ export class TripsService {
       const resolvedEquipmentIds = await this.resolveEquipmentIds(
         companyId,
         equipmentIds,
+        tripId,
       );
       await this.syncEquipment(tripId, resolvedEquipmentIds);
     }
@@ -657,26 +822,36 @@ export class TripsService {
     return this.findOne(companyId, tripId);
   }
 
-  async addIncident(companyId: number, tripId: number, dto: AddIncidentDto) {
+  async addIncident(
+    companyId: number,
+    tripId: number,
+    dto: AddIncidentDto,
+    actor?: AuthUser,
+  ) {
+    if (actor) {
+      assertTripBitacoraAccess(actor, dto.isIncident === true);
+    }
     const trip = await this.getTripEntity(companyId, tripId);
     const openedAt = new Date();
+    const isIncident = dto.isIncident === true;
     await this.incidentsRepo.save(
       this.incidentsRepo.create({
         tripId: trip.id,
         description: dto.description.trim(),
         postedBy: dto.postedBy.trim(),
         occurredAt: openedAt,
-        status: 'open',
+        status: 'closed',
         openedAt,
-        category: dto.category?.trim() || 'other',
+        closedAt: openedAt,
+        category: dto.category?.trim() || (isIncident ? 'other' : 'bitacora'),
+        isIncident,
       }),
     );
-    await this.tripsRepo.update(
-      { id: trip.id, companyId },
-      {
-        hasIncident: true,
-        openIncidentCount: (trip.openIncidentCount ?? 0) + 1,
-      },
+    await syncTripIncidentMarkers(
+      this.tripsRepo,
+      this.incidentsRepo,
+      trip.id,
+      companyId,
     );
     return this.findOne(companyId, tripId);
   }
@@ -785,10 +960,18 @@ export class TripsService {
         openedAt,
         closedAt: openedAt,
         category: SCHEDULE_UPDATE_INCIDENT_CATEGORY,
+        isIncident: false,
       }),
     );
 
     await this.tripLifecycle.refreshDelayMetricsForTrip(trip.id, openedAt);
+
+    const reloaded = await this.getTripEntity(companyId, tripId);
+    await this.tripLifecycle.applyLifecycleChainForTrip(
+      reloaded,
+      openedAt,
+      'system',
+    );
 
     return this.findOne(companyId, tripId);
   }
@@ -818,10 +1001,67 @@ export class TripsService {
     return this.findOne(companyId, tripId);
   }
 
-  async remove(companyId: number, tripId: number) {
-    await this.getTripEntity(companyId, tripId);
-    await this.tripsRepo.delete({ id: tripId, companyId });
-    return { id: tripId, deleted: true };
+  async softDelete(companyId: number, tripId: number, actor: AuthUser) {
+    this.assertAdmin(actor);
+    const trip = await this.getTripEntity(companyId, tripId, {
+      includeDeleted: true,
+    });
+    if (trip.deletedAt) {
+      throw new BadRequestException('La maniobra ya fue eliminada.');
+    }
+
+    const equipmentIds = (trip.tripEquipment ?? []).map((row) => row.equipmentId);
+    const activeFleetStatuses = new Set(['scheduled', 'in_transit']);
+    const releasesFleet = activeFleetStatuses.has(trip.status);
+    const wasCompleted = trip.status === 'completed';
+
+    const discardedExpenses = await this.expensesService.discardByTripId(
+      companyId,
+      trip.id,
+    );
+
+    if (wasCompleted) {
+      await this.unitTripOdometer.reverseCreditForTrip(trip);
+    }
+
+    const deletedAt = new Date();
+    const deletedBy =
+      actor.name?.trim() ||
+      actor.username?.trim() ||
+      actor.role?.trim() ||
+      'admin';
+
+    await this.tripsRepo.update(
+      { id: trip.id, companyId },
+      {
+        deletedAt,
+        deletedBy,
+        ...(releasesFleet ? { status: 'cancelled' } : {}),
+      },
+    );
+
+    await this.fleetStatusSync.reconcileReleasedFleetResources(companyId, {
+      unitIds: trip.unitId != null ? [trip.unitId] : [],
+      operatorIds: trip.operatorId != null ? [trip.operatorId] : [],
+      equipmentIds,
+    });
+
+    this.logger.warn({
+      event_type: 'trip.soft_deleted',
+      companyId,
+      tripId: trip.id,
+      maneuverCode: trip.maneuverCode,
+      previousStatus: trip.status,
+      discardedExpenses,
+      deletedBy,
+    });
+
+    return {
+      id: tripId,
+      deleted: true,
+      deletedAt: deletedAt.toISOString(),
+      discardedExpenses,
+    };
   }
 
   private logInvalidCreateAttempt(
@@ -841,12 +1081,27 @@ export class TripsService {
     });
   }
 
-  private async getTripEntity(companyId: number, tripId: number) {
+  private assertAdmin(actor: AuthUser): void {
+    if (!isAdminRole(actor.role)) {
+      throw new ForbiddenException(
+        'Solo administradores pueden eliminar maniobras.',
+      );
+    }
+  }
+
+  private async getTripEntity(
+    companyId: number,
+    tripId: number,
+    opts?: { includeDeleted?: boolean },
+  ) {
     const trip = await this.tripsRepo.findOne({
       where: { companyId, id: tripId },
       relations: [...this.tripRelations],
     });
     if (!trip) {
+      throw new NotFoundException(`Trip ${tripId} not found`);
+    }
+    if (!opts?.includeDeleted && trip.deletedAt) {
       throw new NotFoundException(`Trip ${tripId} not found`);
     }
     return trip;
@@ -902,9 +1157,19 @@ export class TripsService {
   private async rollbackCreatedTrip(
     companyId: number,
     tripId: number,
+    resources: {
+      unitId: number | null;
+      operatorId: number | null;
+      equipmentIds: number[];
+    },
   ): Promise<void> {
     await this.tripEquipmentRepo.delete({ tripId });
     await this.tripsRepo.delete({ id: tripId, companyId });
+    await this.fleetStatusSync.reconcileReleasedFleetResources(companyId, {
+      unitIds: resources.unitId != null ? [resources.unitId] : [],
+      operatorIds: resources.operatorId != null ? [resources.operatorId] : [],
+      equipmentIds: resources.equipmentIds,
+    });
   }
 
   private async resolveClientId(
@@ -928,6 +1193,7 @@ export class TripsService {
   private async resolveUnitId(
     companyId: number,
     ref: string,
+    excludeTripId?: number,
   ): Promise<number | undefined> {
     const unitId = parseOptionalNumericId(ref, 'Unit');
     if (!unitId) {
@@ -935,17 +1201,28 @@ export class TripsService {
     }
     const row = await this.unitsRepo.findOne({
       where: { companyId, id: unitId },
-      select: ['id'],
+      select: ['id', 'isActive', 'status'],
     });
     if (!row) {
       throw new NotFoundException(`Unit ${unitId} not found`);
     }
+    assertFleetResourceAssignableForTrip(row, 'Unit');
+    await assertResourceNotOnActiveTrip(
+      this.tripsRepo,
+      this.tripEquipmentRepo,
+      companyId,
+      'unit',
+      row.id,
+      'Unit',
+      excludeTripId,
+    );
     return row.id;
   }
 
   private async resolveOperatorId(
     companyId: number,
     ref: string,
+    excludeTripId?: number,
   ): Promise<number | undefined> {
     const operatorId = parseOptionalNumericId(ref, 'Operator');
     if (!operatorId) {
@@ -953,11 +1230,21 @@ export class TripsService {
     }
     const row = await this.operatorsRepo.findOne({
       where: { companyId, id: operatorId },
-      select: ['id'],
+      select: ['id', 'isActive', 'status'],
     });
     if (!row) {
       throw new NotFoundException(`Operator ${operatorId} not found`);
     }
+    assertFleetResourceAssignableForTrip(row, 'Operator');
+    await assertResourceNotOnActiveTrip(
+      this.tripsRepo,
+      this.tripEquipmentRepo,
+      companyId,
+      'operator',
+      row.id,
+      'Operator',
+      excludeTripId,
+    );
     return row.id;
   }
 
@@ -1053,6 +1340,7 @@ export class TripsService {
   private async resolveEquipmentIds(
     companyId: number,
     refs: string[],
+    excludeTripId?: number,
   ): Promise<number[]> {
     const out: number[] = [];
     for (const ref of refs) {
@@ -1062,9 +1350,19 @@ export class TripsService {
       }
       const row = await this.equipmentRepo.findOne({
         where: { companyId, id: equipmentId },
-        select: ['id'],
+        select: ['id', 'isActive', 'status'],
       });
       if (row) {
+        assertFleetResourceAssignableForTrip(row, 'Equipment');
+        await assertResourceNotOnActiveTrip(
+          this.tripsRepo,
+          this.tripEquipmentRepo,
+          companyId,
+          'equipment',
+          row.id,
+          'Equipment',
+          excludeTripId,
+        );
         out.push(row.id);
       }
     }

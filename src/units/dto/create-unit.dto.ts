@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
+  IsBoolean,
   IsNumber,
   IsOptional,
   IsString,
@@ -19,14 +20,26 @@ export class CreateUnitDto {
   @Min(0)
   capacityKg: number;
 
-  @ApiProperty()
-  @IsString()
-  status: string;
+  @ApiPropertyOptional({ default: true })
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   serialNumber?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  motorNumber?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  capacityTons?: number;
 
   @ApiPropertyOptional()
   @IsOptional()

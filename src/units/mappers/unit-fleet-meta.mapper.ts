@@ -4,6 +4,7 @@ import { UnitFleetProfile } from 'src/units/entities/unit-fleet-profile.entity';
 import type { CreateUnitFleetMetaDto } from 'src/units/dto/create-unit-fleet-meta.dto';
 import { FleetAssetTenure } from 'src/fleet/entities/fleet-asset-tenure.entity';
 import { mergeTenureIntoFleetMeta } from 'src/fleet/mappers/fleet-asset-tenure.mapper';
+import { isSubstantiveMaintenanceEntry } from 'src/fleet/fleet-maintenance-expense-sync.util';
 
 function emptyDateToUndefined(value?: string): string | undefined {
   const t = value?.trim();
@@ -41,6 +42,7 @@ export function fleetMetaDtoToProfile(
     trailerBrandName: meta.trailerBrandName?.trim() || undefined,
     trailerVersion: meta.trailerVersion?.trim() || undefined,
     trailerColor: meta.trailerColor?.trim() || undefined,
+    serviceModality: meta.serviceModality?.trim() || undefined,
     transmissionType: meta.transmissionType?.trim() || undefined,
     transmissionSpeeds: meta.transmissionSpeeds?.trim() || undefined,
     grossVehicleWeightLb: meta.grossVehicleWeightLb?.trim() || undefined,
@@ -50,11 +52,8 @@ export function fleetMetaDtoToProfile(
     lastMaintenanceCost: numToDb(meta.lastMaintenanceCost),
     lastMaintenanceNotes: meta.lastMaintenanceNotes?.trim() || undefined,
     tireCondition: meta.tireCondition?.trim() || undefined,
-    maintenanceAlertByKm: meta.maintenanceAlertByKm,
     maintenanceNextDateOverride: emptyDateToUndefined(meta.maintenanceNextDateOverride),
-    maintenanceKmInterval: numToDb(meta.maintenanceKmInterval),
-    maintenanceTripKmAtLastService: numToDb(meta.maintenanceTripKmAtLastService),
-    maintenanceKmRemaining: numToDb(meta.maintenanceKmRemaining),
+    maintenanceKmCounter: numToDb(meta.maintenanceKmCounter ?? 0),
     verificationPhysMechDate: emptyDateToUndefined(meta.verificationPhysMechDate),
     verificationPhysMechCost: numToDb(meta.verificationPhysMechCost),
     verificationEmissionsDate: emptyDateToUndefined(meta.verificationEmissionsDate),
@@ -70,12 +69,18 @@ export function fleetMetaDtoToProfile(
     insuranceCarrierName: meta.insuranceCarrierName?.trim() || undefined,
     insurancePaymentCadence: meta.insurancePaymentCadence?.trim() || undefined,
     insuranceContractDate: emptyDateToUndefined(meta.insuranceContractDate),
+    insuranceLastPaymentDate: emptyDateToUndefined(meta.insuranceLastPaymentDate),
     insuranceCost: numToDb(meta.insuranceCost),
+    insurancePaymentMethod: meta.insurancePaymentMethod?.trim() || undefined,
+    insuranceInvoiceRequired: meta.insuranceInvoiceRequired === true,
     hasGps: meta.hasGps,
     gpsProviderBrand: meta.gpsProviderBrand?.trim() || undefined,
     gpsPrice: numToDb(meta.gpsPrice),
     gpsPaymentCadence: meta.gpsPaymentCadence?.trim() || undefined,
     gpsContractDate: emptyDateToUndefined(meta.gpsContractDate),
+    gpsLastPaymentDate: emptyDateToUndefined(meta.gpsLastPaymentDate),
+    gpsPaymentMethod: meta.gpsPaymentMethod?.trim() || undefined,
+    gpsInvoiceRequired: meta.gpsInvoiceRequired === true,
     gpsTrackingPortalUrl: meta.gpsTrackingPortalUrl?.trim() || undefined,
     gpsCoveredByInsuranceEndorsement: meta.gpsCoveredByInsuranceEndorsement,
   };
@@ -115,15 +120,18 @@ export function fleetMetaDtoToMaintenanceEntries(
   if (!meta.maintenanceEntries?.length) {
     return [];
   }
-  return meta.maintenanceEntries.map((entry, index) => ({
-    unitId,
-    entryDate: emptyDateToUndefined(entry.date),
-    entryType: entry.type?.trim() || undefined,
-    cost: numToDb(entry.cost),
-    notes: entry.notes?.trim() || undefined,
-    status: entry.status,
-    sortOrder: index,
-  }));
+  return meta.maintenanceEntries
+    .filter(isSubstantiveMaintenanceEntry)
+    .map((entry, index) => ({
+      unitId,
+      entryDate: emptyDateToUndefined(entry.date),
+      entryType: entry.type?.trim() || undefined,
+      cost: numToDb(entry.cost),
+      notes: entry.notes?.trim() || undefined,
+      paymentMethod: entry.paymentMethod?.trim() || undefined,
+      status: entry.status ?? 'concluido',
+      sortOrder: index,
+    }));
 }
 
 function documentNamesByKind(
@@ -153,6 +161,7 @@ export function profileToFleetMeta(
         trailerBrandName: profile.trailerBrandName ?? undefined,
         trailerVersion: profile.trailerVersion ?? undefined,
         trailerColor: profile.trailerColor ?? undefined,
+        serviceModality: profile.serviceModality ?? undefined,
         transmissionType: profile.transmissionType ?? undefined,
         transmissionSpeeds: profile.transmissionSpeeds ?? undefined,
         grossVehicleWeightLb: profile.grossVehicleWeightLb ?? undefined,
@@ -162,14 +171,9 @@ export function profileToFleetMeta(
         lastMaintenanceCost: dbNumToApi(profile.lastMaintenanceCost),
         lastMaintenanceNotes: profile.lastMaintenanceNotes ?? undefined,
         tireCondition: profile.tireCondition ?? undefined,
-        maintenanceAlertByKm: profile.maintenanceAlertByKm ?? undefined,
         maintenanceNextDateOverride:
           profile.maintenanceNextDateOverride ?? undefined,
-        maintenanceKmInterval: dbNumToApi(profile.maintenanceKmInterval),
-        maintenanceTripKmAtLastService: dbNumToApi(
-          profile.maintenanceTripKmAtLastService,
-        ),
-        maintenanceKmRemaining: dbNumToApi(profile.maintenanceKmRemaining),
+        maintenanceKmCounter: dbNumToApi(profile.maintenanceKmCounter) ?? 0,
         verificationPhysMechDate: profile.verificationPhysMechDate ?? undefined,
         verificationPhysMechCost: dbNumToApi(profile.verificationPhysMechCost),
         verificationEmissionsDate: profile.verificationEmissionsDate ?? undefined,
@@ -185,12 +189,18 @@ export function profileToFleetMeta(
         insuranceCarrierName: profile.insuranceCarrierName ?? undefined,
         insurancePaymentCadence: profile.insurancePaymentCadence ?? undefined,
         insuranceContractDate: profile.insuranceContractDate ?? undefined,
+        insuranceLastPaymentDate: profile.insuranceLastPaymentDate ?? undefined,
         insuranceCost: dbNumToApi(profile.insuranceCost),
+        insurancePaymentMethod: profile.insurancePaymentMethod ?? undefined,
+        insuranceInvoiceRequired: profile.insuranceInvoiceRequired === true,
         hasGps: profile.hasGps ?? undefined,
         gpsProviderBrand: profile.gpsProviderBrand ?? undefined,
         gpsPrice: dbNumToApi(profile.gpsPrice),
         gpsPaymentCadence: profile.gpsPaymentCadence ?? undefined,
         gpsContractDate: profile.gpsContractDate ?? undefined,
+        gpsLastPaymentDate: profile.gpsLastPaymentDate ?? undefined,
+        gpsPaymentMethod: profile.gpsPaymentMethod ?? undefined,
+        gpsInvoiceRequired: profile.gpsInvoiceRequired === true,
         gpsTrackingPortalUrl: profile.gpsTrackingPortalUrl ?? undefined,
         gpsCoveredByInsuranceEndorsement:
           profile.gpsCoveredByInsuranceEndorsement ?? undefined,
@@ -205,8 +215,10 @@ export function profileToFleetMeta(
       type: e.entryType ?? undefined,
       cost: dbNumToApi(e.cost),
       notes: e.notes ?? undefined,
+      paymentMethod: e.paymentMethod ?? undefined,
       status: e.status ?? undefined,
-    }));
+    }))
+    .filter(isSubstantiveMaintenanceEntry);
   if (entries.length > 0) {
     meta.maintenanceEntries = entries;
   }

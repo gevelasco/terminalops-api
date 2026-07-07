@@ -23,7 +23,7 @@ describe('trip-fleet-status-sync.util', () => {
     });
     expect(fleetTargetsForActiveTripStatus('in_transit')).toEqual({
       unit: 'in_use',
-      operator: 'on_route',
+      operator: 'in_use',
       equipment: 'in_use',
     });
   });
@@ -43,7 +43,7 @@ describe('trip-fleet-status-sync.util', () => {
       'scheduled',
     );
     expect(resolveFleetTargetForResource('operator', ['in_transit'])).toBe(
-      'on_route',
+      'in_use',
     );
   });
 
@@ -51,7 +51,7 @@ describe('trip-fleet-status-sync.util', () => {
     expect(isProtectedFleetStatus('unit', 'maintenance')).toBe(true);
     expect(isProtectedFleetStatus('unit', 'available')).toBe(false);
     expect(isProtectedFleetStatus('operator', 'leave')).toBe(true);
-    expect(isProtectedFleetStatus('operator', 'on_route')).toBe(false);
+    expect(isProtectedFleetStatus('operator', 'in_use')).toBe(false);
     expect(isProtectedFleetStatus('equipment', 'maintenance')).toBe(true);
   });
 });

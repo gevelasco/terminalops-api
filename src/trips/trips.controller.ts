@@ -20,6 +20,9 @@ import { AddIncidentDto } from './dto/add-incident.dto';
 import { CancelTripDto } from './dto/cancel-trip.dto';
 import { UpdateActualScheduleDto } from './dto/update-actual-schedule.dto';
 import { UpdateTripDto } from './dto/update-trip.dto';
+import { rejectClientTripStatusMutation } from './trip-status-lock.util';
+import { APP_MODULE_CODES } from '../common/constants/app-modules';
+import { assertModuleWrite } from '../common/utils/module-permission.util';
 import { TripsService } from './trips.service';
 
 @ApiTags('trips')
@@ -48,7 +51,9 @@ export class TripsController {
     @Req() req: Request,
     @LoggedUser() user: AuthUser,
   ) {
+    assertModuleWrite(user, APP_MODULE_CODES.TRIPS);
     const companyId = await this.tenantContext.resolveInternalIdFromAuthUser(user);
+    rejectClientTripStatusMutation(req.body as Record<string, unknown>);
     return this.service.update(companyId, tripId, dto, req.body as Record<string, unknown>);
   }
 
@@ -59,6 +64,7 @@ export class TripsController {
     @Body() dto: CancelTripDto,
     @LoggedUser() user: AuthUser,
   ) {
+    assertModuleWrite(user, APP_MODULE_CODES.TRIPS);
     const companyId = await this.tenantContext.resolveInternalIdFromAuthUser(user);
     return this.service.cancel(companyId, tripId, dto);
   }
@@ -70,7 +76,7 @@ export class TripsController {
     @LoggedUser() user: AuthUser,
   ) {
     const companyId = await this.tenantContext.resolveInternalIdFromAuthUser(user);
-    return this.service.addIncident(companyId, tripId, dto);
+    return this.service.addIncident(companyId, tripId, dto, user);
   }
 
   @Patch(':tripId/actual-schedule')
@@ -81,6 +87,7 @@ export class TripsController {
     @Req() req: Request,
     @LoggedUser() user: AuthUser,
   ) {
+    assertModuleWrite(user, APP_MODULE_CODES.TRIPS);
     const companyId = await this.tenantContext.resolveInternalIdFromAuthUser(user);
     return this.service.updateActualSchedule(
       companyId,
@@ -97,16 +104,20 @@ export class TripsController {
     @Body('collected') collected: boolean,
     @LoggedUser() user: AuthUser,
   ) {
+    assertModuleWrite(user, APP_MODULE_CODES.TRIPS);
     const companyId = await this.tenantContext.resolveInternalIdFromAuthUser(user);
     return this.service.setClientCollected(companyId, tripId, collected);
   }
 
   @Delete(':tripId')
+  @ApiOperation({
+    summary: 'Eliminar maniobra (soft delete, solo administrador)',
+  })
   async remove(
     @Param('tripId', ParseIntPipe) tripId: number,
     @LoggedUser() user: AuthUser,
   ) {
     const companyId = await this.tenantContext.resolveInternalIdFromAuthUser(user);
-    return this.service.remove(companyId, tripId);
+    return this.service.softDelete(companyId, tripId, user);
   }
 }

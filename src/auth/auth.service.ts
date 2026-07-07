@@ -10,25 +10,28 @@ import { JwtService } from '@nestjs/jwt';
 import { compare } from 'bcrypt';
 import { isValidInvitationCode } from '../common/constants/invitation-codes';
 import { CompaniesService } from '../companies/companies.service';
+import { OperationalCentersService } from '../operational-centers/operational-centers.service';
 import { UsersService } from '../users/users.service';
 import EnvConfig from '../types/env-config.type';
 import { AppUser } from 'src/users/entities/app-user.entity';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { SignUpDto } from './dto/sign-up.dto';
+import { isAppUserLoginAllowed } from './auth-login.util';
 
 @Injectable()
 export class AuthService {
   constructor(
     private readonly usersService: UsersService,
     private readonly companiesService: CompaniesService,
+    private readonly operationalCenters: OperationalCentersService,
     private readonly jwtService: JwtService,
     private readonly config: ConfigService<EnvConfig>,
   ) {}
 
   async login(dto: LoginDto) {
     const user = await this.usersService.findByLogin(dto.login);
-    if (!user || user.status === 'disabled') {
+    if (!user || !isAppUserLoginAllowed(user.status)) {
       throw new HttpException('Invalid credentials', HttpStatus.UNAUTHORIZED);
     }
     const valid = await compare(dto.password, user.passwordHash);
@@ -49,8 +52,8 @@ export class AuthService {
     }
     const userId = Number(payload.sub);
     const user = await this.usersService.findOne({ id: userId });
-    if (!user || user.status === 'disabled') {
-      throw new HttpException('User not found', HttpStatus.UNAUTHORIZED);
+    if (!user || !isAppUserLoginAllowed(user.status)) {
+      throw new HttpException('Invalid refresh token', HttpStatus.UNAUTHORIZED);
     }
     return this.buildAuthResponse(user);
   }
@@ -89,7 +92,7 @@ export class AuthService {
       displayName,
       email,
       phone: dto.phone.trim(),
-      role: 'admin',
+      role: 'superadmin',
       theme: 'light',
     });
 
@@ -98,7 +101,12 @@ export class AuthService {
 
   private async buildAuthResponse(user: AppUser) {
     const fresh = await this.usersService.findOne({ id: user.id });
-    const authUser = this.usersService.generateAuthUser(fresh ?? user);
+    const resolved = fresh ?? user;
+    if (resolved.company) {
+      resolved.company.primaryOperationalCenter ??=
+        await this.operationalCenters.getDefaultEntity(resolved.companyId);
+    }
+    const authUser = this.usersService.generateAuthUser(resolved);
     const { photoDataUrl: _photo, ...jwtClaims } = authUser;
     return {
       access_token: this.jwtService.sign(jwtClaims, { expiresIn: '1h' }),

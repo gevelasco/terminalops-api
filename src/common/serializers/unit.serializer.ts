@@ -23,7 +23,11 @@ export function serializeUnit(
     plate: unit.plate,
     capacityKg: unit.capacityKg,
     status: unit.status,
+    isActive: unit.isActive !== false,
     serialNumber: unit.serialNumber ?? undefined,
+    motorNumber: unit.motorNumber ?? undefined,
+    capacityTons:
+      unit.capacityTons != null ? Number(unit.capacityTons) : undefined,
     name: unit.name ?? undefined,
     trailerBrandAbbr: unit.trailerBrandAbbr ?? undefined,
     trailerYear: unit.trailerYear ?? undefined,
@@ -48,5 +52,6 @@ function serializeEquipmentRef(
     plate: equipment.plate ?? undefined,
     type: equipment.type ?? undefined,
     status: equipment.status ?? undefined,
+    isActive: equipment.isActive !== false,
   };
 }

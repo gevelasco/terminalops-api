@@ -42,6 +42,21 @@ export class Expense {
   @Column({ type: 'text', nullable: true })
   description?: string;
 
+  @Column({ type: 'text', nullable: true })
+  vendor?: string | null;
+
+  @Column({ name: 'payment_method', type: 'text', nullable: true })
+  paymentMethod?: string | null;
+
+  @Column({ name: 'maintenance_target', type: 'text', nullable: true })
+  maintenanceTarget?: string | null;
+
+  @Column({ name: 'insurance_target', type: 'text', nullable: true })
+  insuranceTarget?: string | null;
+
+  @Column({ name: 'verification_scope', type: 'text', nullable: true })
+  verificationScope?: string | null;
+
   @Column({ name: 'related_unit_id', type: 'int', nullable: true })
   relatedUnitId?: number;
 
@@ -62,6 +77,9 @@ export class Expense {
 
   @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
   updatedAt: Date;
+
+  @Column({ name: 'discarded_at', type: 'timestamptz', nullable: true })
+  discardedAt?: Date | null;
 
   @ManyToOne(() => Trip, { onDelete: 'SET NULL' })
   @JoinColumn({ name: 'trip_id' })

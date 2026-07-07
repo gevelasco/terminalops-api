@@ -1,15 +1,22 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, In, IsNull, Repository } from 'typeorm';
 import { Trip } from '../entities/trip.entity';
+import { TripIncident } from '../entities/trip-incident.entity';
+import { syncTripIncidentMarkers } from '../trip-incident-markers.util';
 import { calculateTripDelays } from './calculate-trip-delays';
 import {
   evaluateTripLifecycle,
+  resolveEffectiveCompletionAt,
   resolveTripLifecycleStatus,
 } from './evaluate-trip-lifecycle';
 import { TripAuditService } from './trip-audit.service';
+import { UnitTripOdometerService } from 'src/units/unit-trip-odometer.service';
 import { TripFleetStatusSyncService } from './trip-fleet-status-sync.service';
-import type { TripLifecycleStatus } from './trip-lifecycle.types';
+import {
+  ACTIVE_TRIP_LIFECYCLE_STATUSES,
+  type TripLifecycleStatus,
+} from './trip-lifecycle.types';
 
 /** Advisory lock global para evitar cron concurrente en múltiples instancias. */
 const LIFECYCLE_CRON_LOCK_KEY = 74_027_001;
@@ -24,12 +31,19 @@ export interface TripLifecycleRunResult {
 export class TripLifecycleService {
   private readonly logger = new Logger(TripLifecycleService.name);
   private cronInProgress = false;
+  private readonly companyFreshInFlight = new Map<
+    number,
+    Promise<TripLifecycleRunResult>
+  >();
 
   constructor(
     @InjectRepository(Trip)
     private readonly tripsRepo: Repository<Trip>,
+    @InjectRepository(TripIncident)
+    private readonly incidentsRepo: Repository<TripIncident>,
     private readonly auditService: TripAuditService,
     private readonly fleetStatusSync: TripFleetStatusSyncService,
+    private readonly unitTripOdometer: UnitTripOdometerService,
     private readonly dataSource: DataSource,
   ) {}
 
@@ -42,7 +56,7 @@ export class TripLifecycleService {
       status: trip.status as TripLifecycleStatus,
       plannedDepartureAt: trip.plannedDepartureAt,
       plannedCompletionAt: trip.plannedCompletionAt,
-      openIncidentCount: trip.openIncidentCount ?? 0,
+      actualCompletionAt: trip.returnAt ?? null,
       now,
     });
   }
@@ -53,7 +67,7 @@ export class TripLifecycleService {
       status: trip.status as TripLifecycleStatus,
       plannedDepartureAt: trip.plannedDepartureAt,
       plannedCompletionAt: trip.plannedCompletionAt,
-      openIncidentCount: trip.openIncidentCount ?? 0,
+      actualCompletionAt: trip.returnAt ?? null,
       now,
     });
   }
@@ -66,6 +80,20 @@ export class TripLifecycleService {
     now: Date = new Date(),
     source: 'scheduler' | 'system' = 'scheduler',
   ): Promise<boolean> {
+    await syncTripIncidentMarkers(
+      this.tripsRepo,
+      this.incidentsRepo,
+      trip.id,
+      trip.companyId,
+    );
+    const fresh = await this.tripsRepo.findOne({
+      where: { id: trip.id, companyId: trip.companyId, deletedAt: IsNull() },
+    });
+    if (!fresh) {
+      return false;
+    }
+    Object.assign(trip, fresh);
+
     const evaluation = this.evaluateTripLifecycle(trip, now);
     if (!evaluation.nextStatus || evaluation.nextStatus === trip.status) {
       await this.refreshDelayMetrics(trip.id, now);
@@ -76,7 +104,7 @@ export class TripLifecycleService {
     const toStatus = evaluation.nextStatus;
     const transitionedAt = now;
 
-    await this.tripsRepo.update(
+    const updateResult = await this.tripsRepo.update(
       { id: trip.id, companyId: trip.companyId, status: fromStatus },
       {
         status: toStatus,
@@ -85,6 +113,10 @@ export class TripLifecycleService {
         ...(toStatus === 'completed' ? { completedAt: transitionedAt } : {}),
       },
     );
+
+    if (!updateResult.affected) {
+      return false;
+    }
 
     await this.auditService.recordLifecycleStatusChange({
       tripId: trip.id,
@@ -97,6 +129,9 @@ export class TripLifecycleService {
     trip.status = toStatus;
     await this.refreshDelayMetrics(trip.id, now);
     await this.fleetStatusSync.syncForTrip(trip);
+    if (toStatus === 'completed') {
+      await this.unitTripOdometer.creditUnitForCompletedTrip(trip);
+    }
 
     this.logger.log(
       `Trip ${trip.id} lifecycle ${fromStatus} → ${toStatus} (${source})`,
@@ -130,7 +165,46 @@ export class TripLifecycleService {
   }
 
   /**
+   * Evalúa solo una maniobra (p. ej. al abrir detalle). Costo O(1): sin escanear la empresa.
+   * El cron sigue siendo la vía principal; esto evita mostrar estatus obsoleto en el drawer.
+   */
+  async ensureTripLifecycleFresh(
+    companyId: number,
+    tripId: number,
+    now: Date = new Date(),
+  ): Promise<void> {
+    const trip = await this.tripsRepo.findOne({
+      where: { id: tripId, companyId, deletedAt: IsNull() },
+    });
+    if (!trip || !this.tripNeedsLifecycleEvaluation(trip, now)) {
+      return;
+    }
+    await this.applyLifecycleChainForTrip(trip, now, 'system');
+  }
+
+  /**
+   * Adelanta transiciones vencidas de una empresa antes de lecturas agregadas
+   * (listado, mapa, dashboard). No usar en detalle de una sola maniobra.
+   */
+  async ensureCompanyLifecycleFresh(
+    companyId: number,
+    now: Date = new Date(),
+  ): Promise<TripLifecycleRunResult> {
+    const inFlight = this.companyFreshInFlight.get(companyId);
+    if (inFlight) {
+      return inFlight;
+    }
+
+    const run = this.runCompanyLifecycleFresh(companyId, now).finally(() => {
+      this.companyFreshInFlight.delete(companyId);
+    });
+    this.companyFreshInFlight.set(companyId, run);
+    return run;
+  }
+
+  /**
    * Cron: candidatos con índices parciales + advisory lock.
+   * Solo programadas y en curso; completadas/canceladas no se escanean.
    */
   async runScheduledEvaluation(now: Date = new Date()): Promise<TripLifecycleRunResult> {
     if (this.cronInProgress) {
@@ -156,6 +230,27 @@ export class TripLifecycleService {
     }
   }
 
+  private async runCompanyLifecycleFresh(
+    companyId: number,
+    now: Date,
+  ): Promise<TripLifecycleRunResult> {
+    const candidates = await this.findLifecycleCandidates(now, companyId);
+    let transitioned = 0;
+
+    for (const trip of candidates) {
+      const steps = await this.applyLifecycleChainForTrip(trip, now, 'system');
+      if (steps > 0) {
+        transitioned += steps;
+      }
+    }
+
+    return {
+      scanned: candidates.length,
+      transitioned,
+      skipped: candidates.length - transitioned,
+    };
+  }
+
   private async runScheduledEvaluationLocked(
     now: Date,
   ): Promise<TripLifecycleRunResult> {
@@ -178,11 +273,14 @@ export class TripLifecycleService {
     };
   }
 
-  private async findLifecycleCandidates(now: Date): Promise<Trip[]> {
-    return this.tripsRepo
+  private async findLifecycleCandidates(
+    now: Date,
+    companyId?: number,
+  ): Promise<Trip[]> {
+    const qb = this.tripsRepo
       .createQueryBuilder('trip')
       .where('trip.status IN (:...statuses)', {
-        statuses: ['scheduled', 'in_transit'],
+        statuses: [...ACTIVE_TRIP_LIFECYCLE_STATUSES],
       })
       .andWhere('trip.planned_departure_at IS NOT NULL')
       .andWhere('trip.planned_completion_at IS NOT NULL')
@@ -191,19 +289,27 @@ export class TripLifecycleService {
           (trip.status = 'scheduled' AND trip.planned_departure_at <= :now)
           OR (
             trip.status = 'in_transit'
-            AND trip.planned_completion_at <= :now
-            AND trip.open_incident_count = 0
+            AND COALESCE(trip.return_at, trip.planned_completion_at) <= :now
           )
         )`,
         { now },
-      )
-      .orderBy('trip.id', 'ASC')
-      .getMany();
+      );
+
+    if (companyId != null) {
+      qb.andWhere('trip.companyId = :companyId', { companyId });
+    }
+
+    qb.andWhere('trip.deleted_at IS NULL');
+
+    return qb.orderBy('trip.id', 'ASC').getMany();
   }
 
   private async refreshDelaysForActiveTrips(now: Date): Promise<void> {
     const active = await this.tripsRepo.find({
-      where: [{ status: 'scheduled' }, { status: 'in_transit' }],
+      where: {
+        status: In([...ACTIVE_TRIP_LIFECYCLE_STATUSES]),
+        deletedAt: IsNull(),
+      },
       select: [
         'id',
         'companyId',
@@ -281,6 +387,21 @@ export class TripLifecycleService {
         delayCompletionMinutes: metrics.delayCompletionMinutes ?? undefined,
       },
     );
+  }
+
+  private tripNeedsLifecycleEvaluation(trip: Trip, now: Date): boolean {
+    const status = trip.status;
+    if (!(ACTIVE_TRIP_LIFECYCLE_STATUSES as readonly string[]).includes(status)) {
+      return false;
+    }
+    if (status === 'scheduled') {
+      return trip.plannedDepartureAt.getTime() <= now.getTime();
+    }
+    const effectiveEnd = resolveEffectiveCompletionAt({
+      plannedCompletionAt: trip.plannedCompletionAt,
+      actualCompletionAt: trip.returnAt ?? null,
+    });
+    return effectiveEnd.getTime() <= now.getTime();
   }
 
   private async tryAcquireCronLock(): Promise<boolean> {

@@ -10,6 +10,7 @@ import { ClientPaymentTerms } from 'src/clients/entities/client-payment-terms.en
 import { DestinationRatesService } from 'src/destination-rates/destination-rates.service';
 import { CreateClientDto } from './dto/create-client.dto';
 import { UpdateClientDto } from './dto/update-client.dto';
+import type { ClientPickerOptionDto } from './dto/client-picker-option.dto';
 
 const CLIENT_RELATIONS = ['billing', 'paymentTerms', 'delivery', 'contacts'] as const;
 
@@ -55,6 +56,21 @@ export class ClientsService {
       .addOrderBy('contacts.sortOrder', 'ASC')
       .getMany();
     return rows.map((row) => serializeClient(row));
+  }
+
+  async findPickerOptions(companyId: number): Promise<ClientPickerOptionDto[]> {
+    const rows = await this.clientsRepo
+      .createQueryBuilder('client')
+      .select('client.id', 'id')
+      .addSelect('client.name', 'name')
+      .where('client.companyId = :companyId', { companyId })
+      .orderBy('client.name', 'ASC')
+      .getRawMany<{ id: string; name: string }>();
+
+    return rows.map((row) => ({
+      id: Number(row.id),
+      name: row.name?.trim() || 'Sin nombre',
+    }));
   }
 
   async findOne(companyId: number, clientId: number) {

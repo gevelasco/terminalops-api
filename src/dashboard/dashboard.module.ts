@@ -1,13 +1,20 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { Operator } from 'src/operators/entities/operator.entity';
+import { Company } from 'src/companies/entities/company.entity';
+import { Expense } from 'src/expenses/entities/expense.entity';
+import { FuelPriceModule } from 'src/fuel/fuel-price.module';
+import { TripsModule } from 'src/trips/trips.module';
+import { Equipment } from 'src/equipment/entities/equipment.entity';
 import { Trip } from 'src/trips/entities/trip.entity';
-import { TripIncident } from 'src/trips/entities/trip-incident.entity';
-import { AppUser } from 'src/users/entities/app-user.entity';
+import { Unit } from 'src/units/entities/unit.entity';
 import { DashboardService } from './dashboard.service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Trip, TripIncident, AppUser, Operator])],
+  imports: [
+    TypeOrmModule.forFeature([Trip, Unit, Equipment, Expense, Company]),
+    FuelPriceModule,
+    TripsModule,
+  ],
   providers: [DashboardService],
   exports: [DashboardService],
 })

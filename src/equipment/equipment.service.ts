@@ -10,12 +10,14 @@ import {
   resolveFleetBrandNameFromPayload,
   resolveFleetVersionNameFromPayload,
 } from 'src/fleet/utils/fleet-brand-from-payload.util';
-import { TripFleetStatusSyncService } from 'src/trips/lifecycle/trip-fleet-status-sync.service';
+import { Unit } from 'src/units/entities/unit.entity';
+import { assertFleetResourceActive } from 'src/fleet/fleet-resource-active.util';
+import { pickEquipmentUserMutableFields } from 'src/fleet/fleet-resource-user-patch.util';
+import { rejectClientFleetStatusMutation } from 'src/fleet/fleet-status-lock.util';
 import { fleetTenureMapKey } from 'src/fleet/mappers/fleet-asset-tenure.mapper';
 import { EquipmentFleetDocument } from 'src/equipment/entities/equipment-fleet-document.entity';
 import { Equipment } from 'src/equipment/entities/equipment.entity';
 import { EquipmentFleetProfile } from 'src/equipment/entities/equipment-fleet-profile.entity';
-import { Unit } from 'src/units/entities/unit.entity';
 import { FleetMaintenanceEntry } from 'src/units/entities/fleet-maintenance-entry.entity';
 import { CreateEquipmentDto } from './dto/create-equipment.dto';
 import { UpdateEquipmentDto } from './dto/update-equipment.dto';
@@ -25,6 +27,18 @@ import {
   fleetMetaDtoToProfile,
 } from './mappers/equipment-fleet-meta.mapper';
 import { assertEquipmentHitchAssignmentAllowed } from './equipment-hitch-validation.util';
+import { FleetMaintenanceWorkflowService } from 'src/fleet/fleet-maintenance-workflow.service';
+import { FleetMaintenanceExpenseSyncService } from 'src/fleet/fleet-maintenance-expense-sync.service';
+import { FleetVerificationExpenseSyncService } from 'src/fleet/fleet-verification-expense-sync.service';
+import { FleetInsuranceExpenseSyncService } from 'src/fleet/fleet-insurance-expense-sync.service';
+import {
+  unitFleetMetaInsuranceConfigTouched,
+  unitFleetMetaInsurancePaymentDateTouched,
+  unitFleetMetaVerificationTouched,
+} from 'src/fleet/fleet-meta-expense-sync-scope.util';
+import type { ListResourceLinkOptionsQueryDto } from 'src/common/dto/list-resource-link-options-query.dto';
+import { isFleetLinkOptionsSearchAllowed } from 'src/fleet/fleet-link-options-search.util';
+import { mapEquipmentLinkOption } from './equipment-link-option.mapper';
 
 export type EquipmentFindAllOptions = { includeTenure?: boolean };
 
@@ -42,13 +56,24 @@ export class EquipmentService {
     @InjectRepository(EquipmentFleetDocument)
     private readonly documentsRepo: Repository<EquipmentFleetDocument>,
     private readonly fleetTenureService: FleetTenureService,
-    private readonly fleetStatusSync: TripFleetStatusSyncService,
     private readonly fleetBrandsService: FleetBrandsService,
+    private readonly maintenanceWorkflow: FleetMaintenanceWorkflowService,
+    private readonly maintenanceExpenseSync: FleetMaintenanceExpenseSyncService,
+    private readonly verificationExpenseSync: FleetVerificationExpenseSyncService,
+    private readonly insuranceExpenseSync: FleetInsuranceExpenseSyncService,
   ) {}
 
   async create(companyId: number, dto: CreateEquipmentDto) {
-    const { fleetMeta, unitId: unitIdRef, hitchPosition, ...core } = dto;
-    await this.ensureEquipmentBrand(companyId, fleetMeta, core.trailerBrandAbbr);
+    rejectClientFleetStatusMutation(dto as unknown as Record<string, unknown>);
+    const { fleetMeta, unitId: unitIdRef, hitchPosition, ...rawCore } = dto;
+    const core = pickEquipmentUserMutableFields(
+      rawCore as unknown as Record<string, unknown>,
+    );
+    await this.ensureEquipmentBrand(
+      companyId,
+      fleetMeta,
+      core.trailerBrandAbbr as string | undefined,
+    );
     const unitId = unitIdRef
       ? await this.resolveUnitId(companyId, unitIdRef)
       : undefined;
@@ -62,6 +87,7 @@ export class EquipmentService {
         companyId,
         unitId,
         hitchPosition: resolvedPosition,
+        status: 'available',
       }),
     );
     if (fleetMeta) {
@@ -71,8 +97,6 @@ export class EquipmentService {
   }
 
   async findAll(companyId: number, options?: EquipmentFindAllOptions) {
-    await this.fleetStatusSync.reconcileCompanyFleetOperationalStatus(companyId);
-
     const rows = await this.repo.find({
       where: { companyId },
       relations: ['unit', 'fleetProfile', 'maintenanceEntries', 'fleetDocuments'],
@@ -90,6 +114,53 @@ export class EquipmentService {
     );
   }
 
+  async findLinkOptions(
+    companyId: number,
+    query: ListResourceLinkOptionsQueryDto = {},
+  ) {
+    const limit = Math.min(Math.max(query.limit ?? 50, 1), 100);
+    const idRaw = query.id?.trim();
+    if (idRaw) {
+      const id = Number(idRaw);
+      if (Number.isFinite(id) && id > 0) {
+        const row = await this.repo.findOne({ where: { companyId, id } });
+        return { items: row ? [mapEquipmentLinkOption(row)] : [] };
+      }
+      return { items: [] };
+    }
+
+    const search = query.search?.trim();
+    if (!isFleetLinkOptionsSearchAllowed(search)) {
+      return { items: [] };
+    }
+
+    const rows = await this.repo
+      .createQueryBuilder('equipment')
+      .select([
+        'equipment.id',
+        'equipment.trailerBrandAbbr',
+        'equipment.trailerYear',
+        'equipment.plate',
+        'equipment.status',
+        'equipment.isActive',
+      ])
+      .where('equipment.companyId = :companyId', { companyId })
+      .andWhere(
+        `(
+          equipment.plate ILIKE :q OR
+          equipment.name ILIKE :q OR
+          equipment.trailer_brand_abbr ILIKE :q OR
+          CAST(equipment.id AS TEXT) ILIKE :q
+        )`,
+        { q: `%${search}%` },
+      )
+      .orderBy('equipment.name', 'ASC')
+      .take(limit)
+      .getMany();
+
+    return { items: rows.map(mapEquipmentLinkOption) };
+  }
+
   async findOne(companyId: number, equipmentId: number) {
     const row = await this.repo.findOne({
       where: { companyId, id: equipmentId },
@@ -103,13 +174,17 @@ export class EquipmentService {
   }
 
   async update(companyId: number, equipmentId: number, dto: UpdateEquipmentDto) {
+    rejectClientFleetStatusMutation(dto as unknown as Record<string, unknown>);
     const current = await this.repo.findOne({
       where: { companyId, id: equipmentId },
     });
     if (!current) {
       throw new NotFoundException(`Equipment ${equipmentId} not found`);
     }
-    const { unitId: unitIdRef, fleetMeta, hitchPosition, ...rest } = dto;
+    const { unitId: unitIdRef, fleetMeta, hitchPosition, ...rawRest } = dto;
+    const rest = pickEquipmentUserMutableFields(
+      rawRest as unknown as Record<string, unknown>,
+    );
     const unitId =
       unitIdRef !== undefined
         ? unitIdRef == null || String(unitIdRef).trim() === ''
@@ -156,6 +231,30 @@ export class EquipmentService {
     return { id: equipmentId, deleted: true };
   }
 
+  async startMaintenance(companyId: number, equipmentId: number) {
+    await this.maintenanceWorkflow.startEquipmentMaintenance(companyId, equipmentId);
+    return this.findOne(companyId, equipmentId);
+  }
+
+  async endMaintenance(companyId: number, equipmentId: number) {
+    await this.maintenanceWorkflow.endEquipmentMaintenance(companyId, equipmentId);
+    return this.findOne(companyId, equipmentId);
+  }
+
+  async syncInsuranceExpenses(companyId: number, equipmentId: number) {
+    await this.findOne(companyId, equipmentId);
+    const existing = await this.profileRepo.findOne({ where: { equipmentId } });
+    if (existing) {
+      await this.insuranceExpenseSync.ensureInitialInsurancePremium({
+        companyId,
+        insuranceTarget: 'equipment',
+        relatedEquipmentId: equipmentId,
+        previous: existing,
+      });
+    }
+    return this.findOne(companyId, equipmentId);
+  }
+
   private async assertHitchSlotAvailable(
     companyId: number,
     unitId: number,
@@ -185,11 +284,12 @@ export class EquipmentService {
     }
     const row = await this.unitsRepo.findOne({
       where: { companyId, id: unitId },
-      select: ['id'],
+      select: ['id', 'isActive'],
     });
     if (!row) {
       throw new NotFoundException(`Unit ${unitId} not found`);
     }
+    assertFleetResourceActive(row.isActive, 'Unit');
     return row.id;
   }
 
@@ -213,6 +313,38 @@ export class EquipmentService {
       }),
     );
 
+    const equipment = await this.repo.findOne({
+      where: { id: equipmentId, companyId },
+      select: ['id', 'unitId'],
+    });
+    if (equipment?.unitId && unitFleetMetaVerificationTouched(existing, fleetMeta)) {
+      await this.verificationExpenseSync.syncForEquipmentVerificationSave({
+        companyId,
+        unitId: equipment.unitId,
+        equipmentId,
+        previous: existing,
+        incoming: fleetMeta,
+      });
+    }
+
+    if (unitFleetMetaInsurancePaymentDateTouched(existing, fleetMeta)) {
+      await this.insuranceExpenseSync.syncForInsurancePaymentSave({
+        companyId,
+        insuranceTarget: 'equipment',
+        relatedEquipmentId: equipmentId,
+        previous: existing,
+        incoming: fleetMeta,
+      });
+    } else if (unitFleetMetaInsuranceConfigTouched(existing, fleetMeta)) {
+      await this.insuranceExpenseSync.ensureInitialInsurancePremium({
+        companyId,
+        insuranceTarget: 'equipment',
+        relatedEquipmentId: equipmentId,
+        previous: existing,
+        incoming: fleetMeta,
+      });
+    }
+
     await this.fleetTenureService.upsertFromFleetMeta(
       companyId,
       { equipmentId },
@@ -220,6 +352,10 @@ export class EquipmentService {
     );
 
     if (fleetMeta.maintenanceEntries !== undefined) {
+      const previous = await this.maintenanceRepo.find({
+        where: { equipmentId },
+        order: { sortOrder: 'ASC' },
+      });
       await this.maintenanceRepo.delete({ equipmentId });
       const maintenanceRows = fleetMetaDtoToMaintenanceEntries(equipmentId, fleetMeta);
       if (maintenanceRows.length > 0) {
@@ -227,6 +363,13 @@ export class EquipmentService {
           maintenanceRows.map((row) => this.maintenanceRepo.create(row)),
         );
       }
+      await this.maintenanceExpenseSync.syncForMaintenanceSave({
+        companyId,
+        maintenanceTarget: 'equipment',
+        relatedEquipmentId: equipmentId,
+        previous,
+        incoming: fleetMeta.maintenanceEntries,
+      });
     }
 
     const hasDocumentPayload =

@@ -69,9 +69,38 @@ export function exposeTripActualSchedule(
     return value;
   };
 
-  return {
+  return sanitizeExposedActualSchedule({
     departureAt: expose(trip.departureAt),
     arrivedAt: expose(trip.arrivedAt),
     returnAt: expose(trip.returnAt),
+  });
+}
+
+function isStrictlyBefore(a: Date, b: Date): boolean {
+  return a.getTime() < b.getTime();
+}
+
+/** No exponer reales que rompen salida → entrega → fin. */
+export function sanitizeExposedActualSchedule(
+  values: TripActualScheduleExposure,
+): TripActualScheduleExposure {
+  const { departureAt: dep, arrivedAt: arr, returnAt: ret } = values;
+  let arrivedAt = arr;
+  let returnAt = ret;
+
+  if (dep && arrivedAt && isStrictlyBefore(arrivedAt, dep)) {
+    arrivedAt = null;
+  }
+  if (dep && returnAt && isStrictlyBefore(returnAt, dep)) {
+    returnAt = null;
+  }
+  if (arrivedAt && returnAt && isStrictlyBefore(returnAt, arrivedAt)) {
+    returnAt = null;
+  }
+
+  return {
+    departureAt: dep,
+    arrivedAt,
+    returnAt,
   };
 }

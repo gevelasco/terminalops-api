@@ -30,8 +30,23 @@ export class Unit {
   @Column()
   status: string;
 
+  @Column({ name: 'is_active', default: true })
+  isActive: boolean;
+
   @Column({ name: 'serial_number', nullable: true })
   serialNumber?: string;
+
+  @Column({ name: 'motor_number', nullable: true })
+  motorNumber?: string;
+
+  @Column({
+    name: 'capacity_tons',
+    type: 'numeric',
+    precision: 10,
+    scale: 2,
+    nullable: true,
+  })
+  capacityTons?: string;
 
   @Column({ nullable: true })
   name?: string;

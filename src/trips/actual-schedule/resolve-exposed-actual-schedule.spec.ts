@@ -65,4 +65,20 @@ describe('resolve-exposed-actual-schedule', () => {
       returnAt: null,
     });
   });
+
+  it('drops returnAt earlier than departureAt', () => {
+    const departureAt = new Date('2026-07-02T01:30:00.000Z');
+    const arrivedAt = new Date('2026-07-02T01:30:00.000Z');
+    const returnAt = new Date('2026-06-20T07:12:00.000Z');
+
+    expect(
+      exposeTripActualSchedule({
+        status: 'in_transit',
+        createdAt,
+        departureAt,
+        arrivedAt,
+        returnAt,
+      }),
+    ).toEqual({ departureAt, arrivedAt, returnAt: null });
+  });
 });

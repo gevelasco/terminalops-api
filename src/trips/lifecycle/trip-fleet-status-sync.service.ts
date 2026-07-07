@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { In, Repository, IsNull } from 'typeorm';
 import { Company } from 'src/companies/entities/company.entity';
 import { Equipment } from 'src/equipment/entities/equipment.entity';
 import { Operator } from 'src/operators/entities/operator.entity';
@@ -13,6 +13,7 @@ import {
   TRIP_FLEET_ACTIVE_STATUSES,
   type FleetResourceKind,
 } from './trip-fleet-status-sync.util';
+import { updateFleetResourceStatusCompareAndSet } from 'src/fleet/fleet-status-compare-set.util';
 
 export type TripFleetSyncSource = Pick<
   Trip,
@@ -49,6 +50,16 @@ export class TripFleetStatusSyncService {
     private readonly companiesRepo: Repository<Company>,
   ) {}
 
+  async reconcileUnitOperationalStatus(
+    companyId: number,
+    unitId: number,
+  ): Promise<void> {
+    if (!(await this.isOperationalSyncEnabled(companyId))) {
+      return;
+    }
+    await this.syncUnitFromActiveTrips(companyId, unitId);
+  }
+
   async syncForTrip(trip: TripFleetSyncSource): Promise<void> {
     if (!(await this.isOperationalSyncEnabled(trip.companyId))) {
       return;
@@ -58,9 +69,7 @@ export class TripFleetStatusSyncService {
     const tasks: Promise<void>[] = [];
 
     if (trip.unitId != null) {
-      tasks.push(
-        this.syncUnitFromActiveTrips(trip.companyId, trip.unitId),
-      );
+      tasks.push(this.syncUnitFromActiveTrips(trip.companyId, trip.unitId));
     }
     if (trip.operatorId != null) {
       tasks.push(
@@ -90,7 +99,11 @@ export class TripFleetStatusSyncService {
     }
 
     const activeTrips = await this.tripsRepo.find({
-      where: { companyId, status: In([...TRIP_FLEET_ACTIVE_STATUSES]) },
+      where: {
+        companyId,
+        status: In([...TRIP_FLEET_ACTIVE_STATUSES]),
+        deletedAt: IsNull(),
+      },
       select: ['id', 'unitId', 'operatorId'],
     });
 
@@ -132,12 +145,14 @@ export class TripFleetStatusSyncService {
     }
 
     const staleOperators = await this.operatorsRepo.find({
-      where: { companyId, status: In(['on_route', 'scheduled']) },
+      where: { companyId, status: In(['in_use', 'scheduled']) },
       select: ['id'],
     });
     for (const operator of staleOperators) {
       if (!operatorIds.has(operator.id)) {
-        tasks.push(this.syncOperatorFromActiveTrips(companyId, operator.id));
+        tasks.push(
+          this.syncOperatorFromActiveTrips(companyId, operator.id),
+        );
       }
     }
 
@@ -147,7 +162,9 @@ export class TripFleetStatusSyncService {
     });
     for (const eq of staleEquipment) {
       if (!equipmentIds.has(eq.id)) {
-        tasks.push(this.syncEquipmentFromActiveTrips(companyId, eq.id));
+        tasks.push(
+          this.syncEquipmentFromActiveTrips(companyId, eq.id),
+        );
       }
     }
 
@@ -191,7 +208,9 @@ export class TripFleetStatusSyncService {
       tasks.push(this.syncUnitFromActiveTrips(trip.companyId, unitId));
     }
     for (const operatorId of operatorIds) {
-      tasks.push(this.syncOperatorFromActiveTrips(trip.companyId, operatorId));
+      tasks.push(
+        this.syncOperatorFromActiveTrips(trip.companyId, operatorId),
+      );
     }
     for (const equipmentId of equipmentIds) {
       tasks.push(
@@ -199,6 +218,31 @@ export class TripFleetStatusSyncService {
       );
     }
 
+    await Promise.all(tasks);
+  }
+
+  /** Reconcilia flota tras eliminar o revertir una maniobra (sin trip activo). */
+  async reconcileReleasedFleetResources(
+    companyId: number,
+    released: TripFleetReleasedResources,
+  ): Promise<void> {
+    if (!(await this.isOperationalSyncEnabled(companyId))) {
+      return;
+    }
+    const tasks: Promise<void>[] = [];
+    for (const unitId of released.unitIds) {
+      tasks.push(this.syncUnitFromActiveTrips(companyId, unitId));
+    }
+    for (const operatorId of released.operatorIds) {
+      tasks.push(
+        this.syncOperatorFromActiveTrips(companyId, operatorId),
+      );
+    }
+    for (const equipmentId of released.equipmentIds) {
+      tasks.push(
+        this.syncEquipmentFromActiveTrips(companyId, equipmentId),
+      );
+    }
     await Promise.all(tasks);
   }
 
@@ -225,7 +269,11 @@ export class TripFleetStatusSyncService {
     const statuses = await this.findActiveTripStatusesForUnit(companyId, unitId);
     await this.applyResourceStatus('unit', unitId, companyId, statuses);
     const equipmentTarget = resolveFleetTargetForResource('equipment', statuses);
-    await this.syncHitchedEquipmentForUnit(companyId, unitId, equipmentTarget);
+    await this.syncHitchedEquipmentForUnit(
+      companyId,
+      unitId,
+      equipmentTarget,
+    );
   }
 
   /** Equipo enganchado a la unidad sigue el mismo estatus operativo del convoy. */
@@ -258,10 +306,16 @@ export class TripFleetStatusSyncService {
       if ((row.status ?? '') === equipmentTarget) {
         continue;
       }
-      await this.equipmentRepo.update(
-        { id: row.id, companyId },
-        { status: equipmentTarget },
+      const updated = await updateFleetResourceStatusCompareAndSet(
+        this.equipmentRepo,
+        companyId,
+        row.id,
+        row.status,
+        equipmentTarget,
       );
+      if (!updated) {
+        continue;
+      }
       this.logger.debug(
         `Equipment ${row.id} (hitched to unit ${unitId}) status → ${equipmentTarget}`,
       );
@@ -309,6 +363,7 @@ export class TripFleetStatusSyncService {
         companyId,
         unitId,
         status: In([...TRIP_FLEET_ACTIVE_STATUSES]),
+        deletedAt: IsNull(),
       },
       select: ['status'],
     });
@@ -324,6 +379,7 @@ export class TripFleetStatusSyncService {
         companyId,
         operatorId,
         status: In([...TRIP_FLEET_ACTIVE_STATUSES]),
+        deletedAt: IsNull(),
       },
       select: ['status'],
     });
@@ -342,6 +398,7 @@ export class TripFleetStatusSyncService {
       .andWhere('trip.status IN (:...statuses)', {
         statuses: [...TRIP_FLEET_ACTIVE_STATUSES],
       })
+      .andWhere('trip.deleted_at IS NULL')
       .select(['trip.status'])
       .getMany();
     return rows.map((row) => row.status);
@@ -366,7 +423,16 @@ export class TripFleetStatusSyncService {
       if (row.status === target) {
         return;
       }
-      await this.unitsRepo.update({ id: resourceId, companyId }, { status: target });
+      const updated = await updateFleetResourceStatusCompareAndSet(
+        this.unitsRepo,
+        companyId,
+        resourceId,
+        row.status,
+        target,
+      );
+      if (!updated) {
+        return;
+      }
       this.logger.debug(`Unit ${resourceId} status → ${target}`);
       return;
     }
@@ -382,10 +448,16 @@ export class TripFleetStatusSyncService {
       if (row.status === target) {
         return;
       }
-      await this.operatorsRepo.update(
-        { id: resourceId, companyId },
-        { status: target },
+      const updated = await updateFleetResourceStatusCompareAndSet(
+        this.operatorsRepo,
+        companyId,
+        resourceId,
+        row.status,
+        target,
       );
+      if (!updated) {
+        return;
+      }
       this.logger.debug(`Operator ${resourceId} status → ${target}`);
       return;
     }
@@ -400,10 +472,16 @@ export class TripFleetStatusSyncService {
     if ((row.status ?? '') === target) {
       return;
     }
-    await this.equipmentRepo.update(
-      { id: resourceId, companyId },
-      { status: target },
+    const updated = await updateFleetResourceStatusCompareAndSet(
+      this.equipmentRepo,
+      companyId,
+      resourceId,
+      row.status,
+      target,
     );
+    if (!updated) {
+      return;
+    }
     this.logger.debug(`Equipment ${resourceId} status → ${target}`);
   }
 }

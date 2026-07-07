@@ -31,6 +31,7 @@ export function serializeEquipment(
     plate: equipment.plate ?? undefined,
     type: equipment.type ?? undefined,
     status: equipment.status ?? undefined,
+    isActive: equipment.isActive !== false,
     trailerBrandAbbr: equipment.trailerBrandAbbr ?? undefined,
     trailerYear: equipment.trailerYear ?? undefined,
     fleetMeta,

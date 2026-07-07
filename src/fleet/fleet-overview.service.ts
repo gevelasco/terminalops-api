@@ -5,19 +5,19 @@ import { formatCompactRouteEndpoint, formatCompactTripRouteLabel } from 'src/com
 import { buildUnitOperationalId } from 'src/common/utils/unit-operational-id.util';
 import { toIsoString } from 'src/common/utils/iso-date.util';
 import { Equipment } from 'src/equipment/entities/equipment.entity';
+import { Company } from 'src/companies/entities/company.entity';
 import { CompanyOperationConfiguration } from 'src/operation-configurations/entities/company-operation-configuration.entity';
 import { Trip } from 'src/trips/entities/trip.entity';
 import { exposeTripActualSchedule } from 'src/trips/actual-schedule/resolve-exposed-actual-schedule';
+import { TRIP_FLEET_ACTIVE_STATUSES } from 'src/fleet/fleet-status-resolver.util';
+import { FleetStatusResolverService } from 'src/fleet/fleet-status-resolver.service';
+import { Unit } from 'src/units/entities/unit.entity';
 import { profileToFleetMeta } from 'src/units/mappers/unit-fleet-meta.mapper';
 import { profileToFleetMeta as equipmentProfileToFleetMeta } from 'src/equipment/mappers/equipment-fleet-meta.mapper';
-import { TripFleetStatusSyncService } from 'src/trips/lifecycle/trip-fleet-status-sync.service';
-import { Unit } from 'src/units/entities/unit.entity';
 import {
-  FleetOverviewAssetStatus,
   FleetOverviewEquipmentConvoyType,
   FleetOverviewEquipmentRowDto,
   FleetOverviewItemDto,
-  FleetOverviewOperationalStatus,
   FleetOverviewResponseDto,
   FleetOverviewTripStatus,
 } from './dto/fleet-overview.dto';
@@ -25,6 +25,7 @@ import {
   buildMaintenanceSummary,
   type FleetMetaLike,
 } from './fleet-overview-maintenance.util';
+import { companyMaintenancePolicyContext } from 'src/units/company-maintenance-policy.util';
 import {
   daysWithoutManeuverSince,
   resolveTripEndedAt,
@@ -47,21 +48,6 @@ function toFleetMetaLike(
   return meta as FleetMetaLike;
 }
 
-const ACTIVE_TRIP_STATUSES = ['scheduled', 'in_transit'] as const;
-
-function mapAssetStatus(raw: string | null | undefined): FleetOverviewAssetStatus {
-  const s = (raw ?? '').trim().toLowerCase();
-  switch (s) {
-    case 'in_use':
-      return 'in_use';
-    case 'scheduled':
-      return 'scheduled';
-    case 'maintenance':
-      return 'maintenance';
-    default:
-      return 'available';
-  }
-}
 
 function convoyTypeFromCount(count: number): FleetOverviewEquipmentConvoyType {
   if (count <= 0) {
@@ -97,51 +83,6 @@ function buildEquipmentOperationalCode(eq: Equipment): string {
   return String(eq.id);
 }
 
-function operationalStatusForUnit(
-  unit: Unit,
-  activeTrip: Trip | null,
-): FleetOverviewOperationalStatus {
-  if (activeTrip?.status === 'in_transit') {
-    return 'in_transit';
-  }
-  if (activeTrip?.status === 'scheduled') {
-    return 'scheduled';
-  }
-  const s = (unit.status ?? '').trim().toLowerCase();
-  if (s === 'in_use') {
-    return 'in_transit';
-  }
-  if (s === 'scheduled') {
-    return 'scheduled';
-  }
-  if (s === 'maintenance') {
-    return 'maintenance';
-  }
-  return 'available';
-}
-
-function operationalStatusForEquipment(
-  eq: Equipment,
-  activeTrip: Trip | null,
-): FleetOverviewOperationalStatus {
-  if (activeTrip?.status === 'in_transit') {
-    return 'in_transit';
-  }
-  if (activeTrip?.status === 'scheduled') {
-    return 'scheduled';
-  }
-  const s = (eq.status ?? '').trim().toLowerCase();
-  if (s === 'in_use') {
-    return 'in_transit';
-  }
-  if (s === 'scheduled') {
-    return 'scheduled';
-  }
-  if (s === 'maintenance') {
-    return 'maintenance';
-  }
-  return 'available';
-}
 
 function parseOperationalKm(
   raw: string | number | null | undefined,
@@ -226,7 +167,9 @@ export class FleetOverviewService {
     private readonly tripsRepo: Repository<Trip>,
     @InjectRepository(CompanyOperationConfiguration)
     private readonly configsRepo: Repository<CompanyOperationConfiguration>,
-    private readonly fleetStatusSync: TripFleetStatusSyncService,
+    @InjectRepository(Company)
+    private readonly companiesRepo: Repository<Company>,
+    private readonly fleetStatusResolver: FleetStatusResolverService,
   ) {}
 
   async listOverview(
@@ -242,14 +185,12 @@ export class FleetOverviewService {
       return { items: [], equipment: [] };
     }
 
-    await this.fleetStatusSync.reconcileCompanyFleetOperationalStatus(companyId);
-
     const allowedTripIds =
       tripIdFilter == null ? null : new Set<number>(tripIdFilter);
 
     const tripWhere = allowedTripIds
-      ? { companyId, status: In([...ACTIVE_TRIP_STATUSES]), id: In([...allowedTripIds]) }
-      : { companyId, status: In([...ACTIVE_TRIP_STATUSES]) };
+      ? { companyId, status: In([...TRIP_FLEET_ACTIVE_STATUSES]), id: In([...allowedTripIds]) }
+      : { companyId, status: In([...TRIP_FLEET_ACTIVE_STATUSES]) };
 
     const trips = await this.tripsRepo.find({
       where: tripWhere,
@@ -269,7 +210,7 @@ export class FleetOverviewService {
       return { items: [], equipment: [] };
     }
 
-    const [units, equipment, configs, endedTrips] = await Promise.all([
+    const [units, equipment, configs, endedTrips, company] = await Promise.all([
       unitIds
         ? this.unitsRepo.find({
             where: { companyId, id: In(unitIds) },
@@ -325,11 +266,26 @@ export class FleetOverviewService {
               'updatedAt',
             ],
           }),
+      this.companiesRepo.findOne({
+        where: { id: companyId },
+        select: [
+          'id',
+          'maintenanceKmControlEnabled',
+          'maintenanceKmIntervalDefault',
+          'maintenanceDateControlEnabled',
+          'maintenanceDatePeriodDefault',
+        ],
+      }),
     ]);
+
+    const maintenancePolicy = companyMaintenancePolicyContext(company);
+
+    const activeUnits = units.filter((u) => u.isActive !== false);
+    const activeEquipment = equipment.filter((e) => e.isActive !== false);
 
     const configsById = new Map(configs.map((c) => [c.id, c]));
     const equipmentByUnitId = new Map<number, Equipment[]>();
-    for (const eq of equipment) {
+    for (const eq of activeEquipment) {
       if (eq.unitId == null) {
         continue;
       }
@@ -366,7 +322,7 @@ export class FleetOverviewService {
       }
     }
 
-    const items: FleetOverviewItemDto[] = units.map((unit) => {
+    const items: FleetOverviewItemDto[] = activeUnits.map((unit) => {
       const hitched = sortHitchedEquipment(
         equipmentByUnitId.get(unit.id) ?? unit.equipment ?? [],
       );
@@ -375,7 +331,14 @@ export class FleetOverviewService {
         tripsByUnitId,
         allowedTripIds ?? undefined,
       );
-      const operationalStatus = operationalStatusForUnit(unit, activeTrip);
+      const operationalStatus = this.fleetStatusResolver.resolveOverviewOperationalStatus({
+        persistedStatus: unit.status,
+        activeTripStatus:
+          activeTrip?.status === 'in_transit' || activeTrip?.status === 'scheduled'
+            ? activeTrip.status
+            : undefined,
+        isActive: unit.isActive !== false,
+      });
       const unitMetaRaw = profileToFleetMeta(
         unit.fleetProfile,
         unit.maintenanceEntries,
@@ -388,21 +351,25 @@ export class FleetOverviewService {
       const item: FleetOverviewItemDto = {
         unitId: unit.id,
         unitName: buildUnitOperationalId(unit),
+        unitAlias: unit.name?.trim() || undefined,
         unitPlate: unit.plate?.trim() || '',
         equipment: {
           equipmentId: primaryEq?.id ?? null,
           type: convoyType,
-          status: mapAssetStatus(primaryEq?.status ?? unit.status),
+          status: this.fleetStatusResolver.persistedAssetStatus(
+            primaryEq?.status ?? unit.status,
+          ),
         },
         hitchedEquipment: hitched.map((eq) => ({
           equipmentId: eq.id,
           operationalCode: buildEquipmentOperationalCode(eq),
+          alias: eq.name?.trim() || undefined,
           equipmentType: (eq.type ?? '').trim() || '—',
           hitchPosition:
             eq.hitchPosition === 'lead' || eq.hitchPosition === 'rear'
               ? eq.hitchPosition
               : undefined,
-          status: mapAssetStatus(eq.status),
+          status: this.fleetStatusResolver.persistedAssetStatus(eq.status),
         })),
         operationalStatus,
         configuration: resolveConfiguration(activeTrip, configsById),
@@ -431,7 +398,7 @@ export class FleetOverviewService {
           operatorName: resolveOperatorDisplayName(activeTrip),
         };
       } else {
-        const maint = buildMaintenanceSummary(unitMeta);
+        const maint = buildMaintenanceSummary(unitMeta, maintenancePolicy);
         item.maintenance = {
           lastMaintenanceDate: maint.lastMaintenanceDate,
           nextMaintenanceDate: maint.nextMaintenanceDate,
@@ -468,8 +435,8 @@ export class FleetOverviewService {
       return item;
     });
 
-    const equipmentRows: FleetOverviewEquipmentRowDto[] = equipment.map((eq) => {
-      const unit = units.find((u) => u.id === eq.unitId);
+    const equipmentRows: FleetOverviewEquipmentRowDto[] = activeEquipment.map((eq) => {
+      const unit = activeUnits.find((u) => u.id === eq.unitId);
       const activeTrip =
         (eq.unitId != null
           ? pickActiveTripForUnit(
@@ -493,18 +460,26 @@ export class FleetOverviewService {
         metaString(metaRaw, 'trailerVersion')?.trim(),
       ].filter(Boolean);
       const maint =
-        activeTrip == null ? buildMaintenanceSummary(meta) : undefined;
+        activeTrip == null ? buildMaintenanceSummary(meta, maintenancePolicy) : undefined;
 
       return {
         equipmentId: eq.id,
         unitId: eq.unitId ?? null,
         unitName: unit ? buildUnitOperationalId(unit) : null,
         operationalCode: buildEquipmentOperationalCode(eq),
+        alias: eq.name?.trim() || undefined,
         brand,
         model: modelParts.length ? modelParts.join(' · ') : '—',
         plate: eq.plate?.trim() || '—',
         equipmentType: (eq.type ?? '').trim() || '—',
-        operationalStatus: operationalStatusForEquipment(eq, activeTrip),
+        operationalStatus: this.fleetStatusResolver.resolveOverviewOperationalStatus({
+          persistedStatus: eq.status,
+          activeTripStatus:
+            activeTrip?.status === 'in_transit' || activeTrip?.status === 'scheduled'
+              ? activeTrip.status
+              : undefined,
+          isActive: eq.isActive !== false,
+        }),
         maintenance: maint
           ? {
               lastMaintenanceDate: maint.lastMaintenanceDate,
@@ -536,19 +511,9 @@ export class FleetOverviewService {
       : equipmentRows;
 
     filteredItems.sort((a, b) => {
-      const rank = (s: FleetOverviewOperationalStatus) => {
-        switch (s) {
-          case 'in_transit':
-            return 3;
-          case 'scheduled':
-            return 2;
-          case 'maintenance':
-            return 1;
-          default:
-            return 0;
-        }
-      };
-      const d = rank(b.operationalStatus) - rank(a.operationalStatus);
+      const d =
+        this.fleetStatusResolver.overviewSortRank(b.operationalStatus) -
+        this.fleetStatusResolver.overviewSortRank(a.operationalStatus);
       if (d !== 0) {
         return d;
       }

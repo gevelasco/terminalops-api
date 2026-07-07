@@ -1,22 +1,25 @@
 import type { TripLifecycleStatus } from './trip-lifecycle.types';
+import {
+  EQUIPMENT_PROTECTED_STATUSES,
+  isProtectedFleetStatus,
+  OPERATOR_PROTECTED_STATUSES,
+  pickDominantActiveTripStatus,
+  resolveFleetMutationTarget,
+  resolveFleetTargetForResource as resolveFleetTargetStatus,
+  TRIP_FLEET_ACTIVE_STATUSES,
+  UNIT_PROTECTED_STATUSES,
+  type FleetResourceKind,
+} from 'src/fleet/fleet-status-resolver.util';
 
-export const TRIP_FLEET_ACTIVE_STATUSES: readonly TripLifecycleStatus[] = [
-  'scheduled',
-  'in_transit',
-];
-
-export const OPERATOR_PROTECTED_STATUSES = new Set([
-  'maintenance',
-  'leave',
-  'inactive',
-  'incapacitated',
-]);
-
-export const UNIT_PROTECTED_STATUSES = new Set(['maintenance']);
-
-export const EQUIPMENT_PROTECTED_STATUSES = new Set(['maintenance']);
-
-export type FleetResourceKind = 'unit' | 'operator' | 'equipment';
+export {
+  TRIP_FLEET_ACTIVE_STATUSES,
+  OPERATOR_PROTECTED_STATUSES,
+  UNIT_PROTECTED_STATUSES,
+  EQUIPMENT_PROTECTED_STATUSES,
+  pickDominantActiveTripStatus,
+  isProtectedFleetStatus,
+  type FleetResourceKind,
+};
 
 export interface FleetOperationalTargets {
   unit: string;
@@ -24,71 +27,25 @@ export interface FleetOperationalTargets {
   equipment: string;
 }
 
-/** Prioridad operativa entre maniobras activas del mismo recurso. */
-export function pickDominantActiveTripStatus(
-  statuses: readonly string[],
-): TripLifecycleStatus | null {
-  if (statuses.includes('in_transit')) {
-    return 'in_transit';
-  }
-  if (statuses.includes('scheduled')) {
-    return 'scheduled';
-  }
-  return null;
+function targetsFromStatus(status: string): FleetOperationalTargets {
+  return { unit: status, operator: status, equipment: status };
 }
 
+/** Mutación DB: maniobra activa → status persistido por recurso. */
 export function fleetTargetsForActiveTripStatus(
   status: TripLifecycleStatus,
 ): FleetOperationalTargets {
-  if (status === 'in_transit') {
-    return {
-      unit: 'in_use',
-      operator: 'on_route',
-      equipment: 'in_use',
-    };
-  }
-  return {
-    unit: 'scheduled',
-    operator: 'scheduled',
-    equipment: 'scheduled',
-  };
+  return targetsFromStatus(resolveFleetMutationTarget(status));
 }
 
 export function fleetTargetsWhenNoActiveTrips(): FleetOperationalTargets {
-  return {
-    unit: 'available',
-    operator: 'available',
-    equipment: 'available',
-  };
+  return targetsFromStatus('available');
 }
 
+/** Mutación DB: prioridad de maniobras activas → status persistido. */
 export function resolveFleetTargetForResource(
   kind: FleetResourceKind,
   activeTripStatuses: readonly string[],
 ): string {
-  const dominant = pickDominantActiveTripStatus(activeTripStatuses);
-  if (!dominant) {
-    return fleetTargetsWhenNoActiveTrips()[kind];
-  }
-  return fleetTargetsForActiveTripStatus(dominant)[kind];
-}
-
-export function isProtectedFleetStatus(
-  kind: FleetResourceKind,
-  currentStatus: string | undefined | null,
-): boolean {
-  const normalized = (currentStatus ?? '').trim().toLowerCase();
-  if (!normalized) {
-    return false;
-  }
-  switch (kind) {
-    case 'unit':
-      return UNIT_PROTECTED_STATUSES.has(normalized);
-    case 'operator':
-      return OPERATOR_PROTECTED_STATUSES.has(normalized);
-    case 'equipment':
-      return EQUIPMENT_PROTECTED_STATUSES.has(normalized);
-    default:
-      return false;
-  }
+  return resolveFleetTargetStatus(kind, activeTripStatuses);
 }

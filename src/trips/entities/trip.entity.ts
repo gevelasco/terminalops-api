@@ -150,6 +150,16 @@ export class Trip {
   @Column({ name: 'is_round_trip', default: true })
   isRoundTrip: boolean;
 
+  /** Km operativos ya sumados al odómetro de la unidad (idempotencia / reversión). */
+  @Column({
+    name: 'unit_odometer_km_credited',
+    type: 'numeric',
+    precision: 12,
+    scale: 2,
+    nullable: true,
+  })
+  unitOdometerKmCredited?: string | null;
+
   @Column({ name: 'maneuver_kind', nullable: true })
   maneuverKind?: string;
 
@@ -218,6 +228,9 @@ export class Trip {
   @Column({ name: 'operator_quota', type: 'numeric', precision: 14, scale: 2, nullable: true })
   operatorQuota?: string;
 
+  @Column({ name: 'per_diem_amount', type: 'numeric', precision: 14, scale: 2, nullable: true })
+  perDiemAmount?: string;
+
   @Column({ name: 'client_charge', type: 'numeric', precision: 14, scale: 2, nullable: true })
   clientCharge?: string;
 
@@ -245,6 +258,12 @@ export class Trip {
   @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
   updatedAt: Date;
 
+  @Column({ name: 'deleted_at', type: 'timestamptz', nullable: true })
+  deletedAt?: Date | null;
+
+  @Column({ name: 'deleted_by', type: 'text', nullable: true })
+  deletedBy?: string | null;
+
   @ManyToOne(() => Client, (client) => client.trips, { onDelete: 'SET NULL' })
   @JoinColumn({ name: 'client_id' })
   client?: Client;
@@ -253,7 +272,7 @@ export class Trip {
   @JoinColumn({ name: 'unit_id' })
   unit?: Unit;
 
-  @ManyToOne(() => Operator, { onDelete: 'SET NULL' })
+  @ManyToOne(() => Operator, (operator) => operator.trips, { onDelete: 'SET NULL' })
   @JoinColumn({ name: 'operator_id' })
   operator?: Operator;
 

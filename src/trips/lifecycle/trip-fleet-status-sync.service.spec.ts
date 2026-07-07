@@ -10,6 +10,60 @@ import { TripFleetStatusSyncService } from './trip-fleet-status-sync.service';
 
 type ResourceRow = { id: number; status: string };
 
+function createFleetStatusUpdateQueryBuilder(
+  getRow: (id: number) => ResourceRow | undefined,
+  setStatus: (id: number, status: string) => void,
+  updateMock: jest.Mock,
+) {
+  let resourceId = 0;
+  let companyId = 0;
+  let prevStatus = '';
+  let nextStatus = '';
+
+  const chain = {
+    update: jest.fn().mockReturnThis(),
+    set: jest.fn((patch: { status: string }) => {
+      nextStatus = patch.status;
+      return chain;
+    }),
+    where: jest.fn((_clause: string, params?: { id?: number }) => {
+      if (params?.id != null) {
+        resourceId = params.id;
+      }
+      return chain;
+    }),
+    andWhere: jest.fn((_clause: string, params?: Record<string, unknown>) => {
+      if (params?.companyId != null) {
+        companyId = params.companyId as number;
+      }
+      if (params?.prevStatus != null) {
+        prevStatus = String(params.prevStatus);
+      }
+      if (params?.empty != null) {
+        prevStatus = '';
+      }
+      return chain;
+    }),
+    execute: jest.fn(async () => {
+      const row = getRow(resourceId);
+      if (!row) {
+        return { affected: 0 };
+      }
+      const current = (row.status ?? '').trim();
+      const expected = prevStatus.trim();
+      const matches = expected === '' ? current === '' : current === expected;
+      if (!matches) {
+        return { affected: 0 };
+      }
+      setStatus(resourceId, nextStatus);
+      updateMock({ id: resourceId, companyId }, { status: nextStatus });
+      return { affected: 1 };
+    }),
+  };
+
+  return chain;
+}
+
 describe('TripFleetStatusSyncService.syncForTripAfterUpdate', () => {
   let service: TripFleetStatusSyncService;
 
@@ -116,6 +170,18 @@ describe('TripFleetStatusSyncService.syncForTripAfterUpdate', () => {
               return row ? { id: row.id, status: row.status } : null;
             }),
             update: unitsUpdate,
+            createQueryBuilder: jest.fn(() =>
+              createFleetStatusUpdateQueryBuilder(
+                (id) => units.get(id),
+                (id, status) => {
+                  const row = units.get(id);
+                  if (row) {
+                    row.status = status;
+                  }
+                },
+                unitsUpdate,
+              ),
+            ),
           },
         },
         {
@@ -126,6 +192,18 @@ describe('TripFleetStatusSyncService.syncForTripAfterUpdate', () => {
               return row ? { id: row.id, status: row.status } : null;
             }),
             update: operatorsUpdate,
+            createQueryBuilder: jest.fn(() =>
+              createFleetStatusUpdateQueryBuilder(
+                (id) => operators.get(id),
+                (id, status) => {
+                  const row = operators.get(id);
+                  if (row) {
+                    row.status = status;
+                  }
+                },
+                operatorsUpdate,
+              ),
+            ),
           },
         },
         {
@@ -150,6 +228,18 @@ describe('TripFleetStatusSyncService.syncForTripAfterUpdate', () => {
               return row ? { id: row.id, status: row.status } : null;
             }),
             update: equipmentUpdate,
+            createQueryBuilder: jest.fn(() =>
+              createFleetStatusUpdateQueryBuilder(
+                (id) => equipment.get(id),
+                (id, status) => {
+                  const row = equipment.get(id);
+                  if (row) {
+                    row.status = status;
+                  }
+                },
+                equipmentUpdate,
+              ),
+            ),
           },
         },
         {
@@ -222,8 +312,8 @@ describe('TripFleetStatusSyncService.syncForTripAfterUpdate', () => {
     );
   });
 
-  it('cambio de operador: libera el anterior y asigna on_route al nuevo', async () => {
-    seedOperator(1, 'on_route', []);
+  it('cambio de operador: libera el anterior y asigna in_use al nuevo', async () => {
+    seedOperator(1, 'in_use', []);
     seedOperator(2, 'available', []);
     activeTripsByOperator.set(1, []);
     activeTripsByOperator.set(2, ['in_transit']);
@@ -245,7 +335,7 @@ describe('TripFleetStatusSyncService.syncForTripAfterUpdate', () => {
     );
     expect(operatorsUpdate).toHaveBeenCalledWith(
       { id: 2, companyId },
-      { status: 'on_route' },
+      { status: 'in_use' },
     );
   });
 
@@ -352,7 +442,7 @@ describe('TripFleetStatusSyncService.syncForTripAfterUpdate', () => {
     );
   });
 
-  it('operador anterior con otra maniobra activa permanece on_route', async () => {
+  it('operador anterior con otra maniobra activa permanece in_use', async () => {
     seedOperator(1, 'available', []);
     seedOperator(2, 'available', []);
     activeTripsByOperator.set(1, ['in_transit']);
@@ -371,11 +461,11 @@ describe('TripFleetStatusSyncService.syncForTripAfterUpdate', () => {
 
     expect(operatorsUpdate).toHaveBeenCalledWith(
       { id: 1, companyId },
-      { status: 'on_route' },
+      { status: 'in_use' },
     );
     expect(operatorsUpdate).toHaveBeenCalledWith(
       { id: 2, companyId },
-      { status: 'on_route' },
+      { status: 'in_use' },
     );
     expect(operatorsUpdate).not.toHaveBeenCalledWith(
       { id: 1, companyId },

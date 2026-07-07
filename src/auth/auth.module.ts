@@ -2,6 +2,7 @@ import { Global, Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { CompaniesModule } from '../companies/companies.module';
+import { OperationalCentersModule } from '../operational-centers/operational-centers.module';
 import { UsersModule } from '../users/users.module';
 import EnvConfig from '../types/env-config.type';
 import { AuthController } from './auth.controller';
@@ -12,6 +13,7 @@ import { AuthService } from './auth.service';
   imports: [
     UsersModule,
     CompaniesModule,
+    OperationalCentersModule,
     JwtModule.registerAsync({
       inject: [ConfigService],
       global: true,

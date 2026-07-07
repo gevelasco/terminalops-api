@@ -26,8 +26,29 @@ export function serializeOperator(operator: Operator): OperatorApiResponse {
     address: operator.address ?? '',
     companyHireDate: operator.companyHireDate ?? null,
     employmentContractType: operator.employmentContractType ?? '',
+    paymentSchedule: operator.paymentSchedule ?? 'maneuver',
+    paymentMethod: operator.paymentMethod?.trim() || null,
     status: operator.status,
+    isActive: operator.isActive !== false,
     insuranceKind: operator.insuranceKind,
+    maneuverCount:
+      typeof operator.maneuverCount === 'number' ? operator.maneuverCount : undefined,
+    lastManeuver: operator.lastManeuver
+      ? {
+          tripId: operator.lastManeuver.tripId,
+          maneuverCode: operator.lastManeuver.maneuverCode,
+          origin: operator.lastManeuver.origin,
+          destination: operator.lastManeuver.destination,
+          status: operator.lastManeuver.status,
+          occurredOn: operator.lastManeuver.occurredOn ?? null,
+        }
+      : undefined,
+    nextPayDueOn: operator.nextPayDueOn ?? null,
+    nextPayDueVariant: operator.nextPayDueVariant ?? null,
+    owedAmount:
+      typeof operator.owedAmount === 'number' && Number.isFinite(operator.owedAmount)
+        ? operator.owedAmount
+        : null,
     createdAt: toIsoString(operator.createdAt),
     updatedAt: toIsoString(operator.updatedAt),
     emergencyContact: operator.emergencyContact

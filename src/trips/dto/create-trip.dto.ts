@@ -43,10 +43,6 @@ export class CreateTripDto {
   @IsString()
   operatorId?: string;
 
-  @ApiProperty({ enum: ['scheduled', 'in_transit', 'completed', 'cancelled'] })
-  @IsString()
-  status: string;
-
   /**
    * Contrato frontend (obligatorio): el cliente MUST enviar plannedDepartureAt,
    * plannedArrivalAt y plannedCompletionAt. Sin estos valores el backend rechaza
@@ -157,6 +153,14 @@ export class CreateTripDto {
   @IsOptional()
   @IsString()
   operatorQuota?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Viáticos del operador (MXN). Si es 0 u omitido, no se registra gasto automático.',
+  })
+  @IsOptional()
+  @IsString()
+  perDiemAmount?: string;
 
   @ApiPropertyOptional({ enum: ['cash', 'transfer', 'check'] })
   @IsOptional()

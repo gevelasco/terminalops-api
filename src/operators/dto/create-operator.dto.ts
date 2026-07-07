@@ -143,10 +143,10 @@ export class CreateOperatorDto {
   @IsString()
   portalUsername?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ default: true })
   @IsOptional()
-  @IsString()
-  status?: string;
+  @IsBoolean()
+  isActive?: boolean;
 
   @ApiPropertyOptional()
   @OptionalIsoDate()
@@ -209,6 +209,23 @@ export class CreateOperatorDto {
   @IsOptional()
   @IsString()
   employmentContractType?: string;
+
+  @ApiPropertyOptional({
+    enum: ['maneuver', 'weekly', 'biweekly', 'monthly'],
+    description: 'Periodicidad de pago al operador.',
+    default: 'maneuver',
+  })
+  @IsOptional()
+  @IsIn(['maneuver', 'weekly', 'biweekly', 'monthly'])
+  paymentSchedule?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Método de pago al operador (mismo catálogo que gastos: transfer, cash, …).',
+  })
+  @IsOptional()
+  @IsString()
+  paymentMethod?: string;
 
   @ApiPropertyOptional({ enum: ['none', 'public', 'private'] })
   @IsOptional()

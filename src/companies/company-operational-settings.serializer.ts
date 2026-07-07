@@ -1,5 +1,7 @@
 import { Company } from 'src/companies/entities/company.entity';
 import { toIsoString } from 'src/common/utils/iso-date.util';
+import { operationalCenterGeoForApi } from 'src/operational-centers/operational-center-geo-for-api';
+import type { OperationalCenter } from 'src/operational-centers/entities/operational-center.entity';
 
 function dbNumToApi(value?: string | null): number | undefined {
   if (value == null || value === '') {
@@ -9,26 +11,22 @@ function dbNumToApi(value?: string | null): number | undefined {
   return Number.isFinite(n) && n > 0 ? n : undefined;
 }
 
-function dbCoordToApi(value?: string | null): number | undefined {
-  if (value == null || value === '') {
-    return undefined;
-  }
-  const n = Number(value);
-  return Number.isFinite(n) ? n : undefined;
-}
-
 export function serializeCompanyOperationalSettings(
   company: Company,
-  operationalCenterName?: string,
+  primaryCenter: OperationalCenter,
 ) {
-  const centerName =
-    operationalCenterName?.trim() || 'Centro Principal';
+  const geo = operationalCenterGeoForApi(primaryCenter);
   return {
     id: company.id,
     name: company.name,
-    operationalCenterName: centerName,
+    operationalCenterName: geo.operationalCenterName,
     operationalAnalysisEnabled: company.operationalAnalysisEnabled,
     operationalAnalysisChangedAt: toIsoString(company.operationalAnalysisChangedAt),
+    tripAssistPrefillEnabled: company.tripAssistPrefillEnabled,
+    tripAssistPrefillChangedAt: toIsoString(company.tripAssistPrefillChangedAt),
+    tripAutoMaintenanceProvisionPercent: dbNumToApi(
+      company.tripAutoMaintenanceProvisionPercent,
+    ) ?? 5,
     maintenanceKmControlEnabled: company.maintenanceKmControlEnabled,
     maintenanceKmIntervalDefault: dbNumToApi(company.maintenanceKmIntervalDefault),
     maintenanceKmControlChangedAt: toIsoString(company.maintenanceKmControlChangedAt),
@@ -37,13 +35,11 @@ export function serializeCompanyOperationalSettings(
     maintenanceDateControlChangedAt: toIsoString(company.maintenanceDateControlChangedAt),
     dieselControlEnabled: company.dieselControlEnabled,
     dieselControlChangedAt: toIsoString(company.dieselControlChangedAt),
-    operationalCenterPostalCode: company.operationalCenterPostalCode ?? undefined,
-    operationalCenterCityMunicipality:
-      company.operationalCenterCityMunicipality ?? undefined,
-    operationalCenterLocality: company.operationalCenterLocality ?? undefined,
-    operationalCenterSettlementConsId:
-      company.operationalCenterSettlementConsId ?? undefined,
-    operationalCenterLatitude: dbCoordToApi(company.operationalCenterLatitude),
-    operationalCenterLongitude: dbCoordToApi(company.operationalCenterLongitude),
+    operationalCenterPostalCode: geo.operationalCenterPostalCode,
+    operationalCenterCityMunicipality: geo.operationalCenterCityMunicipality,
+    operationalCenterLocality: geo.operationalCenterLocality,
+    operationalCenterSettlementConsId: geo.operationalCenterSettlementConsId,
+    operationalCenterLatitude: geo.operationalCenterLatitude,
+    operationalCenterLongitude: geo.operationalCenterLongitude,
   };
 }

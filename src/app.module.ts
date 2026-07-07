@@ -16,6 +16,7 @@ import { OperatorsModule } from './operators/operators.module';
 import { TripsModule } from './trips/trips.module';
 import { UnitsModule } from './units/units.module';
 import { TenantModule } from './common/tenant/tenant.module';
+import { typeOrmEntityGlobsFromDir } from './database/typeorm-entity-globs';
 import EnvConfig from './types/env-config.type';
 
 @Module({
@@ -32,7 +33,8 @@ import EnvConfig from './types/env-config.type';
         username: configService.get('DB_USERNAME', { infer: true }),
         password: configService.get('DB_PASSWORD', { infer: true }),
         database: configService.get('DB_DATABASE', { infer: true }),
-        entities: [__dirname + '/**/*.entity.{ts,js}'],
+        entities: typeOrmEntityGlobsFromDir(__dirname),
+        autoLoadEntities: true,
         ssl: false,
         synchronize: false,
       }),

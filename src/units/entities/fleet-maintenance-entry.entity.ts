@@ -36,6 +36,9 @@ export class FleetMaintenanceEntry {
   @Column({ nullable: true })
   status?: string;
 
+  @Column({ name: 'payment_method', type: 'text', nullable: true })
+  paymentMethod?: string;
+
   @Column({ name: 'sort_order', type: 'smallint', default: 0 })
   sortOrder: number;
 

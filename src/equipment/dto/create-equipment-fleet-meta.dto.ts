@@ -34,10 +34,15 @@ export class CreateEquipmentFleetMaintenanceEntryDto {
   @IsString()
   notes?: string;
 
-  @ApiPropertyOptional({ enum: ['programado', 'concluido'] })
+  @ApiPropertyOptional()
   @IsOptional()
-  @IsIn(['programado', 'concluido'])
-  status?: 'programado' | 'concluido';
+  @IsString()
+  paymentMethod?: string;
+
+  @ApiPropertyOptional({ enum: ['concluido'] })
+  @IsOptional()
+  @IsIn(['concluido'])
+  status?: 'concluido';
 }
 
 export class CreateEquipmentFleetMetaDto {
@@ -208,10 +213,24 @@ export class CreateEquipmentFleetMetaDto {
   insuranceContractDate?: string;
 
   @ApiPropertyOptional()
+  @OptionalIsoDate()
+  insuranceLastPaymentDate?: string;
+
+  @ApiPropertyOptional()
   @IsOptional()
   @IsNumber()
   @Min(0)
   insuranceCost?: number;
+
+  @ApiPropertyOptional({ description: 'Código de forma de pago (transfer, cash, check…)' })
+  @IsOptional()
+  @IsString()
+  insurancePaymentMethod?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  insuranceInvoiceRequired?: boolean;
 
   @ApiPropertyOptional({ type: [String] })
   @IsOptional()

@@ -36,10 +36,10 @@ export class EquipmentFleetProfile {
   equipmentTireCount?: number;
 
   @Column({ name: 'last_maintenance_date', type: 'date', nullable: true })
-  lastMaintenanceDate?: string;
+  lastMaintenanceDate?: string | null;
 
-  @Column({ name: 'last_maintenance_type', nullable: true })
-  lastMaintenanceType?: string;
+  @Column({ name: 'last_maintenance_type', type: 'text', nullable: true })
+  lastMaintenanceType?: string | null;
 
   @Column({
     name: 'last_maintenance_cost',
@@ -48,10 +48,10 @@ export class EquipmentFleetProfile {
     scale: 2,
     nullable: true,
   })
-  lastMaintenanceCost?: string;
+  lastMaintenanceCost?: string | null;
 
-  @Column({ name: 'last_maintenance_notes', nullable: true })
-  lastMaintenanceNotes?: string;
+  @Column({ name: 'last_maintenance_notes', type: 'text', nullable: true })
+  lastMaintenanceNotes?: string | null;
 
   @Column({ name: 'tire_condition', nullable: true })
   tireCondition?: string;
@@ -119,6 +119,9 @@ export class EquipmentFleetProfile {
   @Column({ name: 'insurance_contract_date', type: 'date', nullable: true })
   insuranceContractDate?: string;
 
+  @Column({ name: 'insurance_last_payment_date', type: 'date', nullable: true })
+  insuranceLastPaymentDate?: string | null;
+
   @Column({
     name: 'insurance_cost',
     type: 'numeric',
@@ -127,6 +130,12 @@ export class EquipmentFleetProfile {
     nullable: true,
   })
   insuranceCost?: string;
+
+  @Column({ name: 'insurance_payment_method', type: 'text', nullable: true })
+  insurancePaymentMethod?: string | null;
+
+  @Column({ name: 'insurance_invoice_required', default: false })
+  insuranceInvoiceRequired: boolean;
 
   @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
   updatedAt: Date;

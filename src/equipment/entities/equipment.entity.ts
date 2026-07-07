@@ -48,6 +48,9 @@ export class Equipment {
   @Column({ nullable: true })
   status?: string;
 
+  @Column({ name: 'is_active', default: true })
+  isActive: boolean;
+
   @Column({ name: 'trailer_brand_abbr', nullable: true })
   trailerBrandAbbr?: string;
 

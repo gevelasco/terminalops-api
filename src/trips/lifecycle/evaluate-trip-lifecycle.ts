@@ -4,10 +4,30 @@ import type {
   TripLifecycleStatus,
 } from './trip-lifecycle.types';
 
+/** Fin efectivo: real si existe; si no, planeado (maniobra sin retrasos registrados). */
+export function resolveEffectiveCompletionAt(
+  input: Pick<
+    TripLifecycleEvaluationInput,
+    'plannedCompletionAt' | 'actualCompletionAt'
+  >,
+): Date {
+  return input.actualCompletionAt ?? input.plannedCompletionAt;
+}
+
+function isCompletionDue(
+  input: TripLifecycleEvaluationInput,
+  now: Date,
+): boolean {
+  const completionAt = resolveEffectiveCompletionAt(input);
+  return now.getTime() >= completionAt.getTime();
+}
+
 /**
  * Evaluación determinista del lifecycle. Sin efectos secundarios.
  * Reglas: scheduled→in_transit (now >= planned_departure);
- *         in_transit→completed (now >= planned_completion AND no open incidents).
+ *         in_transit→completed cuando now >= fin efectivo
+ *           (fin real si fue capturado; si no, fin planeado).
+ *         Los incidentes de bitácora no bloquean el cierre.
  */
 export function evaluateTripLifecycle(
   input: TripLifecycleEvaluationInput,
@@ -26,10 +46,7 @@ export function evaluateTripLifecycle(
   }
 
   if (input.status === 'in_transit') {
-    if (
-      input.openIncidentCount === 0 &&
-      now.getTime() >= input.plannedCompletionAt.getTime()
-    ) {
+    if (isCompletionDue(input, now)) {
       return { nextStatus: 'completed' };
     }
     return { nextStatus: null };

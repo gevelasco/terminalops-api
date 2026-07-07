@@ -8,6 +8,10 @@ import {
 } from './entities/fuel-price.entity';
 import { FUEL_PRICE_DEFAULTS } from './fuel-price.config';
 import { fetchDieselFromExternalSources } from './fuel-price-external.providers';
+import type {
+  CompanyDieselPriceInput,
+  CompanyDieselPriceSnapshot,
+} from './company-diesel-price.types';
 import type EnvConfig from 'src/types/env-config.type';
 
 export type CachedFuelPrice = {
@@ -86,6 +90,52 @@ export class FuelPriceService {
       pricePerLiter,
       source: row.source,
       createdAt: row.createdAt,
+    };
+  }
+
+  /**
+   * Precio efectivo por empresa: override manual → sugerido nacional.
+   * El sugerido proviene de `getCurrentDieselPrice()` (promedio / APIs / fallback).
+   */
+  async resolveDieselForCompany(
+    company: CompanyDieselPriceInput,
+  ): Promise<CompanyDieselPriceSnapshot> {
+    const enabled = company.dieselControlEnabled !== false;
+    if (!enabled) {
+      return {
+        enabled: false,
+        pricePerLiter: null,
+        suggestedPricePerLiter: null,
+        source: null,
+        updatedAt: null,
+      };
+    }
+
+    let suggestedPricePerLiter: number | null = null;
+    try {
+      suggestedPricePerLiter = await this.getCurrentDieselPrice();
+    } catch {
+      const cached = await this.getCachedDieselPrice();
+      suggestedPricePerLiter = cached?.pricePerLiter ?? null;
+    }
+
+    const companyPrice = parseStoredDieselPrice(company.dieselReferencePricePerLiter);
+    if (companyPrice != null) {
+      return {
+        enabled: true,
+        pricePerLiter: companyPrice,
+        suggestedPricePerLiter,
+        source: 'company',
+        updatedAt: company.dieselReferencePriceUpdatedAt?.toISOString() ?? null,
+      };
+    }
+
+    return {
+      enabled: true,
+      pricePerLiter: suggestedPricePerLiter,
+      suggestedPricePerLiter,
+      source: 'suggested',
+      updatedAt: null,
     };
   }
 
@@ -221,4 +271,15 @@ export class FuelPriceService {
 
 function round4(n: number): number {
   return Math.round(n * 10000) / 10000;
+}
+
+function parseStoredDieselPrice(raw?: string | null): number | null {
+  if (raw == null || !String(raw).trim()) {
+    return null;
+  }
+  const n = Number(String(raw).replace(/,/g, ''));
+  if (!Number.isFinite(n) || n <= 0 || n > 200) {
+    return null;
+  }
+  return round4(n);
 }

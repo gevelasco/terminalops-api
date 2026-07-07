@@ -3,6 +3,7 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { ConfigService } from '@nestjs/config';
 import { AppUser } from 'src/users/entities/app-user.entity';
 import { UserPreferences } from 'src/users/entities/user-preferences.entity';
+import { UserModuleAccess } from 'src/users/entities/user-module-access.entity';
 import { UsersService } from './users.service';
 
 describe('UsersService (A3 operational analysis SSOT)', () => {
@@ -36,6 +37,14 @@ describe('UsersService (A3 operational analysis SSOT)', () => {
           },
         },
         {
+          provide: getRepositoryToken(UserModuleAccess),
+          useValue: {
+            save: jest.fn(),
+            create: jest.fn((dto: object) => dto),
+            delete: jest.fn(),
+          },
+        },
+        {
           provide: ConfigService,
           useValue: {
             get: jest.fn(() => 10),
@@ -58,7 +67,7 @@ describe('UsersService (A3 operational analysis SSOT)', () => {
     expect(preferencesSave).toHaveBeenCalled();
   });
 
-  it('generateAuthUser toma operationalAnalysisEnabled de company, no de preferences', () => {
+  it('generateAuthUser expone geo operativo solo desde primaryOperationalCenter', () => {
     const user = {
       id: 1,
       username: 'admin',
@@ -74,6 +83,15 @@ describe('UsersService (A3 operational analysis SSOT)', () => {
         name: 'Acme',
         operationalAnalysisEnabled: false,
         operationalAnalysisChangedAt: new Date('2025-06-01T12:00:00.000Z'),
+        primaryOperationalCenter: {
+          name: 'Patio SSOT',
+          postalCode: '66220',
+          cityMunicipality: 'San Pedro, Nuevo León',
+          locality: 'Valle Oriente',
+          settlementConsId: 'oc-cons',
+          latitude: '25.6500000',
+          longitude: '-100.3500000',
+        },
       },
       preferences: {
         themeScheme: 'light',
@@ -83,9 +101,9 @@ describe('UsersService (A3 operational analysis SSOT)', () => {
 
     const authUser = service.generateAuthUser(user);
 
+    expect(authUser.operationalCenterPostalCode).toBe('66220');
+    expect(authUser.operationalCenterLocality).toBe('Valle Oriente');
+    expect(authUser.operationalCenterName).toBe('Patio SSOT');
     expect(authUser.operationalAnalysisEnabled).toBe(false);
-    expect(authUser.operationalAnalysisChangedAt).toBe(
-      '2025-06-01T12:00:00.000Z',
-    );
   });
 });

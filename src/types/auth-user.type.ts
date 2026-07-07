@@ -1,4 +1,4 @@
-export type UserRole = 'superadmin' | 'admin' | 'coordinator' | 'operator' | 'viewer';
+export type UserRole = 'superadmin' | 'admin' | 'staff';
 
 export type ThemeScheme = 'light' | 'dark';
 
@@ -14,6 +14,8 @@ export type AuthUser = {
   jobTitle?: string;
   photoDataUrl?: string;
   role: UserRole;
+  allowedModules?: string[];
+  moduleGrants?: import('src/common/constants/app-modules').StaffModuleGrant[];
   /** ID numérico de la empresa (URLs /companies/:id); string en claims JWT. */
   companyId: string;
   companyName?: string;
@@ -24,6 +26,9 @@ export type AuthUser = {
   employeeId?: string;
   operationalAnalysisEnabled?: boolean;
   operationalAnalysisChangedAt?: string;
+  tripAssistPrefillEnabled?: boolean;
+  tripAssistPrefillChangedAt?: string;
+  tripAutoMaintenanceProvisionPercent?: number;
   maintenanceKmControlEnabled?: boolean;
   maintenanceKmIntervalDefault?: number;
   maintenanceDateControlEnabled?: boolean;

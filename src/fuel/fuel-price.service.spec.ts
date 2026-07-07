@@ -110,4 +110,33 @@ describe('FuelPriceService', () => {
     expect(b).toBe(27);
     expect(save).toHaveBeenCalledTimes(1);
   });
+
+  it('resolveDieselForCompany uses company override when set', async () => {
+    const snapshot = await service.resolveDieselForCompany({
+      dieselControlEnabled: true,
+      dieselReferencePricePerLiter: '27.1500',
+      dieselReferencePriceUpdatedAt: new Date('2026-06-19T15:00:00.000Z'),
+    });
+
+    expect(snapshot).toEqual({
+      enabled: true,
+      pricePerLiter: 27.15,
+      suggestedPricePerLiter: 24,
+      source: 'company',
+      updatedAt: '2026-06-19T15:00:00.000Z',
+    });
+    expect(external.fetchDieselFromExternalSources).not.toHaveBeenCalled();
+  });
+
+  it('resolveDieselForCompany falls back to suggested when no override', async () => {
+    const snapshot = await service.resolveDieselForCompany({
+      dieselControlEnabled: true,
+      dieselReferencePricePerLiter: null,
+      dieselReferencePriceUpdatedAt: null,
+    });
+
+    expect(snapshot.source).toBe('suggested');
+    expect(snapshot.pricePerLiter).toBe(24);
+    expect(snapshot.suggestedPricePerLiter).toBe(24);
+  });
 });

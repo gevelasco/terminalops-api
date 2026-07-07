@@ -34,16 +34,21 @@ export class CreateUnitFleetMaintenanceEntryDto {
   @IsString()
   notes?: string;
 
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  paymentMethod?: string;
+
   @ApiPropertyOptional({ type: [String] })
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
   documentNames?: string[];
 
-  @ApiPropertyOptional({ enum: ['programado', 'concluido'] })
+  @ApiPropertyOptional({ enum: ['concluido'] })
   @IsOptional()
-  @IsIn(['programado', 'concluido'])
-  status?: 'programado' | 'concluido';
+  @IsIn(['concluido'])
+  status?: 'concluido';
 }
 
 export class CreateUnitFleetMetaDto {
@@ -61,6 +66,11 @@ export class CreateUnitFleetMetaDto {
   @IsOptional()
   @IsString()
   trailerColor?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  serviceModality?: string;
 
   @ApiPropertyOptional({ enum: ['owned', 'financed', 'leased', 'managed'] })
   @IsOptional()
@@ -156,18 +166,30 @@ export class CreateUnitFleetMetaDto {
   @OptionalIsoDate()
   maintenanceNextDateOverride?: string;
 
+  @ApiPropertyOptional({
+    description:
+      'Km acumulados desde el último mantenimiento. Se reinicia al concluir servicio.',
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  maintenanceKmCounter?: number;
+
+  /** @deprecated Ignorado en escritura; intervalo definido a nivel empresa. */
   @ApiPropertyOptional()
   @IsOptional()
   @IsNumber()
   @Min(0)
   maintenanceKmInterval?: number;
 
+  /** @deprecated Ignorado en escritura. */
   @ApiPropertyOptional()
   @IsOptional()
   @IsNumber()
   @Min(0)
   maintenanceTripKmAtLastService?: number;
 
+  /** @deprecated Ignorado en escritura; usar maintenanceKmCounter. */
   @ApiPropertyOptional()
   @IsOptional()
   @IsNumber()
@@ -228,10 +250,24 @@ export class CreateUnitFleetMetaDto {
   insuranceContractDate?: string;
 
   @ApiPropertyOptional()
+  @OptionalIsoDate()
+  insuranceLastPaymentDate?: string;
+
+  @ApiPropertyOptional()
   @IsOptional()
   @IsNumber()
   @Min(0)
   insuranceCost?: number;
+
+  @ApiPropertyOptional({ description: 'Código de forma de pago (transfer, cash, check…)' })
+  @IsOptional()
+  @IsString()
+  insurancePaymentMethod?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  insuranceInvoiceRequired?: boolean;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -257,6 +293,20 @@ export class CreateUnitFleetMetaDto {
   @ApiPropertyOptional()
   @OptionalIsoDate()
   gpsContractDate?: string;
+
+  @ApiPropertyOptional()
+  @OptionalIsoDate()
+  gpsLastPaymentDate?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  gpsPaymentMethod?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  gpsInvoiceRequired?: boolean;
 
   @ApiPropertyOptional()
   @IsOptional()

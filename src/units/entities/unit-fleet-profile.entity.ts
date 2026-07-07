@@ -23,6 +23,10 @@ export class UnitFleetProfile {
   @Column({ name: 'trailer_color', nullable: true })
   trailerColor?: string;
 
+  /** Modalidad de autotransporte federal de carga (general, especializada, etc.). */
+  @Column({ name: 'service_modality', nullable: true })
+  serviceModality?: string;
+
   @Column({ name: 'transmission_type', nullable: true })
   transmissionType?: string;
 
@@ -36,10 +40,10 @@ export class UnitFleetProfile {
   odometerKm?: string;
 
   @Column({ name: 'last_maintenance_date', type: 'date', nullable: true })
-  lastMaintenanceDate?: string;
+  lastMaintenanceDate?: string | null;
 
-  @Column({ name: 'last_maintenance_type', nullable: true })
-  lastMaintenanceType?: string;
+  @Column({ name: 'last_maintenance_type', type: 'text', nullable: true })
+  lastMaintenanceType?: string | null;
 
   @Column({
     name: 'last_maintenance_cost',
@@ -48,10 +52,10 @@ export class UnitFleetProfile {
     scale: 2,
     nullable: true,
   })
-  lastMaintenanceCost?: string;
+  lastMaintenanceCost?: string | null;
 
-  @Column({ name: 'last_maintenance_notes', nullable: true })
-  lastMaintenanceNotes?: string;
+  @Column({ name: 'last_maintenance_notes', type: 'text', nullable: true })
+  lastMaintenanceNotes?: string | null;
 
   @Column({ name: 'tire_condition', nullable: true })
   tireCondition?: string;
@@ -79,6 +83,16 @@ export class UnitFleetProfile {
     nullable: true,
   })
   maintenanceTripKmAtLastService?: string;
+
+  /** Km acumulados desde el último mantenimiento (control por distancia). */
+  @Column({
+    name: 'maintenance_km_counter',
+    type: 'numeric',
+    precision: 12,
+    scale: 2,
+    default: 0,
+  })
+  maintenanceKmCounter: string;
 
   @Column({
     name: 'maintenance_km_remaining',
@@ -140,6 +154,9 @@ export class UnitFleetProfile {
   @Column({ name: 'insurance_contract_date', type: 'date', nullable: true })
   insuranceContractDate?: string;
 
+  @Column({ name: 'insurance_last_payment_date', type: 'date', nullable: true })
+  insuranceLastPaymentDate?: string | null;
+
   @Column({
     name: 'insurance_cost',
     type: 'numeric',
@@ -148,6 +165,12 @@ export class UnitFleetProfile {
     nullable: true,
   })
   insuranceCost?: string;
+
+  @Column({ name: 'insurance_payment_method', type: 'text', nullable: true })
+  insurancePaymentMethod?: string | null;
+
+  @Column({ name: 'insurance_invoice_required', default: false })
+  insuranceInvoiceRequired: boolean;
 
   @Column({ name: 'has_gps', nullable: true })
   hasGps?: boolean;
@@ -169,6 +192,15 @@ export class UnitFleetProfile {
 
   @Column({ name: 'gps_contract_date', type: 'date', nullable: true })
   gpsContractDate?: string;
+
+  @Column({ name: 'gps_last_payment_date', type: 'date', nullable: true })
+  gpsLastPaymentDate?: string | null;
+
+  @Column({ name: 'gps_payment_method', type: 'text', nullable: true })
+  gpsPaymentMethod?: string | null;
+
+  @Column({ name: 'gps_invoice_required', default: false })
+  gpsInvoiceRequired: boolean;
 
   @Column({ name: 'gps_tracking_portal_url', nullable: true })
   gpsTrackingPortalUrl?: string;

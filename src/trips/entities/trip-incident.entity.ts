@@ -47,6 +47,9 @@ export class TripIncident {
   @Column({ nullable: true })
   severity?: string;
 
+  @Column({ name: 'is_incident', default: false })
+  isIncident: boolean;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 

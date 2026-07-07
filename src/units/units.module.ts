@@ -8,11 +8,13 @@ import { UnitFleetProfile } from 'src/units/entities/unit-fleet-profile.entity';
 import { Unit } from 'src/units/entities/unit.entity';
 import { UnitsController } from './units.controller';
 import { UnitsService } from './units.service';
+import { UnitTripOdometerModule } from './unit-trip-odometer.module';
 
 @Module({
   imports: [
     TenantModule,
     FleetModule,
+    UnitTripOdometerModule,
     TypeOrmModule.forFeature([
       Unit,
       UnitFleetProfile,
@@ -22,6 +24,6 @@ import { UnitsService } from './units.service';
   ],
   controllers: [UnitsController],
   providers: [UnitsService],
-  exports: [UnitsService],
+  exports: [UnitsService, UnitTripOdometerModule],
 })
 export class UnitsModule {}

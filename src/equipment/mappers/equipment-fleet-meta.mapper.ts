@@ -4,6 +4,7 @@ import { FleetMaintenanceEntry } from 'src/units/entities/fleet-maintenance-entr
 import type { CreateEquipmentFleetMetaDto } from 'src/equipment/dto/create-equipment-fleet-meta.dto';
 import { FleetAssetTenure } from 'src/fleet/entities/fleet-asset-tenure.entity';
 import { mergeTenureIntoFleetMeta } from 'src/fleet/mappers/fleet-asset-tenure.mapper';
+import { isSubstantiveMaintenanceEntry } from 'src/fleet/fleet-maintenance-expense-sync.util';
 
 function emptyDateToUndefined(value?: string): string | undefined {
   const t = value?.trim();
@@ -63,7 +64,10 @@ export function fleetMetaDtoToProfile(
     insuranceCarrierName: meta.insuranceCarrierName?.trim() || undefined,
     insurancePaymentCadence: meta.insurancePaymentCadence?.trim() || undefined,
     insuranceContractDate: emptyDateToUndefined(meta.insuranceContractDate),
+    insuranceLastPaymentDate: emptyDateToUndefined(meta.insuranceLastPaymentDate),
     insuranceCost: numToDb(meta.insuranceCost),
+    insurancePaymentMethod: meta.insurancePaymentMethod?.trim() || undefined,
+    insuranceInvoiceRequired: meta.insuranceInvoiceRequired === true,
   };
 }
 
@@ -99,13 +103,16 @@ export function fleetMetaDtoToMaintenanceEntries(
   if (!meta.maintenanceEntries?.length) {
     return [];
   }
-  return meta.maintenanceEntries.map((entry, index) => ({
+  return meta.maintenanceEntries
+    .filter(isSubstantiveMaintenanceEntry)
+    .map((entry, index) => ({
     equipmentId,
     entryDate: emptyDateToUndefined(entry.date),
     entryType: entry.type?.trim() || undefined,
     cost: numToDb(entry.cost),
     notes: entry.notes?.trim() || undefined,
-    status: entry.status,
+    paymentMethod: entry.paymentMethod?.trim() || undefined,
+    status: entry.status ?? 'concluido',
     sortOrder: index,
   }));
 }
@@ -159,7 +166,10 @@ export function profileToFleetMeta(
         insuranceCarrierName: profile.insuranceCarrierName ?? undefined,
         insurancePaymentCadence: profile.insurancePaymentCadence ?? undefined,
         insuranceContractDate: profile.insuranceContractDate ?? undefined,
+        insuranceLastPaymentDate: profile.insuranceLastPaymentDate ?? undefined,
         insuranceCost: dbNumToApi(profile.insuranceCost),
+        insurancePaymentMethod: profile.insurancePaymentMethod ?? undefined,
+        insuranceInvoiceRequired: profile.insuranceInvoiceRequired === true,
       }
     : {};
 
@@ -171,9 +181,10 @@ export function profileToFleetMeta(
       type: e.entryType ?? undefined,
       cost: dbNumToApi(e.cost),
       notes: e.notes ?? undefined,
+      paymentMethod: e.paymentMethod ?? undefined,
       status: e.status ?? undefined,
     }))
-    .filter((e) => e.date || e.type || e.cost != null || e.notes || e.status);
+    .filter(isSubstantiveMaintenanceEntry);
   if (entries.length > 0) {
     meta['maintenanceEntries'] = entries;
   }

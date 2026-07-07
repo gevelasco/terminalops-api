@@ -12,6 +12,11 @@ import { OperatorDocument } from 'src/operators/entities/operator-document.entit
 import { OperatorEmergencyContact } from 'src/operators/entities/operator-emergency-contact.entity';
 import { OperatorPrivateInsurance } from 'src/operators/entities/operator-private-insurance.entity';
 import { OperatorPublicInsurance } from 'src/operators/entities/operator-public-insurance.entity';
+import { Trip } from 'src/trips/entities/trip.entity';
+import type {
+  OperatorLastManeuverSnapshot,
+  OperatorPayDueVariant,
+} from 'src/operators/operator-list-enrichment.util';
 
 @Entity({ schema: TERMINALOPS_SCHEMA, name: 'operators' })
 export class Operator {
@@ -66,8 +71,19 @@ export class Operator {
   @Column({ name: 'employment_contract_type', nullable: true })
   employmentContractType?: string;
 
+  /** Periodicidad de pago al operador: maniobra, semana, quincenal o mensual. */
+  @Column({ name: 'payment_schedule', default: 'maneuver' })
+  paymentSchedule: string;
+
+  /** Método de pago al operador (catálogo de gastos: transfer, cash, …). */
+  @Column({ name: 'payment_method', type: 'text', nullable: true })
+  paymentMethod?: string | null;
+
   @Column({ default: 'available' })
   status: string;
+
+  @Column({ name: 'is_active', default: true })
+  isActive: boolean;
 
   @Column({ name: 'insurance_kind', default: 'none' })
   insuranceKind: string;
@@ -89,4 +105,21 @@ export class Operator {
 
   @OneToMany(() => OperatorDocument, (d) => d.operator)
   documents?: OperatorDocument[];
+
+  @OneToMany(() => Trip, (trip) => trip.operator)
+  trips?: Trip[];
+
+  /** Conteo de maniobras (solo en listados; no es columna persistida). */
+  maneuverCount?: number;
+
+  /** Última maniobra asignada (solo en listados). */
+  lastManeuver?: OperatorLastManeuverSnapshot;
+
+  /** Próximo vencimiento de pago al operador (solo en listados). */
+  nextPayDueOn?: string;
+
+  nextPayDueVariant?: OperatorPayDueVariant;
+
+  /** Saldo pendiente total de pago al operador (solo en listados). */
+  owedAmount?: number;
 }

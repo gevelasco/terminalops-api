@@ -69,8 +69,32 @@ npm run start:dev
 | `npm run migration:revert` | Revierte la última migración |
 | `npm run migration:generate` | Genera migración desde cambios en entidades |
 | `npm run build` | Compila a `dist/` |
+| `npm run start:prod` | API compilada (`dist/src/main.js`) |
 
-## Multi-tenant (SaaS)
+## Producción (Docker)
+
+```bash
+docker compose -f docker-compose.yml --env-file .env up -d --build
+```
+
+El contenedor `api`:
+
+1. Espera Postgres
+2. Ejecuta migraciones (`dist/src/migrate.js`)
+3. Arranca `node dist/src/main.js`
+
+**TypeORM en producción**
+
+- `autoLoadEntities: true` registra las entidades de cada `TypeOrmModule.forFeature()`.
+- Al boot se valida que existan metadatos críticos (`AppUser`, `Company`); si faltan, el proceso **no abre el puerto** y el contenedor reinicia (evita servir tráfico con un `dist/` incompleto o desincronizado).
+- Tras `npm run build` local, reinicia el proceso; no dejes un `node dist/src/main.js` viejo en segundo plano mientras `start:dev` recompila.
+
+| Entorno | Arranque correcto |
+|---------|-------------------|
+| Desarrollo | `npm run start:dev` (watch reinicia solo) |
+| Producción / QA | Docker `entrypoint.sh` o `npm run start:prod` |
+| ❌ Evitar | `node dist/src/main.js` manual sin reiniciar tras cada build |
+
 
 Cada empresa de logística es un registro en `companies`. Los datos operativos (`clients`, `operators`, `units`, `equipment`, `trips`, `expenses`) y los usuarios (`app_user`) llevan `company_id`. Las rutas de listado/creación van bajo:
 

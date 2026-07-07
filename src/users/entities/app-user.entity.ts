@@ -4,6 +4,7 @@ import {
   Entity,
   JoinColumn,
   ManyToOne,
+  OneToMany,
   OneToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
@@ -11,6 +12,7 @@ import {
 import { Company } from 'src/companies/entities/company.entity';
 import { TERMINALOPS_SCHEMA } from 'src/common/constants/schema-name';
 import { UserPreferences } from 'src/users/entities/user-preferences.entity';
+import { UserModuleAccess } from 'src/users/entities/user-module-access.entity';
 
 @Entity({ schema: TERMINALOPS_SCHEMA, name: 'app_user' })
 export class AppUser {
@@ -41,7 +43,7 @@ export class AppUser {
   @Column({ name: 'password_hash', select: false })
   passwordHash: string;
 
-  @Column({ default: 'coordinator' })
+  @Column({ default: 'staff' })
   role: string;
 
   @Column({ default: 'active' })
@@ -59,4 +61,7 @@ export class AppUser {
 
   @OneToOne(() => UserPreferences, (prefs) => prefs.user)
   preferences?: UserPreferences;
+
+  @OneToMany(() => UserModuleAccess, (access) => access.user)
+  moduleAccess?: UserModuleAccess[];
 }

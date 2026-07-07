@@ -1,5 +1,6 @@
 import {
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
   UnauthorizedException,
@@ -10,18 +11,33 @@ import { FindOptionsWhere, Repository } from 'typeorm';
 import { hashPassword } from '../auth/auth.utils';
 import { AppUser } from 'src/users/entities/app-user.entity';
 import { UserPreferences } from 'src/users/entities/user-preferences.entity';
+import { UserModuleAccess } from 'src/users/entities/user-module-access.entity';
 import AuthUser, { ThemeScheme } from '../types/auth-user.type';
 import { toIsoString } from '../common/utils/iso-date.util';
 import { ConfigService } from '@nestjs/config';
 import EnvConfig from '../types/env-config.type';
 import { UpdateUserProfileDto } from './dto/update-user-profile.dto';
+import { operationalCenterGeoForApi } from 'src/operational-centers/operational-center-geo-for-api';
+import {
+  canManageUsers,
+  canViewAccount,
+  moduleCodesFromStaffGrants,
+  resolveAllowedModules,
+  type StaffGrantableModuleCode,
+  type StaffModuleGrant,
+} from 'src/common/constants/app-modules';
+import {
+  mergeModuleGrantInput,
+  normalizeStaffModuleGrantsFromRows,
+} from 'src/common/utils/module-permission.util';
 
 const ROLE_JOB_TITLES: Record<string, string> = {
-  superadmin: 'Super administrador',
+  superadmin: 'Propietario',
   admin: 'Administrador',
-  coordinator: 'Coordinador de operaciones',
-  operator: 'Operador',
-  viewer: 'Consulta',
+  staff: 'Staff',
+  coordinator: 'Staff',
+  operator: 'Staff',
+  viewer: 'Staff',
 };
 
 @Injectable()
@@ -31,20 +47,22 @@ export class UsersService {
     private readonly usersRepo: Repository<AppUser>,
     @InjectRepository(UserPreferences)
     private readonly preferencesRepo: Repository<UserPreferences>,
+    @InjectRepository(UserModuleAccess)
+    private readonly moduleAccessRepo: Repository<UserModuleAccess>,
     private readonly config: ConfigService<EnvConfig>,
   ) {}
 
   findOne(where: FindOptionsWhere<AppUser>) {
     return this.usersRepo.findOne({
       where,
-      relations: ['company', 'company.primaryOperationalCenter', 'preferences'],
+      relations: ['company', 'company.primaryOperationalCenter', 'preferences', 'moduleAccess'],
     });
   }
 
   findById(id: number) {
     return this.usersRepo.findOne({
       where: { id },
-      relations: ['company', 'company.primaryOperationalCenter', 'preferences'],
+      relations: ['company', 'company.primaryOperationalCenter', 'preferences', 'moduleAccess'],
     });
   }
 
@@ -58,24 +76,21 @@ export class UsersService {
 
   toProfileResponse(user: AppUser) {
     const theme = this.resolveTheme(user.preferences?.themeScheme);
-    const department =
-      user.role === 'admin' || user.role === 'superadmin' ? 'Gerencia' : '';
+    const department = this.resolveUserDepartment(user.role);
+    const workLocation = this.resolveUserWorkLocation(user);
     return {
       id: user.id,
       username: user.username,
       displayName: user.displayName ?? user.username,
       email: user.email ?? '',
       phone: user.phone ?? '',
-      jobTitle:
-        user.jobTitle?.trim() ||
-        ROLE_JOB_TITLES[user.role] ||
-        ROLE_JOB_TITLES.coordinator,
+      jobTitle: this.resolveUserJobTitle(user),
       photoDataUrl: user.photoDataUrl ?? '',
       theme,
       role: user.role,
       memberSince: toIsoString(user.createdAt),
       department,
-      workLocation: user.company?.name ?? '',
+      workLocation,
       employeeId: String(user.id),
       controlAutomaticRecognition:
         user.preferences?.controlAutomaticRecognition ?? false,
@@ -219,6 +234,7 @@ export class UsersService {
       .createQueryBuilder('user')
       .addSelect('user.passwordHash')
       .leftJoinAndSelect('user.company', 'company')
+      .leftJoinAndSelect('company.primaryOperationalCenter', 'primaryOperationalCenter')
       .leftJoinAndSelect('user.preferences', 'preferences')
       .where('LOWER(user.username) = :login OR LOWER(user.email) = :login', {
         login: normalized,
@@ -265,10 +281,12 @@ export class UsersService {
   }
 
   generateAuthUser(user: AppUser): AuthUser {
+    const moduleGrants = normalizeStaffModuleGrantsFromRows(user.moduleAccess ?? []);
+    const allowedModules = resolveAllowedModules(user.role, moduleGrants);
     const theme = this.resolveTheme(user.preferences?.themeScheme);
     const { firstName, lastName } = this.splitDisplayName(user.displayName);
-    const department =
-      user.role === 'admin' || user.role === 'superadmin' ? 'Gerencia' : '';
+    const department = this.resolveUserDepartment(user.role);
+    const workLocation = this.resolveUserWorkLocation(user);
     return {
       id: String(user.id),
       name: user.displayName ?? user.username,
@@ -277,24 +295,39 @@ export class UsersService {
       email: user.email ?? '',
       username: user.username,
       phone: user.phone ?? '',
-      jobTitle:
-        user.jobTitle?.trim() ||
-        ROLE_JOB_TITLES[user.role] ||
-        ROLE_JOB_TITLES.coordinator,
+      jobTitle: this.resolveUserJobTitle(user),
       photoDataUrl: user.photoDataUrl ?? '',
       role: user.role as AuthUser['role'],
+      allowedModules,
+      moduleGrants,
       companyId: String(user.companyId),
       companyName: user.company?.name,
       theme,
       memberSince: toIsoString(user.createdAt),
       department,
-      workLocation: user.company?.name ?? '',
+      workLocation,
       employeeId: String(user.id),
       operationalAnalysisEnabled:
         user.company?.operationalAnalysisEnabled ?? true,
       operationalAnalysisChangedAt: toIsoString(
         user.company?.operationalAnalysisChangedAt,
       ),
+      tripAssistPrefillEnabled:
+        user.company?.tripAssistPrefillEnabled ??
+        user.preferences?.controlAutomaticRecognition ??
+        false,
+      tripAssistPrefillChangedAt: toIsoString(
+        user.company?.tripAssistPrefillChangedAt ??
+          user.preferences?.controlAutomaticRecognitionChangedAt,
+      ),
+      tripAutoMaintenanceProvisionPercent: (() => {
+        const raw = user.company?.tripAutoMaintenanceProvisionPercent;
+        if (raw == null || raw === '') {
+          return 5;
+        }
+        const n = Number(raw);
+        return Number.isFinite(n) && n >= 0 ? n : 5;
+      })(),
       maintenanceKmControlEnabled:
         user.company?.maintenanceKmControlEnabled ?? false,
       maintenanceKmIntervalDefault: (() => {
@@ -318,36 +351,26 @@ export class UsersService {
       dieselControlEnabled: user.company?.dieselControlEnabled ?? true,
       dieselControlChangedAt: toIsoString(user.company?.dieselControlChangedAt),
       controlAutomaticRecognition:
-        user.preferences?.controlAutomaticRecognition ?? false,
+        user.company?.tripAssistPrefillEnabled ??
+        user.preferences?.controlAutomaticRecognition ??
+        false,
       controlAutomaticRecognitionChangedAt: toIsoString(
-        user.preferences?.controlAutomaticRecognitionChangedAt,
+        user.company?.tripAssistPrefillChangedAt ??
+          user.preferences?.controlAutomaticRecognitionChangedAt,
       ),
-      operationalCenterName:
-        user.company?.primaryOperationalCenter?.name?.trim() ||
-        'Centro Principal',
-      operationalCenterPostalCode:
-        user.company?.operationalCenterPostalCode ?? undefined,
-      operationalCenterCityMunicipality:
-        user.company?.operationalCenterCityMunicipality ?? undefined,
-      operationalCenterLocality:
-        user.company?.operationalCenterLocality ?? undefined,
-      operationalCenterSettlementConsId:
-        user.company?.operationalCenterSettlementConsId ?? undefined,
-      operationalCenterLatitude: (() => {
-        const raw = user.company?.operationalCenterLatitude;
-        if (raw == null || raw === '') {
-          return undefined;
-        }
-        const n = Number(raw);
-        return Number.isFinite(n) ? n : undefined;
-      })(),
-      operationalCenterLongitude: (() => {
-        const raw = user.company?.operationalCenterLongitude;
-        if (raw == null || raw === '') {
-          return undefined;
-        }
-        const n = Number(raw);
-        return Number.isFinite(n) ? n : undefined;
+      ...(() => {
+        const geo = operationalCenterGeoForApi(
+          user.company?.primaryOperationalCenter,
+        );
+        return {
+          operationalCenterName: geo.operationalCenterName,
+          operationalCenterPostalCode: geo.operationalCenterPostalCode,
+          operationalCenterCityMunicipality: geo.operationalCenterCityMunicipality,
+          operationalCenterLocality: geo.operationalCenterLocality,
+          operationalCenterSettlementConsId: geo.operationalCenterSettlementConsId,
+          operationalCenterLatitude: geo.operationalCenterLatitude,
+          operationalCenterLongitude: geo.operationalCenterLongitude,
+        };
       })(),
     };
   }
@@ -360,12 +383,14 @@ export class UsersService {
       displayName?: string;
       email?: string;
       phone?: string;
+      jobTitle?: string;
+      photoDataUrl?: string;
       role?: string;
       theme?: ThemeScheme;
     },
   ) {
     const passwordHash = await hashPassword(data.password, this.saltRounds);
-    const role = data.role ?? 'admin';
+    const role = data.role ?? 'staff';
     const user = await this.usersRepo.save(
       this.usersRepo.create({
         companyId,
@@ -373,7 +398,11 @@ export class UsersService {
         displayName: data.displayName?.trim() ?? data.username.trim(),
         email: data.email?.trim().toLowerCase(),
         phone: data.phone?.trim(),
-        jobTitle: ROLE_JOB_TITLES[role] ?? ROLE_JOB_TITLES.coordinator,
+        jobTitle:
+          data.jobTitle?.trim() ||
+          ROLE_JOB_TITLES[role] ||
+          ROLE_JOB_TITLES.staff,
+        photoDataUrl: data.photoDataUrl?.trim() ?? '',
         passwordHash,
         role,
         status: 'active',
@@ -436,5 +465,272 @@ export class UsersService {
 
   private get saltRounds(): number {
     return Number(this.config.get('SALT_ROUNDS', { infer: true }) ?? 10);
+  }
+
+  assertCanManageUsers(actor: AuthUser): void {
+    if (!canManageUsers(actor.role)) {
+      throw new ForbiddenException('No tienes permiso para administrar usuarios.');
+    }
+  }
+
+  assertCanViewAccount(actor: AuthUser): void {
+    if (!canViewAccount(actor.role)) {
+      throw new ForbiddenException('No tienes permiso para ver la cuenta.');
+    }
+  }
+
+  async listCompanyUsers(companyId: number, actor: AuthUser) {
+    this.assertCanManageUsers(actor);
+    const users = await this.usersRepo.find({
+      where: { companyId },
+      relations: ['moduleAccess', 'company', 'company.primaryOperationalCenter'],
+      order: { role: 'ASC', username: 'ASC' },
+    });
+    const visible =
+      actor.role === 'superadmin'
+        ? users
+        : users.filter((user) => user.role !== 'superadmin');
+    return visible.map((user) => this.toCompanyUserResponse(user));
+  }
+
+  async getCompanyAccount(companyId: number, actor: AuthUser) {
+    this.assertCanViewAccount(actor);
+    const user = await this.findOne({ id: Number(actor.id) });
+    if (!user?.company || user.companyId !== companyId) {
+      throw new NotFoundException('Empresa no encontrada');
+    }
+    return {
+      id: user.company.id,
+      name: user.company.name,
+      subscriptionStatus: user.company.subscriptionStatus,
+      subscriptionPlan: user.company.subscriptionPlan ?? null,
+      subscriptionEndsAt: toIsoString(user.company.subscriptionEndsAt) ?? null,
+    };
+  }
+
+  async createCompanyUser(
+    companyId: number,
+    actor: AuthUser,
+    data: {
+      username: string;
+      password: string;
+      displayName?: string;
+      email?: string;
+      phone?: string;
+      jobTitle?: string;
+      photoDataUrl?: string;
+      role: 'admin' | 'staff';
+      moduleCodes?: StaffGrantableModuleCode[];
+      moduleGrants?: StaffModuleGrant[];
+    },
+  ) {
+    this.assertCanManageUsers(actor);
+    if (Number(actor.companyId) !== companyId) {
+      throw new ForbiddenException('Acceso denegado a esta empresa.');
+    }
+    if (actor.role !== 'superadmin' && data.role === 'admin') {
+      throw new ForbiddenException('Solo el propietario puede crear administradores.');
+    }
+    const created = await this.createForCompany(companyId, {
+      username: data.username,
+      password: data.password,
+      displayName: data.displayName,
+      email: data.email,
+      phone: data.phone,
+      jobTitle: data.jobTitle,
+      photoDataUrl: data.photoDataUrl,
+      role: data.role,
+    });
+    if (data.role === 'staff') {
+      await this.replaceModuleAccess(
+        created.id,
+        mergeModuleGrantInput({
+          moduleGrants: data.moduleGrants,
+          moduleCodes: data.moduleCodes,
+        }),
+      );
+    }
+    const full = await this.findOne({ id: created.id });
+    if (!full) {
+      throw new NotFoundException('Usuario no encontrado');
+    }
+    return this.toCompanyUserResponse(full);
+  }
+
+  async updateCompanyUser(
+    companyId: number,
+    userId: number,
+    actor: AuthUser,
+    data: {
+      displayName?: string;
+      username?: string;
+      email?: string;
+      phone?: string;
+      jobTitle?: string;
+      photoDataUrl?: string;
+      newPassword?: string;
+      role?: 'admin' | 'staff';
+      status?: 'active' | 'disabled';
+      moduleCodes?: StaffGrantableModuleCode[];
+      moduleGrants?: StaffModuleGrant[];
+    },
+  ) {
+    this.assertCanManageUsers(actor);
+    if (Number(actor.companyId) !== companyId) {
+      throw new ForbiddenException('Acceso denegado a esta empresa.');
+    }
+    const user = await this.usersRepo.findOne({
+      where: { id: userId, companyId },
+      relations: ['moduleAccess'],
+    });
+    if (!user) {
+      throw new NotFoundException('Usuario no encontrado');
+    }
+    if (user.role === 'superadmin' && actor.role !== 'superadmin') {
+      throw new NotFoundException('Usuario no encontrado');
+    }
+    if (user.role === 'superadmin') {
+      throw new ForbiddenException('No puedes modificar al propietario de la cuenta.');
+    }
+    if (data.role === 'admin' && actor.role !== 'superadmin') {
+      throw new ForbiddenException('Solo el propietario puede asignar administradores.');
+    }
+    if (data.status === 'disabled' && user.id === Number(actor.id)) {
+      throw new ForbiddenException('No puedes desactivar tu propia cuenta.');
+    }
+
+    const nextUsername = data.username?.trim().toLowerCase();
+    const nextEmail = data.email?.trim().toLowerCase();
+
+    if (nextUsername && nextUsername !== user.username.trim().toLowerCase()) {
+      const conflict = await this.findUpdateConflict(
+        user.id,
+        nextUsername,
+        nextEmail ?? user.email ?? '',
+      );
+      if (conflict === 'username') {
+        throw new ConflictException('El nombre de usuario ya está registrado.');
+      }
+      user.username = nextUsername;
+    }
+
+    if (nextEmail && nextEmail !== (user.email?.trim().toLowerCase() ?? '')) {
+      const conflict = await this.findUpdateConflict(
+        user.id,
+        nextUsername ?? user.username,
+        nextEmail,
+      );
+      if (conflict === 'email') {
+        throw new ConflictException('El correo electrónico ya está registrado.');
+      }
+      user.email = nextEmail;
+    }
+
+    if (data.displayName !== undefined) {
+      user.displayName = data.displayName.trim();
+    }
+    if (data.phone !== undefined) {
+      user.phone = data.phone.trim();
+    }
+    if (data.jobTitle !== undefined) {
+      user.jobTitle = data.jobTitle.trim();
+    }
+    if (data.photoDataUrl !== undefined) {
+      user.photoDataUrl = data.photoDataUrl.trim();
+    }
+    if (data.newPassword) {
+      user.passwordHash = await hashPassword(
+        data.newPassword,
+        this.saltRounds,
+      );
+    }
+
+    if (data.role) {
+      user.role = data.role;
+      if (data.jobTitle === undefined) {
+        user.jobTitle =
+          ROLE_JOB_TITLES[data.role] ?? ROLE_JOB_TITLES.staff;
+      }
+    }
+    if (data.status) {
+      user.status = data.status;
+    }
+    await this.usersRepo.save(user);
+    if (user.role === 'staff' && (data.moduleGrants || data.moduleCodes)) {
+      await this.replaceModuleAccess(
+        user.id,
+        mergeModuleGrantInput({
+          moduleGrants: data.moduleGrants,
+          moduleCodes: data.moduleCodes,
+        }),
+      );
+    }
+    if (user.role === 'admin') {
+      await this.moduleAccessRepo.delete({ userId: user.id });
+    }
+    const full = await this.findOne({ id: user.id });
+    if (!full) {
+      throw new NotFoundException('Usuario no encontrado');
+    }
+    return this.toCompanyUserResponse(full);
+  }
+
+  private async replaceModuleAccess(
+    userId: number,
+    moduleGrants: StaffModuleGrant[],
+  ): Promise<void> {
+    await this.moduleAccessRepo.delete({ userId });
+    if (moduleGrants.length === 0) {
+      return;
+    }
+    await this.moduleAccessRepo.save(
+      moduleGrants.map((grant) =>
+        this.moduleAccessRepo.create({
+          userId,
+          moduleCode: grant.module,
+          accessLevel: grant.level,
+        }),
+      ),
+    );
+  }
+
+  private toCompanyUserResponse(user: AppUser) {
+    const moduleGrants = normalizeStaffModuleGrantsFromRows(user.moduleAccess ?? []);
+    const moduleCodes = moduleCodesFromStaffGrants(moduleGrants);
+    return {
+      id: user.id,
+      username: user.username,
+      displayName: user.displayName ?? user.username,
+      email: user.email ?? '',
+      phone: user.phone ?? '',
+      jobTitle: this.resolveUserJobTitle(user),
+      photoDataUrl: user.photoDataUrl ?? '',
+      department: this.resolveUserDepartment(user.role),
+      workLocation: this.resolveUserWorkLocation(user),
+      role: user.role,
+      status: user.status,
+      moduleCodes,
+      moduleGrants,
+      allowedModules: resolveAllowedModules(user.role, moduleGrants),
+      memberSince: toIsoString(user.createdAt),
+      employeeId: String(user.id),
+    };
+  }
+
+  private resolveUserJobTitle(user: AppUser): string {
+    return (
+      user.jobTitle?.trim() ||
+      ROLE_JOB_TITLES[user.role] ||
+      ROLE_JOB_TITLES.staff
+    );
+  }
+
+  private resolveUserDepartment(role: string): string {
+    return role === 'admin' || role === 'superadmin' ? 'Gerencia' : 'Operaciones';
+  }
+
+  private resolveUserWorkLocation(user: AppUser): string {
+    return operationalCenterGeoForApi(user.company?.primaryOperationalCenter)
+      .operationalCenterName;
   }
 }

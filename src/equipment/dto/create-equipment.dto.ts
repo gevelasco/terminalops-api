@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsIn, IsOptional, IsString, ValidateNested } from 'class-validator';
+import { IsBoolean, IsIn, IsOptional, IsString, ValidateNested } from 'class-validator';
 import { CreateEquipmentFleetMetaDto } from 'src/equipment/dto/create-equipment-fleet-meta.dto';
 
 export class CreateEquipmentDto {
@@ -37,10 +37,10 @@ export class CreateEquipmentDto {
   @IsString()
   type?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ default: true })
   @IsOptional()
-  @IsString()
-  status?: string;
+  @IsBoolean()
+  isActive?: boolean;
 
   @ApiPropertyOptional()
   @IsOptional()

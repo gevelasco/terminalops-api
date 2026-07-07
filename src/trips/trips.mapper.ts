@@ -6,7 +6,7 @@ import { TripIncident } from 'src/trips/entities/trip-incident.entity';
 import { tripDieselPricePerLiterAtCreation } from 'src/trips/trip-diesel-price.util';
 import { exposeTripActualSchedule } from 'src/trips/actual-schedule/resolve-exposed-actual-schedule';
 import { operationalKmFromStoredTrip } from 'src/trips/trip-operational-distance.util';
-import { buildUnitOperationalId } from 'src/common/utils/unit-operational-id.util';
+import { buildUnitOperationalId, buildEquipmentOperationalId } from 'src/common/utils/unit-operational-id.util';
 
 export type TripResponse = Record<string, unknown>;
 
@@ -30,6 +30,10 @@ function resolveUnitDisplayCode(trip: Trip): string | undefined {
   return undefined;
 }
 
+function tripHasMarkedIncidents(incidents: TripIncident[] | undefined): boolean {
+  return (incidents ?? []).some((row) => row.isIncident === true);
+}
+
 export function mapTripToResponse(
   trip: Trip,
   equipmentCatalog: Equipment[] = [],
@@ -39,13 +43,19 @@ export function mapTripToResponse(
     trip.tripEquipment?.map((te) => te.equipmentId) ?? [];
   const equipmentLabels = equipmentIds.map((id) => {
     const row = equipmentCatalog.find((e) => e.id === id);
-    return row?.name ?? row?.plate ?? String(id);
+    if (!row) {
+      return String(id);
+    }
+    return buildEquipmentOperationalId(row);
   });
   const equipmentPublicIds = equipmentIds.map((id) => {
     const row = equipmentCatalog.find((e) => e.id === id);
     return row?.id ?? id;
   });
   const exposedActual = exposeTripActualSchedule(trip);
+  const mappedIncidents = (trip.incidents ?? []).map((i) =>
+    mapIncident(i, authorLookup),
+  );
 
   return {
     id: trip.id,
@@ -92,8 +102,8 @@ export function mapTripToResponse(
     arrivedAt: exposedActual.arrivedAt?.toISOString() ?? null,
     returnAt: exposedActual.returnAt?.toISOString() ?? null,
     creditDays: trip.creditDays,
-    hasIncident: trip.hasIncident,
-    incidents: (trip.incidents ?? []).map((i) => mapIncident(i, authorLookup)),
+    hasIncident: tripHasMarkedIncidents(trip.incidents),
+    incidents: mappedIncidents,
     routeDistanceKm: trip.routeDistanceKm ? Number(trip.routeDistanceKm) : null,
     operationalDistanceKm: operationalKmFromStoredTrip(
       trip.routeDistanceKm ? Number(trip.routeDistanceKm) : null,
@@ -119,6 +129,7 @@ export function mapTripToResponse(
     tollCalculationMode: trip.tollCalculationMode ?? null,
     routeTollAmount: trip.routeTollAmount ? Number(trip.routeTollAmount) : null,
     operatorQuota: trip.operatorQuota?.toString(),
+    perDiemAmount: trip.perDiemAmount?.toString(),
     clientCharge: trip.clientCharge?.toString(),
     paymentMethod: trip.paymentMethod,
     requiresInvoice: trip.requiresInvoice,
@@ -139,6 +150,7 @@ function mapIncident(i: TripIncident, authorLookup?: IncidentAuthorLookup) {
       ? formatIncidentAuthorLabel(i.postedBy, authorLookup)
       : i.postedBy,
     severity: i.severity,
+    isIncident: i.isIncident === true,
     status: i.status ?? 'open',
     category: i.category ?? undefined,
     openedAt: (i.openedAt ?? i.occurredAt).toISOString(),
