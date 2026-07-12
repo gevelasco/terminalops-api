@@ -51,7 +51,7 @@ export class EquipmentController {
     assertModuleWrite(user, APP_MODULE_CODES.FLEET);
     rejectClientFleetStatusMutation(req.body as Record<string, unknown>);
     const companyId = await this.tenantContext.resolveInternalIdFromAuthUser(user);
-    return this.service.update(companyId, equipmentId, dto);
+    return this.service.update(companyId, equipmentId, dto, user);
   }
 
   @Delete(':equipmentId')

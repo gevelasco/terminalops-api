@@ -1,3 +1,7 @@
+import {
+  EXPENSE_PAYMENT_METHOD_LABELS,
+  EXPENSE_PAYMENT_METHODS,
+} from './expense-payment-method.util';
 import { EXPENSE_RUBRO_LABELS } from 'src/reports/reports-expense-rubro.util';
 
 const MANIOBRA_TRIP_KINDS = [
@@ -29,6 +33,7 @@ const RUBRO_SEARCH_SQL: Record<string, string> = {
     'operational_control'
   )`,
   verificaciones: `e.kind = 'verification'`,
+  servicio: `e.kind = 'service'`,
   otro: `e.kind = 'other'`,
 };
 
@@ -68,5 +73,60 @@ export function expenseRubroSearchSql(rubroKeys: readonly string[]): string | nu
 }
 
 function sqlInList(values: readonly string[]): string {
-  return values.map((value) => `'${value}'`).join(', ');
+  return values.map((value) => `'${value.replace(/'/g, "''")}'`).join(', ');
+}
+
+/** Códigos de método de pago cuya etiqueta o código coincide con la consulta. */
+export function paymentMethodsMatchingExpenseSearch(q: string): string[] {
+  const needle = normalizeExpenseListSearchQuery(q).toLowerCase();
+  if (!needle) {
+    return [];
+  }
+
+  const matched = new Set<string>();
+  for (const code of EXPENSE_PAYMENT_METHODS) {
+    const label = EXPENSE_PAYMENT_METHOD_LABELS[code].toLowerCase();
+    const codeSpaced = code.replace(/_/g, ' ').toLowerCase();
+    if (
+      label.includes(needle) ||
+      needle.includes(label) ||
+      code.includes(needle) ||
+      needle.includes(code) ||
+      codeSpaced.includes(needle) ||
+      needle.includes(codeSpaced)
+    ) {
+      matched.add(code);
+    }
+  }
+
+  if (needle.includes('tarjeta') || needle.includes('card')) {
+    matched.add('card');
+  }
+
+  return [...matched];
+}
+
+/** Fecha operativa `YYYY-MM-DD` si la consulta parece una fecha completa. */
+export function parseExpenseListSearchDateYmd(q: string): string | null {
+  const needle = normalizeExpenseListSearchQuery(q).trim();
+  if (!needle) {
+    return null;
+  }
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(needle)) {
+    return needle;
+  }
+
+  const dmy4 = /^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})$/.exec(needle);
+  if (dmy4) {
+    return `${dmy4[3]}-${dmy4[2].padStart(2, '0')}-${dmy4[1].padStart(2, '0')}`;
+  }
+
+  const dmy2 = /^(\d{1,2})[/.-](\d{1,2})[/.-](\d{2})$/.exec(needle);
+  if (dmy2) {
+    const year = Number(dmy2[3]) >= 70 ? `19${dmy2[3]}` : `20${dmy2[3]}`;
+    return `${year}-${dmy2[2].padStart(2, '0')}-${dmy2[1].padStart(2, '0')}`;
+  }
+
+  return null;
 }

@@ -15,7 +15,7 @@ function baseDto(overrides: Partial<CreateTripDto> = {}): CreateTripDto {
     status: 'scheduled',
     operationType: 'sencillo',
     loadType: 'vacio',
-    containerType: '20ft',
+    containerType: '20dc',
     plannedDepartureAt: '2026-06-01T08:00:00.000Z',
     plannedArrivalAt: '2026-06-01T12:00:00.000Z',
     plannedCompletionAt: '2026-06-01T16:00:00.000Z',

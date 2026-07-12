@@ -211,6 +211,11 @@ function operatorLabel(operator: Operator): string {
   return operator.name?.trim() || `Operador ${operator.id}`;
 }
 
+/** Beneficiario del pago proyectado: «[nombre del operador] - Operador». */
+function operatorVendorLabel(operator: Operator): string {
+  return `${operatorLabel(operator)} - Operador`;
+}
+
 function normalizeOptionalPaymentMethod(
   raw: string | null | undefined,
 ): string | undefined {
@@ -357,6 +362,12 @@ function buildTripCommittedProjections(
         relatedUnitId: trip.unitId ?? null,
         relatedEquipmentId: null,
         relatedOperatorId: trip.operatorId ?? null,
+        ...(trip.unitOperationalCodeSnapshot?.trim()
+          ? {
+              fleetRelationLabel: trip.unitOperationalCodeSnapshot.trim(),
+              relatedUnitLabel: trip.unitOperationalCodeSnapshot.trim(),
+            }
+          : {}),
         hint: trip.status === 'in_transit' ? 'Maniobra en curso' : 'Maniobra programada',
       });
     }
@@ -626,7 +637,12 @@ function buildOperatorPaymentProjections(
         relatedUnitId: trip?.unitId ?? null,
         relatedEquipmentId: null,
         relatedOperatorId: operator.id,
+        ...(trip?.unitOperationalCodeSnapshot?.trim()
+          ? { relatedUnitLabel: trip.unitOperationalCodeSnapshot.trim() }
+          : {}),
         relatedOperatorLabel: operatorLabel(operator),
+        vendor: operatorVendorLabel(operator),
+        paymentMethod: normalizeOptionalPaymentMethod(operator.paymentMethod),
         hint: operatorPaymentScheduleHint(schedule),
       });
     }
@@ -671,7 +687,12 @@ function buildOperatorPaymentProjections(
         relatedUnitId: trip.unitId ?? null,
         relatedEquipmentId: null,
         relatedOperatorId: operator.id,
+        ...(trip.unitOperationalCodeSnapshot?.trim()
+          ? { relatedUnitLabel: trip.unitOperationalCodeSnapshot.trim() }
+          : {}),
         relatedOperatorLabel: operatorLabel(operator),
+        vendor: operatorVendorLabel(operator),
+        paymentMethod: normalizeOptionalPaymentMethod(operator.paymentMethod),
         hint: operatorPaymentScheduleHint(schedule),
       });
     }
@@ -749,6 +770,7 @@ const PROGRAMADO_EXPENSE_KINDS = new Set(['insurance', 'gps', 'verification']);
 /** Rubros fuera del flujo operativo recurrente (reparaciones, gastos ad hoc, etc.). */
 const EVENTUAL_EXPENSE_RUBROS = new Set([
   'reparacion',
+  'servicio',
   'gasto',
   'otro',
   'administracion',

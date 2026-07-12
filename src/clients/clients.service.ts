@@ -8,6 +8,9 @@ import { ClientContact } from 'src/clients/entities/client-contact.entity';
 import { ClientDelivery } from 'src/clients/entities/client-delivery.entity';
 import { ClientPaymentTerms } from 'src/clients/entities/client-payment-terms.entity';
 import { DestinationRatesService } from 'src/destination-rates/destination-rates.service';
+import { ActivityEventsService } from 'src/activity-events/activity-events.service';
+import { COMPANY_ACTIVITY_KIND } from 'src/activity-events/company-activity-event.kinds';
+import type AuthUser from 'src/types/auth-user.type';
 import { CreateClientDto } from './dto/create-client.dto';
 import { UpdateClientDto } from './dto/update-client.dto';
 import type { ClientPickerOptionDto } from './dto/client-picker-option.dto';
@@ -28,9 +31,10 @@ export class ClientsService {
     @InjectRepository(ClientDelivery)
     private readonly deliveryRepo: Repository<ClientDelivery>,
     private readonly destinationRatesService: DestinationRatesService,
+    private readonly activityEvents: ActivityEventsService,
   ) {}
 
-  async create(companyId: number, dto: CreateClientDto) {
+  async create(companyId: number, dto: CreateClientDto, actor?: AuthUser) {
     const client = this.clientsRepo.create({
       companyId,
       name: dto.name,
@@ -40,6 +44,15 @@ export class ClientsService {
     });
     const saved = await this.clientsRepo.save(client);
     await this.saveNested(companyId, saved.id, dto);
+    await this.activityEvents.record({
+      companyId,
+      kind: COMPANY_ACTIVITY_KIND.CLIENT_CREATED,
+      entityType: 'client',
+      entityId: saved.id,
+      subjectLabel: saved.name?.trim() || `Cliente #${saved.id}`,
+      title: 'Alta de cliente',
+      actor,
+    });
     return this.findOne(companyId, saved.id);
   }
 
@@ -84,8 +97,13 @@ export class ClientsService {
     return serializeClient(client);
   }
 
-  async update(companyId: number, clientId: number, dto: UpdateClientDto) {
-    await this.findOne(companyId, clientId);
+  async update(
+    companyId: number,
+    clientId: number,
+    dto: UpdateClientDto,
+    actor?: AuthUser,
+  ) {
+    const existing = await this.findOne(companyId, clientId);
     await this.clientsRepo.update({ id: clientId, companyId }, {
       name: dto.name,
       rfc: dto.rfc,
@@ -95,6 +113,19 @@ export class ClientsService {
     if (dto.billing || dto.payment || dto.contacts || dto.delivery) {
       await this.saveNested(companyId, clientId, dto);
     }
+    const name =
+      dto.name?.trim() ||
+      (typeof existing['name'] === 'string' ? existing['name'] : '') ||
+      `Cliente #${clientId}`;
+    await this.activityEvents.record({
+      companyId,
+      kind: COMPANY_ACTIVITY_KIND.CLIENT_UPDATED,
+      entityType: 'client',
+      entityId: clientId,
+      subjectLabel: name,
+      title: 'Cliente modificado',
+      actor,
+    });
     return this.findOne(companyId, clientId);
   }
 

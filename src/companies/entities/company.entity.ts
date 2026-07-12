@@ -62,6 +62,18 @@ export class Company {
   })
   tripAutoMaintenanceProvisionPercent: string;
 
+  @Column({ name: 'trip_auto_fuel_payment_method', default: 'cash' })
+  tripAutoFuelPaymentMethod: string;
+
+  @Column({ name: 'trip_auto_tolls_payment_method', default: 'cash' })
+  tripAutoTollsPaymentMethod: string;
+
+  @Column({ name: 'trip_auto_per_diem_payment_method', default: 'cash' })
+  tripAutoPerDiemPaymentMethod: string;
+
+  @Column({ name: 'trip_auto_control_payment_method', default: 'cash' })
+  tripAutoControlPaymentMethod: string;
+
   @Column({ name: 'maintenance_km_control_enabled', default: false })
   maintenanceKmControlEnabled: boolean;
 

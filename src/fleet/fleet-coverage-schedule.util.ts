@@ -82,7 +82,10 @@ function isInsurancePaymentExpense(e: Expense): boolean {
 
 function isGpsPaymentExpense(e: Expense): boolean {
   const desc = (e.description ?? '').trim();
-  return e.kind === 'gps' && desc.startsWith('Pago de GPS');
+  return (
+    e.kind === 'gps' &&
+    (desc.startsWith('Pago de GPS') || desc.startsWith('Contratación de GPS'))
+  );
 }
 
 /** Calendario anual mensual/trimestral (misma lógica que la app de flota). */

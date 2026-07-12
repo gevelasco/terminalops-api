@@ -19,8 +19,17 @@ export interface TripAutoExpenseDraft {
   description?: string;
   relatedUnitId?: number;
   relatedOperatorId?: number;
+  paymentMethod?: string;
   isOperationalProvision: boolean;
 }
+
+export type TripAutoExpenseBuildOptions = {
+  maintenanceProvisionPercent?: number;
+  fuelPaymentMethod?: string;
+  tollsPaymentMethod?: string;
+  perDiemPaymentMethod?: string;
+  controlPaymentMethod?: string;
+};
 
 export function parseTripMoneyAmount(raw?: string | null): number {
   if (raw == null || !String(raw).trim()) {
@@ -55,11 +64,15 @@ function resolveIncurredAt(trip: Trip): Date {
 
 export function buildTripAutoExpenses(
   trip: Trip,
-  options: { maintenanceProvisionPercent?: number } = {},
+  options: TripAutoExpenseBuildOptions = {},
 ): TripAutoExpenseDraft[] {
   const incurredAt = resolveIncurredAt(trip);
   const maneuverRef = trip.maneuverCode?.trim() || `#${trip.id}`;
   const drafts: TripAutoExpenseDraft[] = [];
+  const fuelPaymentMethod = options.fuelPaymentMethod?.trim() || undefined;
+  const tollsPaymentMethod = options.tollsPaymentMethod?.trim() || undefined;
+  const perDiemPaymentMethod = options.perDiemPaymentMethod?.trim() || undefined;
+  const controlPaymentMethod = options.controlPaymentMethod?.trim() || undefined;
 
   const dieselAmount = parseTripMoneyAmount(trip.dieselAmount);
   if (dieselAmount > 0) {
@@ -76,6 +89,7 @@ export function buildTripAutoExpenses(
       kind: TRIP_AUTO_EXPENSE_KIND.DIESEL,
       description: dieselDescription,
       relatedUnitId: trip.unitId,
+      paymentMethod: fuelPaymentMethod,
       isOperationalProvision: false,
     });
   }
@@ -89,6 +103,8 @@ export function buildTripAutoExpenses(
       incurredAt,
       kind: TRIP_AUTO_EXPENSE_KIND.CASETAS,
       description: `Casetas — maniobra ${maneuverRef}`,
+      relatedUnitId: trip.unitId,
+      paymentMethod: tollsPaymentMethod,
       isOperationalProvision: false,
     });
   }
@@ -104,6 +120,7 @@ export function buildTripAutoExpenses(
       description: `Viáticos — maniobra ${maneuverRef}`,
       relatedOperatorId: trip.operatorId,
       relatedUnitId: trip.unitId,
+      paymentMethod: perDiemPaymentMethod,
       isOperationalProvision: false,
     });
   }
@@ -120,6 +137,7 @@ export function buildTripAutoExpenses(
       incurredAt,
       kind: TRIP_AUTO_EXPENSE_KIND.OPERATIONAL_CONTROL,
       description: `Control operativo ${provisionRate}% — maniobra ${maneuverRef}`,
+      paymentMethod: controlPaymentMethod,
       isOperationalProvision: false,
     });
   }

@@ -28,6 +28,7 @@ const KIND_DEFAULT_RUBRO = new Map<string, string>([
   ['equipment_rent', 'administracion'],
   ['trailer_admin_payout', 'administracion'],
   ['operational_control', 'administracion'],
+  ['service', 'servicio'],
   ['other', 'otro'],
 ]);
 
@@ -39,6 +40,7 @@ const RUBRO_LABELS: Record<string, string> = {
   gps: 'GPS',
   administracion: 'Administración',
   verificaciones: 'Verificaciones',
+  servicio: 'Servicio',
   gasto: 'Gasto',
   otro: 'Otro',
 };

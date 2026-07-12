@@ -36,7 +36,7 @@ describe('FuelEstimatorService', () => {
       configuration: 'full',
       approximateWeightTons: 18,
       cargoType: 'lleno',
-      containerType: '40ft',
+      containerType: '40dc',
     });
     expect(res.calculationProfile).toBe('full_loaded');
     expect(res.adjustments.routeFactor).toBe(1);

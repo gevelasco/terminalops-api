@@ -18,9 +18,30 @@ function verificationScopeLabel(scope: string | null | undefined): string {
   return VERIFICATION_SCOPE_LABELS[code] ?? code;
 }
 
+/**
+ * Cuando no se puede armar el código operativo (falta marca/año/placa),
+ * `buildFleetOperationalCode` devuelve el id interno. En ese caso preferimos la
+ * placa como identificador visible de la unidad/equipo en lugar del id crudo.
+ */
+function preferPlateOverInternalId(
+  operationalCode: string,
+  asset: { id: number; plate?: string | null },
+): string {
+  if (operationalCode === String(asset.id)) {
+    const plate = asset.plate?.trim();
+    if (plate) {
+      return plate;
+    }
+  }
+  return operationalCode;
+}
+
 function unitLabel(expense: Expense): string | undefined {
   if (expense.relatedUnit) {
-    return buildUnitOperationalId(expense.relatedUnit);
+    return preferPlateOverInternalId(
+      buildUnitOperationalId(expense.relatedUnit),
+      expense.relatedUnit,
+    );
   }
   if (expense.relatedUnitId != null) {
     return String(expense.relatedUnitId);
@@ -30,7 +51,10 @@ function unitLabel(expense: Expense): string | undefined {
 
 function equipmentLabel(expense: Expense): string | undefined {
   if (expense.relatedEquipment) {
-    return buildEquipmentOperationalId(expense.relatedEquipment);
+    return preferPlateOverInternalId(
+      buildEquipmentOperationalId(expense.relatedEquipment),
+      expense.relatedEquipment,
+    );
   }
   if (expense.relatedEquipmentId != null) {
     return String(expense.relatedEquipmentId);
@@ -63,11 +87,33 @@ function withVerificationSuffix(
   return scopeLabel ? `${base} · ${scopeLabel}` : base;
 }
 
+function tripLinkedUnitLabel(expense: Expense): string | undefined {
+  const direct = unitLabel(expense);
+  if (direct) {
+    return direct;
+  }
+  return expense.trip?.unitOperationalCodeSnapshot?.trim() || undefined;
+}
+
+function tripLinkedOperatorLabel(expense: Expense): string | undefined {
+  const direct = operatorLabel(expense);
+  if (direct) {
+    return direct;
+  }
+  return expense.trip?.operatorNameSnapshot?.trim() || undefined;
+}
+
 /** Etiqueta legible del vínculo operativo para listado y detalle de gastos. */
 export function buildExpenseFleetRelationLabel(expense: Expense): string | undefined {
   switch (expense.kind) {
     case 'trip':
       return undefined;
+    case 'fuel':
+    case 'tolls':
+      return tripLinkedUnitLabel(expense);
+    case 'per_diem':
+    case 'lodging':
+      return tripLinkedOperatorLabel(expense) ?? tripLinkedUnitLabel(expense);
     case 'maintenance':
       if (expense.maintenanceTarget === 'equipment') {
         return equipmentLabel(expense);
@@ -98,7 +144,7 @@ export function buildExpenseFleetRelationLabel(expense: Expense): string | undef
 }
 
 export function buildExpenseRelatedUnitLabel(expense: Expense): string | undefined {
-  return unitLabel(expense);
+  return tripLinkedUnitLabel(expense);
 }
 
 export function buildExpenseRelatedEquipmentLabel(

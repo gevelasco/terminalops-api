@@ -328,6 +328,14 @@ export class UsersService {
         const n = Number(raw);
         return Number.isFinite(n) && n >= 0 ? n : 5;
       })(),
+      tripAutoFuelPaymentMethod:
+        user.company?.tripAutoFuelPaymentMethod ?? 'cash',
+      tripAutoTollsPaymentMethod:
+        user.company?.tripAutoTollsPaymentMethod ?? 'cash',
+      tripAutoPerDiemPaymentMethod:
+        user.company?.tripAutoPerDiemPaymentMethod ?? 'cash',
+      tripAutoControlPaymentMethod:
+        user.company?.tripAutoControlPaymentMethod ?? 'cash',
       maintenanceKmControlEnabled:
         user.company?.maintenanceKmControlEnabled ?? false,
       maintenanceKmIntervalDefault: (() => {

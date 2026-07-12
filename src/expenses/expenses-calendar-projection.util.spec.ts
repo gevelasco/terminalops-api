@@ -88,6 +88,49 @@ describe('expenses-calendar-projection.util', () => {
     expect(gpsRow?.hint).toMatch(/^Pago de GPS · SkyBitz \(Mensualidad \d+\/12\)$/);
   });
 
+  it('treats the initial GPS contract expense as the first paid cycle (not overdue)', () => {
+    const result = buildExpenseCalendarProjection({
+      from: '2025-07-08',
+      to: '2026-07-31',
+      trips: [],
+      units: [
+        {
+          id: 10,
+          plate: '98BL2L',
+          trailerBrandAbbr: 'fre',
+          trailerYear: '2012',
+          fleetProfile: {
+            hasGps: true,
+            gpsContractDate: '2026-01-24',
+            gpsPaymentCadence: 'monthly',
+            gpsPrice: '805.14',
+            gpsProviderBrand: 'SkyBitz',
+          },
+        } as never,
+      ],
+      equipment: [],
+      operators: [],
+      expenses: [
+        {
+          id: 700,
+          kind: 'gps',
+          amount: '805.14',
+          description: 'Contratación de GPS · SkyBitz (Mensualidad 1/12)',
+          incurredAt: new Date('2026-01-24T18:00:00.000Z'),
+          discardedAt: null,
+          isOperationalProvision: false,
+        } as never,
+      ],
+      actualItems: [],
+      asOf: new Date('2026-07-08T18:00:00.000Z'),
+    });
+
+    const gpsCycleOne = result.projected.find(
+      (row) => row.source === 'gps' && row.dueDate === '2026-01-24',
+    );
+    expect(gpsCycleOne).toBeUndefined();
+  });
+
   it('projects insurance payment preview fields for equipment', () => {
     const result = buildExpenseCalendarProjection({
       from: '2026-07-01',

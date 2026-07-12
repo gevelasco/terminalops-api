@@ -75,6 +75,8 @@ import { SCHEDULE_UPDATE_INCIDENT_CATEGORY } from './actual-schedule/actual-sche
 import type { ActualScheduleFieldKey } from './actual-schedule/actual-schedule.constants';
 import { buildConsolidatedScheduleUpdateIncidentDescription } from './actual-schedule/actual-schedule-incident.util';
 import { syncTripIncidentMarkers } from './trip-incident-markers.util';
+import { ActivityEventsService } from 'src/activity-events/activity-events.service';
+import { COMPANY_ACTIVITY_KIND } from 'src/activity-events/company-activity-event.kinds';
 import {
   applyActualScheduleDeltas,
   assertActualScheduleChronology,
@@ -127,6 +129,7 @@ export class TripsService {
     private readonly fleetStatusSync: TripFleetStatusSyncService,
     private readonly unitTripOdometer: UnitTripOdometerService,
     private readonly expensesService: ExpensesService,
+    private readonly activityEvents: ActivityEventsService,
   ) {}
 
   private tripRelations = [
@@ -563,6 +566,10 @@ export class TripsService {
         'id',
         'operationalAnalysisEnabled',
         'tripAutoMaintenanceProvisionPercent',
+        'tripAutoFuelPaymentMethod',
+        'tripAutoTollsPaymentMethod',
+        'tripAutoPerDiemPaymentMethod',
+        'tripAutoControlPaymentMethod',
       ],
     });
     if (company?.operationalAnalysisEnabled !== false) {
@@ -579,7 +586,13 @@ export class TripsService {
         await this.expensesService.createAutoExpensesForTrip(
           companyId,
           trip,
-          safePercent,
+          {
+            maintenanceProvisionPercent: safePercent,
+            fuelPaymentMethod: company?.tripAutoFuelPaymentMethod,
+            tollsPaymentMethod: company?.tripAutoTollsPaymentMethod,
+            perDiemPaymentMethod: company?.tripAutoPerDiemPaymentMethod,
+            controlPaymentMethod: company?.tripAutoControlPaymentMethod,
+          },
         );
       } catch (err) {
         this.logger.error(
@@ -608,6 +621,7 @@ export class TripsService {
     tripId: number,
     dto: UpdateTripDto,
     rawBody: Record<string, unknown> = {},
+    actor?: AuthUser,
   ) {
     rejectLegacyScheduleFields(rawBody);
     rejectClientTripStatusMutation(rawBody);
@@ -788,6 +802,18 @@ export class TripsService {
       });
     }
 
+    const updatedTripEntity = await this.getTripEntity(companyId, tripId);
+    await this.activityEvents.record({
+      companyId,
+      kind: COMPANY_ACTIVITY_KIND.TRIP_UPDATED,
+      entityType: 'trip',
+      entityId: tripId,
+      subjectLabel:
+        updatedTripEntity.maneuverCode?.trim() || `M-${tripId}`,
+      title: 'Maniobra modificada',
+      actor,
+    });
+
     return this.findOne(companyId, tripId);
   }
 
@@ -834,7 +860,7 @@ export class TripsService {
     const trip = await this.getTripEntity(companyId, tripId);
     const openedAt = new Date();
     const isIncident = dto.isIncident === true;
-    await this.incidentsRepo.save(
+    const savedIncident = await this.incidentsRepo.save(
       this.incidentsRepo.create({
         tripId: trip.id,
         description: dto.description.trim(),
@@ -853,6 +879,18 @@ export class TripsService {
       trip.id,
       companyId,
     );
+    await this.activityEvents.record({
+      companyId,
+      kind: isIncident
+        ? COMPANY_ACTIVITY_KIND.INCIDENT_REPORTED
+        : COMPANY_ACTIVITY_KIND.BITACORA_MESSAGE,
+      entityType: 'trip',
+      entityId: trip.id,
+      subjectLabel: trip.maneuverCode?.trim() || `M-${trip.id}`,
+      title: isIncident ? 'Incidente reportado' : 'Nuevo mensaje en bitácora',
+      actor,
+      metadata: { incidentId: savedIncident.id },
+    });
     return this.findOne(companyId, tripId);
   }
 

@@ -14,6 +14,7 @@ import { FleetModule } from '../fleet/fleet.module';
 import { ReportsModule } from '../reports/reports.module';
 import { UsersModule } from '../users/users.module';
 import { FuelPriceModule } from '../fuel/fuel-price.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { Company } from 'src/companies/entities/company.entity';
 import { CompaniesController } from './companies.controller';
 import { CompaniesService } from './companies.service';
@@ -35,6 +36,7 @@ import { CompaniesService } from './companies.service';
     FleetModule,
     UsersModule,
     FuelPriceModule,
+    NotificationsModule,
   ],
   controllers: [CompaniesController],
   providers: [CompaniesService],

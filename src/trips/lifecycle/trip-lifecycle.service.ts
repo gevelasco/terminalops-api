@@ -21,6 +21,21 @@ import {
 /** Advisory lock global para evitar cron concurrente en múltiples instancias. */
 const LIFECYCLE_CRON_LOCK_KEY = 74_027_001;
 
+/** Al cerrar por lifecycle, usa fin real o planeado (no «ahora» en maniobras retroactivas). */
+function resolveCompletedAtOnTransition(trip: Trip, transitionedAt: Date): Date {
+  if (trip.returnAt) {
+    return trip.returnAt instanceof Date ? trip.returnAt : new Date(trip.returnAt);
+  }
+  const effective = resolveEffectiveCompletionAt({
+    plannedCompletionAt: trip.plannedCompletionAt,
+    actualCompletionAt: null,
+  });
+  if (effective.getTime() <= transitionedAt.getTime()) {
+    return effective;
+  }
+  return transitionedAt;
+}
+
 export interface TripLifecycleRunResult {
   scanned: number;
   transitioned: number;
@@ -110,7 +125,11 @@ export class TripLifecycleService {
         status: toStatus,
         statusChangedAt: transitionedAt,
         statusChangedBy: source,
-        ...(toStatus === 'completed' ? { completedAt: transitionedAt } : {}),
+        ...(toStatus === 'completed'
+          ? {
+              completedAt: resolveCompletedAtOnTransition(trip, transitionedAt),
+            }
+          : {}),
       },
     );
 

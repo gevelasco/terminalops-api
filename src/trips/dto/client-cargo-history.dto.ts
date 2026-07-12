@@ -7,7 +7,7 @@ export class ClientCargoHistoryItemDto {
   @ApiProperty({ example: 'sencillo' })
   operationType!: string;
 
-  @ApiProperty({ example: '40ft' })
+  @ApiProperty({ example: '40dc' })
   containerType!: string;
 
   @ApiProperty({ example: 'lleno' })

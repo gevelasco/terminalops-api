@@ -35,6 +35,12 @@ import { fleetInsuranceIncurredAtMatchSql } from './expenses-insurance-dedup.uti
 import { ExpensesInsuranceFleetReconcileService } from './expenses-insurance-fleet-reconcile.service';
 import { ExpensesMaintenanceFleetReconcileService } from './expenses-maintenance-fleet-reconcile.service';
 import { ExpensesVerificationFleetReconcileService } from './expenses-verification-fleet-reconcile.service';
+import { ActivityEventsService } from 'src/activity-events/activity-events.service';
+import {
+  expenseActivityOnCreate,
+  expenseActivityOnUpdate,
+  expenseActivitySubjectLabel,
+} from 'src/activity-events/activity-events.expense.util';
 
 export interface ExpensesListResult {
   items: ReturnType<typeof serializeExpense>[];
@@ -82,9 +88,10 @@ export class ExpensesService {
     private readonly insuranceFleetReconcile: ExpensesInsuranceFleetReconcileService,
     private readonly maintenanceFleetReconcile: ExpensesMaintenanceFleetReconcileService,
     private readonly verificationFleetReconcile: ExpensesVerificationFleetReconcileService,
+    private readonly activityEvents: ActivityEventsService,
   ) {}
 
-  async create(companyId: number, dto: CreateExpenseDto) {
+  async create(companyId: number, dto: CreateExpenseDto, actor?: AuthUser) {
     const relatedUnitId = dto.relatedUnitId
       ? await this.resolveUnitId(companyId, dto.relatedUnitId)
       : undefined;
@@ -126,6 +133,18 @@ export class ExpensesService {
         isOperationalProvision: dto.isOperationalProvision ?? false,
       }),
     );
+    const activity = expenseActivityOnCreate(saved);
+    if (activity) {
+      await this.activityEvents.record({
+        companyId,
+        kind: activity.kind,
+        entityType: 'expense',
+        entityId: saved.id,
+        subjectLabel: expenseActivitySubjectLabel(saved),
+        title: activity.title,
+        actor,
+      });
+    }
     return this.findOne(companyId, saved.id);
   }
 
@@ -133,9 +152,15 @@ export class ExpensesService {
   async createAutoExpensesForTrip(
     companyId: number,
     trip: Trip,
-    maintenanceProvisionPercent = 5,
+    options: {
+      maintenanceProvisionPercent?: number;
+      fuelPaymentMethod?: string;
+      tollsPaymentMethod?: string;
+      perDiemPaymentMethod?: string;
+      controlPaymentMethod?: string;
+    } = {},
   ): Promise<void> {
-    const drafts = buildTripAutoExpenses(trip, { maintenanceProvisionPercent });
+    const drafts = buildTripAutoExpenses(trip, options);
     if (drafts.length === 0) {
       return;
     }
@@ -153,6 +178,7 @@ export class ExpensesService {
           description: draft.description,
           relatedUnitId: draft.relatedUnitId,
           relatedOperatorId: draft.relatedOperatorId,
+          paymentMethod: draft.paymentMethod,
           isOperationalProvision: draft.isOperationalProvision,
         }),
       ),
@@ -162,9 +188,10 @@ export class ExpensesService {
   async findAll(companyId: number, query?: ListExpensesQueryDto): Promise<ExpensesListResult> {
     const limit = normalizeExpenseListLimit(query?.limit);
     const page = Math.max(1, query?.page ?? 1);
+    const tripFilter = await this.resolveExpenseListTripFilter(companyId, query);
 
     const baseQb = this.repo.createQueryBuilder('e');
-    applyExpenseListFilters(baseQb, companyId, query);
+    applyExpenseListFilters(baseQb, companyId, query, tripFilter);
 
     const total = await baseQb.clone().getCount();
 
@@ -180,7 +207,7 @@ export class ExpensesService {
       .leftJoinAndSelect('e.relatedUnit', 'relatedUnit')
       .leftJoinAndSelect('e.relatedEquipment', 'relatedEquipment')
       .leftJoinAndSelect('e.relatedOperator', 'relatedOperator');
-    applyExpenseListFilters(rowsQb, companyId, query);
+    applyExpenseListFilters(rowsQb, companyId, query, tripFilter);
     rowsQb.orderBy('e.incurredAt', 'DESC');
 
     if (limit > 0) {
@@ -428,7 +455,12 @@ export class ExpensesService {
     return result.affected ?? 0;
   }
 
-  async update(companyId: number, expenseId: number, dto: UpdateExpenseDto) {
+  async update(
+    companyId: number,
+    expenseId: number,
+    dto: UpdateExpenseDto,
+    actor?: AuthUser,
+  ) {
     const existing = await this.repo.findOne({
       where: { companyId, id: expenseId },
     });
@@ -529,6 +561,23 @@ export class ExpensesService {
         insuranceTarget: relationFields.insuranceTarget,
         verificationScope: relationFields.verificationScope,
       } as Parameters<Repository<Expense>['update']>[1]);
+    const updated = await this.repo.findOne({
+      where: { companyId, id: expenseId },
+    });
+    if (updated) {
+      const activity = expenseActivityOnUpdate(updated);
+      if (activity) {
+        await this.activityEvents.record({
+          companyId,
+          kind: activity.kind,
+          entityType: 'expense',
+          entityId: updated.id,
+          subjectLabel: expenseActivitySubjectLabel(updated),
+          title: activity.title,
+          actor,
+        });
+      }
+    }
     return this.findOne(companyId, expenseId);
   }
 
@@ -557,6 +606,35 @@ export class ExpensesService {
       existing,
     );
     return { id: expenseId, deleted: true };
+  }
+
+  private async resolveExpenseListTripFilter(
+    companyId: number,
+    query?: ListExpensesQueryDto,
+  ): Promise<{ tripIds?: number[] } | undefined> {
+    const tripId = query?.tripId?.trim();
+    if (tripId) {
+      return { tripIds: [await this.resolveTripId(companyId, tripId)] };
+    }
+
+    const tripIdsRaw = query?.tripIds?.trim();
+    if (!tripIdsRaw) {
+      return undefined;
+    }
+
+    const refs = tripIdsRaw
+      .split(',')
+      .map((part) => part.trim())
+      .filter(Boolean);
+    if (refs.length === 0) {
+      return { tripIds: [] };
+    }
+
+    return {
+      tripIds: await Promise.all(
+        refs.map((ref) => this.resolveTripId(companyId, ref)),
+      ),
+    };
   }
 
   private async resolveTripId(companyId: number, ref: string): Promise<number> {

@@ -39,6 +39,30 @@ describe('applyExpenseListFilters search', () => {
     );
   });
 
+  it('includes payment method and date search when q is set', () => {
+    const qb = mockQueryBuilder();
+    applyExpenseListFilters(qb, 1, { q: 'Transferencia' });
+
+    expect(qb.andWhere).toHaveBeenCalledWith(
+      expect.stringContaining("e.payment_method IN ('transfer')"),
+      { q: '%Transferencia%', companyId: 1 },
+    );
+    expect(qb.andWhere).toHaveBeenCalledWith(
+      expect.stringContaining("TO_CHAR((e.incurred_at AT TIME ZONE 'America/Mexico_City'), 'DD/MM/YYYY') ILIKE :q"),
+      { q: '%Transferencia%', companyId: 1 },
+    );
+  });
+
+  it('binds exact search date when q looks like a date', () => {
+    const qb = mockQueryBuilder();
+    applyExpenseListFilters(qb, 1, { q: '11/07/2026' });
+
+    expect(qb.andWhere).toHaveBeenCalledWith(
+      expect.stringContaining('searchDateYmd'),
+      { q: '%11/07/2026%', companyId: 1, searchDateYmd: '2026-07-11' },
+    );
+  });
+
   it('does not add text search clause when q is empty', () => {
     const qb = mockQueryBuilder();
     applyExpenseListFilters(qb, 1, { q: '   ' });

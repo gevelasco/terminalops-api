@@ -102,6 +102,29 @@ describe('operator-payment-rows.util', () => {
     expect(sections.recentPaymentRows[0]?.maneuverCode).toBe('PAID');
   });
 
+  it('for maneuver schedule uses planned completion when lifecycle stamped completedAt later', () => {
+    const sections = buildOperatorPaymentRows(
+      [
+        trip({
+          id: 6,
+          maneuverCode: 'CG-0002',
+          plannedCompletionAt: new Date('2026-06-28T12:00:00Z'),
+          completedAt: new Date('2026-07-08T12:00:00Z'),
+          operatorQuota: '3000',
+        }),
+      ],
+      [],
+      'maneuver',
+      new Date('2026-07-08T12:00:00Z'),
+    );
+
+    expect(sections.pendingPaymentRows).toHaveLength(1);
+    expect(sections.pendingPaymentRows[0]?.dueYmd).toBe('2026-06-28');
+    expect(sections.pendingPaymentRows[0]?.status).toBe('overdue');
+    expect(sections.pendingPaymentRows[0]?.statusHint).toBe('Vencido');
+    expect(sections.pendingPaymentRows[0]?.badgeVariant).toBe('danger');
+  });
+
   it('ignores discarded operator payment expenses when computing balance', () => {
     const sections = buildOperatorPaymentRows(
       [

@@ -16,6 +16,7 @@ import { OperatorsModule } from './operators/operators.module';
 import { TripsModule } from './trips/trips.module';
 import { UnitsModule } from './units/units.module';
 import { TenantModule } from './common/tenant/tenant.module';
+import { ActivityEventsModule } from './activity-events/activity-events.module';
 import { typeOrmEntityGlobsFromDir } from './database/typeorm-entity-globs';
 import EnvConfig from './types/env-config.type';
 
@@ -24,6 +25,7 @@ import EnvConfig from './types/env-config.type';
     ConfigModule.forRoot({ isGlobal: true }),
     ScheduleModule.forRoot(),
     TenantModule,
+    ActivityEventsModule,
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (configService: ConfigService<EnvConfig>) => ({

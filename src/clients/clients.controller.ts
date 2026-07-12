@@ -50,7 +50,7 @@ export class ClientsController {
   ) {
     assertModuleWrite(user, APP_MODULE_CODES.CLIENTS);
     const companyId = await this.tenantContext.resolveInternalIdFromAuthUser(user);
-    return this.clientsService.update(companyId, clientId, dto);
+    return this.clientsService.update(companyId, clientId, dto, user);
   }
 
   @Delete(':clientId')

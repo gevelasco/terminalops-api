@@ -45,7 +45,7 @@ export class ExpensesController {
   ) {
     assertModuleWrite(user, APP_MODULE_CODES.EXPENSES);
     const companyId = await this.tenantContext.resolveInternalIdFromAuthUser(user);
-    return this.service.update(companyId, expenseId, dto);
+    return this.service.update(companyId, expenseId, dto, user);
   }
 
   @Delete(':expenseId')

@@ -29,6 +29,10 @@ export type AuthUser = {
   tripAssistPrefillEnabled?: boolean;
   tripAssistPrefillChangedAt?: string;
   tripAutoMaintenanceProvisionPercent?: number;
+  tripAutoFuelPaymentMethod?: string;
+  tripAutoTollsPaymentMethod?: string;
+  tripAutoPerDiemPaymentMethod?: string;
+  tripAutoControlPaymentMethod?: string;
   maintenanceKmControlEnabled?: boolean;
   maintenanceKmIntervalDefault?: number;
   maintenanceDateControlEnabled?: boolean;

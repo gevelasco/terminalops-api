@@ -4,6 +4,8 @@ import type { Expense } from './entities/expense.entity';
 import type { ListExpensesQueryDto } from './dto/list-expenses-query.dto';
 import {
   expenseRubroSearchSql,
+  parseExpenseListSearchDateYmd,
+  paymentMethodsMatchingExpenseSearch,
   rubroKeysMatchingExpenseSearch,
 } from './expense-list-search.util';
 import { expenseNotDiscardedSql } from 'src/trips/trip-visibility.util';
@@ -32,10 +34,15 @@ export function expenseListDayEndExclusiveUtc(ymd: string): Date {
   return d;
 }
 
+export interface ExpenseListTripFilter {
+  readonly tripIds?: readonly number[];
+}
+
 export function applyExpenseListFilters(
   qb: SelectQueryBuilder<Expense>,
   companyId: number,
   query?: ListExpensesQueryDto,
+  tripFilter?: ExpenseListTripFilter,
 ): SelectQueryBuilder<Expense> {
   qb.where('e.companyId = :companyId', { companyId });
   qb.andWhere(expenseNotDiscardedSql('e'));
@@ -58,6 +65,15 @@ export function applyExpenseListFilters(
     const matchedRubros = rubroKeysMatchingExpenseSearch(q);
     const rubroSql = expenseRubroSearchSql(matchedRubros);
     const rubroClause = rubroSql ? ` OR (${rubroSql})` : '';
+    const matchedPaymentMethods = paymentMethodsMatchingExpenseSearch(q);
+    const paymentMethodClause =
+      matchedPaymentMethods.length > 0
+        ? ` OR e.payment_method IN (${matchedPaymentMethods.map((code) => `'${code.replace(/'/g, "''")}'`).join(', ')})`
+        : '';
+    const searchDateYmd = parseExpenseListSearchDateYmd(q);
+    const searchDateClause = searchDateYmd
+      ? ` OR (e.incurred_at AT TIME ZONE 'America/Mexico_City')::date = CAST(:searchDateYmd AS date)`
+      : '';
     qb.andWhere(
       `(
         e.category ILIKE :q
@@ -65,6 +81,9 @@ export function applyExpenseListFilters(
         OR COALESCE(e.vendor, '') ILIKE :q
         OR e.kind ILIKE :q
         OR CAST(e.amount AS TEXT) ILIKE :q
+        OR COALESCE(e.payment_method, '') ILIKE :q${paymentMethodClause}
+        OR TO_CHAR((e.incurred_at AT TIME ZONE 'America/Mexico_City'), 'DD/MM/YYYY') ILIKE :q
+        OR TO_CHAR((e.incurred_at AT TIME ZONE 'America/Mexico_City'), 'YYYY-MM-DD') ILIKE :q${searchDateClause}
         OR EXISTS (
           SELECT 1 FROM ${schema}.trips t
           WHERE t.id = e.trip_id
@@ -99,7 +118,11 @@ export function applyExpenseListFilters(
             AND op.name ILIKE :q
         )${rubroClause}
       )`,
-      { q: `%${q}%`, companyId },
+      {
+        q: `%${q}%`,
+        companyId,
+        ...(searchDateYmd ? { searchDateYmd } : {}),
+      },
     );
   }
 
@@ -120,6 +143,15 @@ export function applyExpenseListFilters(
     qb.andWhere('CAST(e.relatedEquipmentId AS TEXT) = :relatedEquipmentId', {
       relatedEquipmentId,
     });
+  }
+
+  const tripIds = tripFilter?.tripIds;
+  if (tripIds !== undefined) {
+    if (tripIds.length === 0) {
+      qb.andWhere('1 = 0');
+    } else {
+      qb.andWhere('e.tripId IN (:...tripIds)', { tripIds: [...tripIds] });
+    }
   }
 
   return qb;

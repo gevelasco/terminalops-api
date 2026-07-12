@@ -77,7 +77,7 @@ export class CreateTripDto {
   @IsString()
   loadType: string;
 
-  @ApiProperty({ enum: ['20ft', '40ft', '40hc', 'na'] })
+  @ApiProperty({ enum: ['20dc', '20hc', '40dc', '40hc', '45hc', 'na'] })
   @IsString()
   containerType: string;
 

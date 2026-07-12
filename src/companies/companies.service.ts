@@ -12,6 +12,7 @@ import { TenantContextService } from '../common/tenant/tenant-context.service';
 import { OperationalCentersService } from '../operational-centers/operational-centers.service';
 import { CreateCompanyDto } from './dto/create-company.dto';
 import { UpdateCompanyOperationalSettingsDto } from './dto/update-company-operational-settings.dto';
+import { normalizeExpensePaymentMethod } from 'src/expenses/expense-payment-method.util';
 
 function roundDieselPrice(n: number): number {
   return Math.round(n * 10000) / 10000;
@@ -37,6 +38,10 @@ export class CompaniesService {
         operationalAnalysisChangedAt: now,
         tripAssistPrefillEnabled: false,
         tripAutoMaintenanceProvisionPercent: '5',
+        tripAutoFuelPaymentMethod: 'cash',
+        tripAutoTollsPaymentMethod: 'cash',
+        tripAutoPerDiemPaymentMethod: 'cash',
+        tripAutoControlPaymentMethod: 'cash',
         dieselControlEnabled: true,
         dieselControlChangedAt: now,
       }),
@@ -97,6 +102,26 @@ export class CompaniesService {
     if (dto.tripAutoMaintenanceProvisionPercent !== undefined) {
       company.tripAutoMaintenanceProvisionPercent = String(
         dto.tripAutoMaintenanceProvisionPercent,
+      );
+    }
+    if (dto.tripAutoFuelPaymentMethod !== undefined) {
+      company.tripAutoFuelPaymentMethod = normalizeExpensePaymentMethod(
+        dto.tripAutoFuelPaymentMethod,
+      );
+    }
+    if (dto.tripAutoTollsPaymentMethod !== undefined) {
+      company.tripAutoTollsPaymentMethod = normalizeExpensePaymentMethod(
+        dto.tripAutoTollsPaymentMethod,
+      );
+    }
+    if (dto.tripAutoPerDiemPaymentMethod !== undefined) {
+      company.tripAutoPerDiemPaymentMethod = normalizeExpensePaymentMethod(
+        dto.tripAutoPerDiemPaymentMethod,
+      );
+    }
+    if (dto.tripAutoControlPaymentMethod !== undefined) {
+      company.tripAutoControlPaymentMethod = normalizeExpensePaymentMethod(
+        dto.tripAutoControlPaymentMethod,
       );
     }
     if (dto.dieselControlEnabled !== undefined) {

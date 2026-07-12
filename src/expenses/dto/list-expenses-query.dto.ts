@@ -59,4 +59,16 @@ export class ListExpensesQueryDto {
   @IsOptional()
   @IsString()
   relatedEquipmentId?: string;
+
+  @ApiPropertyOptional({ description: 'Filtrar por maniobra (id público o numérico)' })
+  @IsOptional()
+  @IsString()
+  tripId?: string;
+
+  @ApiPropertyOptional({
+    description: 'Filtrar por varias maniobras (ids públicos separados por coma)',
+  })
+  @IsOptional()
+  @IsString()
+  tripIds?: string;
 }

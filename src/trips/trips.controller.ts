@@ -54,7 +54,7 @@ export class TripsController {
     assertModuleWrite(user, APP_MODULE_CODES.TRIPS);
     const companyId = await this.tenantContext.resolveInternalIdFromAuthUser(user);
     rejectClientTripStatusMutation(req.body as Record<string, unknown>);
-    return this.service.update(companyId, tripId, dto, req.body as Record<string, unknown>);
+    return this.service.update(companyId, tripId, dto, req.body as Record<string, unknown>, user);
   }
 
   @Post(':tripId/cancel')

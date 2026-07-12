@@ -53,8 +53,48 @@ describe('buildExpenseFleetRelationLabel', () => {
     expect(label).toBe('FRE-2020-12-BC-3D · Verificación físico-mecánica');
   });
 
+  it('returns unit label for fuel expenses linked to a unit', () => {
+    const label = buildExpenseFleetRelationLabel(
+      expense({
+        kind: 'fuel',
+        relatedUnit: {
+          id: 7,
+          trailerBrandAbbr: 'FRE',
+          trailerYear: '2022',
+          plate: '233-SDCV-34',
+        } as Expense['relatedUnit'],
+      }),
+    );
+    expect(label).toBe('FRE-2022-233-SDCV-34');
+  });
+
+  it('falls back to trip unit snapshot for fuel when related unit is missing', () => {
+    const label = buildExpenseFleetRelationLabel(
+      expense({
+        kind: 'fuel',
+        trip: {
+          unitOperationalCodeSnapshot: 'FRE-2022-233-SDCV-34',
+        } as Expense['trip'],
+      }),
+    );
+    expect(label).toBe('FRE-2022-233-SDCV-34');
+  });
+
   it('returns undefined when kind has no fleet relation', () => {
-    expect(buildExpenseFleetRelationLabel(expense({ kind: 'fuel' }))).toBeUndefined();
+    expect(buildExpenseFleetRelationLabel(expense({ kind: 'operational_control' }))).toBeUndefined();
+  });
+
+  it('falls back to plate when the unit lacks brand/year to build the code', () => {
+    const row = expense({
+      kind: 'maintenance',
+      maintenanceTarget: 'unit',
+      relatedUnit: {
+        id: 7,
+        plate: '81-AA-9K',
+      } as Expense['relatedUnit'],
+    });
+    expect(buildExpenseRelatedUnitLabel(row)).toBe('81-AA-9K');
+    expect(buildExpenseFleetRelationLabel(row)).toBe('81-AA-9K');
   });
 
   it('exposes per-field relation labels for detail read view', () => {

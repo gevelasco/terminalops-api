@@ -13,6 +13,7 @@ import {
   MaxLength,
   Min,
 } from 'class-validator';
+import { EXPENSE_PAYMENT_METHODS } from 'src/expenses/expense-payment-method.util';
 
 export const MAINTENANCE_DATE_PERIODS = [
   'monthly',
@@ -45,6 +46,38 @@ export class UpdateCompanyOperationalSettingsDto {
   @Min(0)
   @Max(100)
   tripAutoMaintenanceProvisionPercent?: number;
+
+  @ApiPropertyOptional({
+    description: 'Método de pago por defecto para gastos automáticos de diésel',
+    enum: EXPENSE_PAYMENT_METHODS,
+  })
+  @IsOptional()
+  @IsIn(EXPENSE_PAYMENT_METHODS)
+  tripAutoFuelPaymentMethod?: string;
+
+  @ApiPropertyOptional({
+    description: 'Método de pago por defecto para gastos automáticos de casetas',
+    enum: EXPENSE_PAYMENT_METHODS,
+  })
+  @IsOptional()
+  @IsIn(EXPENSE_PAYMENT_METHODS)
+  tripAutoTollsPaymentMethod?: string;
+
+  @ApiPropertyOptional({
+    description: 'Método de pago por defecto para gastos automáticos de viáticos',
+    enum: EXPENSE_PAYMENT_METHODS,
+  })
+  @IsOptional()
+  @IsIn(EXPENSE_PAYMENT_METHODS)
+  tripAutoPerDiemPaymentMethod?: string;
+
+  @ApiPropertyOptional({
+    description: 'Método de pago por defecto para el gasto automático de control operativo',
+    enum: EXPENSE_PAYMENT_METHODS,
+  })
+  @IsOptional()
+  @IsIn(EXPENSE_PAYMENT_METHODS)
+  tripAutoControlPaymentMethod?: string;
 
   @ApiPropertyOptional({ description: 'Estimación automática de diesel en maniobras' })
   @IsOptional()

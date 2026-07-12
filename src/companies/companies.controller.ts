@@ -25,6 +25,7 @@ import { APP_MODULE_CODES } from '../common/constants/app-modules';
 import { assertModuleRead, assertModuleWrite } from '../common/utils/module-permission.util';
 import type AuthUser from '../types/auth-user.type';
 import { ClientsService } from '../clients/clients.service';
+import { ClientsBalanceService } from '../clients/clients-balance.service';
 import { CreateClientDto } from '../clients/dto/create-client.dto';
 import { OperatorsService } from '../operators/operators.service';
 import { CreateOperatorDto } from '../operators/dto/create-operator.dto';
@@ -65,6 +66,8 @@ import { serializeCompanyOperationalSettings } from './company-operational-setti
 import { UsersService } from '../users/users.service';
 import { CreateCompanyUserDto } from '../users/dto/create-company-user.dto';
 import { UpdateCompanyUserDto } from '../users/dto/update-company-user.dto';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationsQueryDto } from '../notifications/dto/notifications-query.dto';
 
 
 
@@ -92,6 +95,7 @@ export class CompaniesController {
   constructor(
     private readonly companiesService: CompaniesService,
     private readonly clientsService: ClientsService,
+    private readonly clientsBalanceService: ClientsBalanceService,
     private readonly operatorsService: OperatorsService,
     private readonly unitsService: UnitsService,
     private readonly equipmentService: EquipmentService,
@@ -107,6 +111,7 @@ export class CompaniesController {
     private readonly fleetOverviewService: FleetOverviewService,
     private readonly fleetBrandsService: FleetBrandsService,
     private readonly usersService: UsersService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   @Get(':companyId')
@@ -167,6 +172,33 @@ export class CompaniesController {
     return this.clientsService.findPickerOptions(tenantId);
   }
 
+  @Get(':companyId/clients/balance-overview')
+  @ApiOperation({ summary: 'Balance comercial agregado por cliente' })
+  async getClientsBalanceOverview(
+    @Param('companyId', ParseIntPipe) companyId: number,
+    @LoggedUser() user: AuthUser,
+  ) {
+    const tenantId = await this.companiesService.assertAccessAndResolve(
+      user,
+      companyId,
+    );
+    return this.clientsBalanceService.getBalanceOverview(tenantId);
+  }
+
+  @Get(':companyId/clients/:clientId/balance')
+  @ApiOperation({ summary: 'Balance comercial y cartera de un cliente' })
+  async getClientBalance(
+    @Param('companyId', ParseIntPipe) companyId: number,
+    @Param('clientId') clientId: string,
+    @LoggedUser() user: AuthUser,
+  ) {
+    const tenantId = await this.companiesService.assertAccessAndResolve(
+      user,
+      companyId,
+    );
+    return this.clientsBalanceService.getClientBalance(tenantId, clientId);
+  }
+
   @Get(':companyId/clients/:clientId/cargo-history')
   @ApiOperation({ summary: 'Historial de cargas del cliente (desde maniobras)' })
   async getClientCargoHistory(
@@ -204,7 +236,7 @@ export class CompaniesController {
       user,
       companyId,
     );
-    return this.clientsService.create(tenantId, dto);
+    return this.clientsService.create(tenantId, dto, user);
   }
 
   @Get(':companyId/operators/link-options')
@@ -300,7 +332,7 @@ export class CompaniesController {
       user,
       companyId,
     );
-    return this.unitsService.create(tenantId, dto);
+    return this.unitsService.create(tenantId, dto, user);
   }
 
   @Get(':companyId/equipment/link-options')
@@ -347,7 +379,7 @@ export class CompaniesController {
       user,
       companyId,
     );
-    return this.equipmentService.create(tenantId, dto);
+    return this.equipmentService.create(tenantId, dto, user);
   }
 
   @Get(':companyId/trips/link-options')
@@ -555,7 +587,7 @@ export class CompaniesController {
       user,
       companyId,
     );
-    return this.expensesService.create(tenantId, dto);
+    return this.expensesService.create(tenantId, dto, user);
   }
 
   @Get(':companyId/fleet/catalog')
@@ -588,6 +620,23 @@ export class CompaniesController {
     return this.fleetOverviewService.listOverview(tenantId, parsedTripIds);
   }
 
+  @Get(':companyId/notifications')
+  @ApiOperation({
+    summary:
+      'Feed de notificaciones por empresa (eventos + vencimientos calculados)',
+  })
+  async notificationsFeed(
+    @Param('companyId', ParseIntPipe) companyId: number,
+    @Query() query: NotificationsQueryDto,
+    @LoggedUser() user: AuthUser,
+  ) {
+    const tenantId = await this.companiesService.assertAccessAndResolve(
+      user,
+      companyId,
+    );
+    return this.notificationsService.getFeed(tenantId, query);
+  }
+
   @Get(':companyId/dashboard/summary')
   @ApiOperation({
     summary:
@@ -618,23 +667,6 @@ export class CompaniesController {
       companyId,
     );
     return this.dashboardService.getInsights(tenantId);
-  }
-
-  @Get(':companyId/reports/general')
-  @ApiOperation({
-    summary: 'Reporte General (KPIs + gráficas del periodo filtrado)',
-  })
-  async reportsGeneral(
-    @Param('companyId', ParseIntPipe) companyId: number,
-    @LoggedUser() user: AuthUser,
-    @Query() query: ReportsGeneralQueryDto,
-  ) {
-    assertModuleRead(user, APP_MODULE_CODES.REPORTS);
-    const tenantId = await this.companiesService.assertAccessAndResolve(
-      user,
-      companyId,
-    );
-    return this.reportsService.getGeneral(tenantId, query);
   }
 
   @Get(':companyId/reports/balance')

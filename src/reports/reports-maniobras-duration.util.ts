@@ -1,8 +1,10 @@
 type TripScheduleLike = {
   status: string;
   departureAt?: Date | string | null;
+  returnAt?: Date | string | null;
   arrivedAt?: Date | string | null;
   plannedDepartureAt?: Date | string | null;
+  plannedCompletionAt?: Date | string | null;
   plannedArrivalAt?: Date | string | null;
 };
 
@@ -25,33 +27,45 @@ export function effectiveManiobraDepartureAt(trip: TripScheduleLike): Date | nul
   return toDate(trip.plannedDepartureAt);
 }
 
-/** Llegada efectiva: real si existe; si no, plan operativo. En curso usa ahora. */
-export function effectiveManiobraArrivalAt(
+/** Fin de maniobra efectivo: returnAt / plan de cierre; en curso usa ahora si aún no hay fin. */
+export function effectiveManiobraCompletionAt(
   trip: TripScheduleLike,
   now: Date = new Date(),
 ): Date | null {
   if (trip.status === 'in_transit') {
-    return now;
+    return toDate(trip.returnAt) ?? now;
   }
 
   if (trip.status === 'completed') {
-    return toDate(trip.arrivedAt) ?? toDate(trip.plannedArrivalAt);
+    return (
+      toDate(trip.returnAt) ??
+      toDate(trip.plannedCompletionAt) ??
+      toDate(trip.arrivedAt) ??
+      toDate(trip.plannedArrivalAt)
+    );
   }
 
   if (trip.status === 'scheduled') {
-    return toDate(trip.plannedArrivalAt);
+    return (
+      toDate(trip.plannedCompletionAt) ?? toDate(trip.plannedArrivalAt)
+    );
   }
 
-  return toDate(trip.arrivedAt) ?? toDate(trip.plannedArrivalAt);
+  return (
+    toDate(trip.returnAt) ??
+    toDate(trip.plannedCompletionAt) ??
+    toDate(trip.arrivedAt) ??
+    toDate(trip.plannedArrivalAt)
+  );
 }
 
-/** Días de salida a llegada (real o planificado). */
+/** Días de salida a fin de maniobra (real o planificado). */
 export function computeManiobraDurationDays(
   trip: TripScheduleLike,
   now: Date = new Date(),
 ): number | null {
   const start = effectiveManiobraDepartureAt(trip);
-  const end = effectiveManiobraArrivalAt(trip, now);
+  const end = effectiveManiobraCompletionAt(trip, now);
   if (!start || !end || end.getTime() < start.getTime()) {
     return null;
   }

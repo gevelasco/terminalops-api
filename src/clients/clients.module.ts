@@ -7,6 +7,9 @@ import { ClientBilling } from 'src/clients/entities/client-billing.entity';
 import { ClientContact } from 'src/clients/entities/client-contact.entity';
 import { ClientDelivery } from 'src/clients/entities/client-delivery.entity';
 import { ClientPaymentTerms } from 'src/clients/entities/client-payment-terms.entity';
+import { Expense } from 'src/expenses/entities/expense.entity';
+import { Trip } from 'src/trips/entities/trip.entity';
+import { ClientsBalanceService } from './clients-balance.service';
 import { ClientsController } from './clients.controller';
 import { ClientsService } from './clients.service';
 
@@ -18,12 +21,14 @@ import { ClientsService } from './clients.service';
       ClientPaymentTerms,
       ClientContact,
       ClientDelivery,
+      Trip,
+      Expense,
     ]),
     DestinationRatesModule,
     OperationalCentersModule,
   ],
   controllers: [ClientsController],
-  providers: [ClientsService],
-  exports: [ClientsService],
+  providers: [ClientsService, ClientsBalanceService],
+  exports: [ClientsService, ClientsBalanceService],
 })
 export class ClientsModule {}

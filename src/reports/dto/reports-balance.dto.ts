@@ -59,6 +59,19 @@ export type ReportsBalanceExpenseRubroDto = {
   count: number;
 };
 
+export type ReportsBalanceDailyActivityEventDto = {
+  kind: 'income' | 'expense';
+  label: string;
+  amount: number;
+};
+
+export type ReportsBalanceDailyActivityDayDto = {
+  date: string;
+  incomeCount: number;
+  expenseCount: number;
+  events: ReportsBalanceDailyActivityEventDto[];
+};
+
 export type ReportsBalanceInsightsDto = {
   composition: ReportsBalanceCompositionSliceDto[];
   creditByClient: ReportsBalanceCreditByClientDto[];
@@ -66,6 +79,7 @@ export type ReportsBalanceInsightsDto = {
   marginByClient: ReportsBalanceMarginByClientDto[];
   profitability: ReportsBalanceProfitabilityDto;
   expensesByRubro: ReportsBalanceExpenseRubroDto[];
+  dailyActivity: ReportsBalanceDailyActivityDayDto[];
 };
 
 export type ReportsBalanceDto = {

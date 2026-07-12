@@ -78,6 +78,32 @@ describe('trip-auto-expenses.util', () => {
     expect(drafts).toHaveLength(0);
   });
 
+  it('buildTripAutoExpenses applies configured payment methods', () => {
+    const drafts = buildTripAutoExpenses(
+      tripStub({
+        dieselAmount: '2500',
+        casetasAmount: '800',
+        perDiemAmount: '350',
+        clientCharge: '1000',
+        unitId: 3,
+        operatorId: 7,
+      }),
+      {
+        fuelPaymentMethod: 'transfer',
+        tollsPaymentMethod: 'debit_card',
+        perDiemPaymentMethod: 'cash',
+        controlPaymentMethod: 'transfer',
+      },
+    );
+
+    expect(drafts.find((d) => d.kind === 'fuel')?.paymentMethod).toBe('transfer');
+    expect(drafts.find((d) => d.kind === 'tolls')?.paymentMethod).toBe('debit_card');
+    expect(drafts.find((d) => d.kind === 'per_diem')?.paymentMethod).toBe('cash');
+    expect(
+      drafts.find((d) => d.kind === 'operational_control')?.paymentMethod,
+    ).toBe('transfer');
+  });
+
   it('buildTripAutoExpenses creates per diem expense when amount is positive', () => {
     const drafts = buildTripAutoExpenses(
       tripStub({

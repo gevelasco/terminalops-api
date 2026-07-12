@@ -6,11 +6,14 @@ import { FleetOverviewService } from 'src/fleet/fleet-overview.service';
 import { Trip } from 'src/trips/entities/trip.entity';
 import { FleetMaintenanceEntry } from 'src/units/entities/fleet-maintenance-entry.entity';
 import type { ReportsGeneralQueryDto } from './dto/reports-general-query.dto';
-import type { ReportsGeneralDto } from './dto/reports-general.dto';
 import type { ReportsBalanceDto } from './dto/reports-balance.dto';
 import type { ReportsManiobrasDto } from './dto/reports-maniobras.dto';
 import type { ReportsFleetDto } from './dto/reports-fleet.dto';
 import { buildExpensesByRubroFromKindRows } from './reports-expense-rubro.util';
+import type {
+  ReportsBalanceDailyActivityDayDto,
+  ReportsBalanceDailyActivityEventDto,
+} from './dto/reports-balance.dto';
 import {
   OPERATIONAL_TZ,
   parseReportsScope,
@@ -20,7 +23,7 @@ import {
   type ReportsScope,
 } from './reports-filter.util';
 import { computeManiobraDurationDays } from './reports-maniobras-duration.util';
-import { containerTypeLabelMx } from './reports-container-type.util';
+import { containerTypeLabelMx } from '../trips/trip-container-type.util';
 import {
   buildReportsFleetComplianceUnits,
   buildReportsFleetStatusMix,
@@ -132,142 +135,6 @@ export class ReportsService {
     private readonly fleetOverview: FleetOverviewService,
   ) {}
 
-  async getGeneral(
-    companyId: number,
-    query: ReportsGeneralQueryDto,
-  ): Promise<ReportsGeneralDto> {
-    const scope = parseReportsScope(companyId, query);
-    const previous = previousPeriodRange(scope.from, scope.to);
-    const daysInRange = this.daysInRange(scope.from, scope.to);
-
-    const [
-      completedTripsCount,
-      completedTripsPriorCount,
-      revenueRow,
-      expensesRow,
-      expensesCount,
-      tripsInTransit,
-      tripsScheduledInPeriod,
-      unitsUsedRow,
-      tripActivityRows,
-      flowRows,
-      destinationRows,
-      operationRows,
-      revenueSplitRow,
-      expenseKindRows,
-      operatorRows,
-    ] = await Promise.all([
-      this.countCompletedTrips(scope),
-      this.countCompletedTrips({ ...scope, from: previous.from, to: previous.to }),
-      this.sumCompletedRevenue(scope),
-      this.sumExpenses(scope),
-      this.countExpenses(scope),
-      this.tripsRepo.count({
-        where: { companyId: scope.companyId, status: 'in_transit' },
-      }),
-      this.countScheduledInPeriod(scope),
-      this.countDistinctUnits(scope),
-      this.queryTripActivity(scope),
-      this.queryOperationalFlow(scope),
-      this.queryTopDestinations(scope),
-      this.queryOperationMix(scope),
-      this.sumCompletedRevenueSplit(scope),
-      this.queryExpensesByKind(scope),
-      this.queryTopOperators(scope),
-    ]);
-
-    const revenue = Math.round(parseMoneySum(revenueRow?.sum) * 100) / 100;
-    const expenses = Math.round(parseMoneySum(expensesRow?.sum) * 100) / 100;
-    const margin = Math.round((revenue - expenses) * 100) / 100;
-    const avgRevenuePerTrip =
-      completedTripsCount > 0
-        ? Math.round((revenue / completedTripsCount) * 100) / 100
-        : 0;
-    const completedTripsDailyAvg =
-      daysInRange > 0
-        ? Math.round((completedTripsCount / daysInRange) * 10) / 10
-        : 0;
-
-    const tripActivity = (tripActivityRows as Array<{
-      date: string;
-      completed: number;
-      in_transit: number;
-      scheduled: number;
-    }>).map((row) => ({
-      date: String(row.date),
-      completed: Number(row.completed) || 0,
-      inTransit: Number(row.in_transit) || 0,
-      scheduled: Number(row.scheduled) || 0,
-    }));
-
-    const operationalFlow = (flowRows as Array<{
-      date: string;
-      trips: number;
-      expenses: number;
-      revenue: number;
-    }>).map((row) => ({
-      date: String(row.date),
-      trips: Number(row.trips) || 0,
-      expenses: Math.round((Number(row.expenses) || 0) * 100) / 100,
-      revenue: Math.round((Number(row.revenue) || 0) * 100) / 100,
-    }));
-
-    const topDestinations = destinationRows.map((row) => ({
-      destination: String(row.destination),
-      tripCount: Number(row.trip_count) || 0,
-    }));
-
-    const operationMix = operationRows.map((row) => ({
-      operationType: String(row.operationType ?? ''),
-      label: operationDisplayLabel(row.nameSnapshot, row.operationType),
-      count: Number(row.count) || 0,
-    }));
-    const operationMixTotal = operationMix.reduce((sum, s) => sum + s.count, 0);
-    const collectedRevenue =
-      Math.round(parseMoneySum(revenueSplitRow?.collected) * 100) / 100;
-    const receivableRevenue =
-      Math.round(parseMoneySum(revenueSplitRow?.receivable) * 100) / 100;
-    const expensesByRubro = buildExpensesByRubroFromKindRows(expenseKindRows);
-
-    return {
-      summary: {
-        from: scope.from,
-        to: scope.to,
-        completedTripsCount,
-        completedTripsPriorPeriodPercent: weekOverWeekPercent(
-          completedTripsCount,
-          completedTripsPriorCount,
-        ),
-        completedTripsDailyAvg,
-        revenue,
-        avgRevenuePerTrip,
-        expenses,
-        expensesCount,
-        margin,
-        tripsInTransit,
-        tripsScheduledInPeriod,
-        unitsUsed: Number(unitsUsedRow?.count ?? 0) || 0,
-      },
-      insights: {
-        tripActivity,
-        operationalFlow,
-        topDestinations,
-        operationMix,
-        operationMixTotal,
-        periodDistribution: {
-          collectedRevenue,
-          receivableRevenue,
-          expensesByRubro,
-        },
-        topOperators: operatorRows.map((row) => ({
-          operatorName: String(row.operator_name ?? 'Sin operador'),
-          completed: Number(row.completed) || 0,
-          operationalKm: Math.round(parseMoneySum(row.km) * 10) / 10,
-        })),
-      },
-    };
-  }
-
   async getBalance(
     companyId: number,
     query: ReportsGeneralQueryDto,
@@ -289,6 +156,8 @@ export class ReportsService {
       expenseKindRows,
       tollsSpendRow,
       operatorSpendRow,
+      incomeEventRows,
+      expenseEventRows,
     ] = await Promise.all([
       this.sumCollectedInPeriod(scope),
       this.sumReceivableOpen(scope),
@@ -304,6 +173,8 @@ export class ReportsService {
       this.queryExpensesByKind(scope),
       this.sumExpenseByKinds(scope, ['tolls']),
       this.sumExpenseByKinds(scope, ['operator_payment', 'operator_commission']),
+      this.queryDailyIncomeEvents(scope),
+      this.queryDailyExpenseEvents(scope),
     ]);
 
     const collectedInPeriod = Math.round(parseMoneySum(collectedRow?.sum) * 100) / 100;
@@ -321,6 +192,12 @@ export class ReportsService {
         : null;
 
     const expensesByRubro = buildExpensesByRubroFromKindRows(expenseKindRows);
+    const dailyActivity = this.buildDailyActivity(
+      incomeEventRows,
+      expenseEventRows,
+      scope.from,
+      scope.to,
+    );
 
     const composition = [
       { key: 'collected', label: 'Ingreso cobrado', amount: collectedInPeriod },
@@ -406,8 +283,129 @@ export class ReportsService {
           marginPercent: profitabilityMarginPercent,
         },
         expensesByRubro,
+        dailyActivity,
       },
     };
+  }
+
+  private buildDailyActivity(
+    incomeRows: Array<{ date: string; label: string; amount: string }>,
+    expenseRows: Array<{ date: string; label: string; amount: string }>,
+    from: string,
+    to: string,
+  ): ReportsBalanceDailyActivityDayDto[] {
+    const byDate = new Map<string, ReportsBalanceDailyActivityEventDto[]>();
+
+    const ensure = (date: string): ReportsBalanceDailyActivityEventDto[] => {
+      let events = byDate.get(date);
+      if (!events) {
+        events = [];
+        byDate.set(date, events);
+      }
+      return events;
+    };
+
+    for (const row of incomeRows) {
+      const date = String(row.date ?? '').slice(0, 10);
+      if (!date) {
+        continue;
+      }
+      ensure(date).push({
+        kind: 'income',
+        label: String(row.label ?? 'Ingreso'),
+        amount: Math.round(parseMoneySum(row.amount) * 100) / 100,
+      });
+    }
+
+    for (const row of expenseRows) {
+      const date = String(row.date ?? '').slice(0, 10);
+      if (!date) {
+        continue;
+      }
+      ensure(date).push({
+        kind: 'expense',
+        label: String(row.label ?? 'Gasto'),
+        amount: Math.round(parseMoneySum(row.amount) * 100) / 100,
+      });
+    }
+
+    const days: ReportsBalanceDailyActivityDayDto[] = [];
+    const cursor = new Date(`${from}T12:00:00`);
+    const end = new Date(`${to}T12:00:00`);
+    while (cursor.getTime() <= end.getTime()) {
+      const y = cursor.getFullYear();
+      const m = String(cursor.getMonth() + 1).padStart(2, '0');
+      const d = String(cursor.getDate()).padStart(2, '0');
+      const date = `${y}-${m}-${d}`;
+      const events = byDate.get(date) ?? [];
+      const incomeCount = events.filter((event) => event.kind === 'income').length;
+      const expenseCount = events.filter((event) => event.kind === 'expense').length;
+      if (incomeCount > 0 || expenseCount > 0) {
+        days.push({ date, incomeCount, expenseCount, events });
+      }
+      cursor.setDate(cursor.getDate() + 1);
+    }
+
+    return days;
+  }
+
+  private queryDailyIncomeEvents(
+    scope: ReportsScope,
+  ): Promise<Array<{ date: string; label: string; amount: string }>> {
+    const filter = tripScopeSql('trip', scope, 4);
+    const params = [scope.companyId, scope.from, scope.to, ...filter.params];
+    const schema = this.tripsRepo.metadata.schema;
+
+    return this.tripsRepo.query(
+      `
+      SELECT
+        to_char((trip.client_collected_at AT TIME ZONE '${OPERATIONAL_TZ}')::date, 'YYYY-MM-DD') AS date,
+        CONCAT(
+          COALESCE(NULLIF(TRIM(trip.client_name), ''), 'Sin cliente'),
+          CASE
+            WHEN NULLIF(TRIM(trip.maneuver_code), '') IS NOT NULL
+            THEN CONCAT(' · ', TRIM(trip.maneuver_code))
+            ELSE ''
+          END
+        ) AS label,
+        trip.client_charge::float AS amount
+      FROM ${schema}.trips trip
+      WHERE trip.company_id = $1
+        AND trip.deleted_at IS NULL
+        AND ${this.billableTripCondition('trip')}
+        AND trip.client_collected_at IS NOT NULL
+        AND (trip.client_collected_at AT TIME ZONE '${OPERATIONAL_TZ}')::date BETWEEN $2::date AND $3::date
+        ${filter.sql}
+      ORDER BY trip.client_collected_at ASC, trip.id ASC
+      `,
+      params,
+    );
+  }
+
+  private queryDailyExpenseEvents(
+    scope: ReportsScope,
+  ): Promise<Array<{ date: string; label: string; amount: string }>> {
+    const schema = this.expensesRepo.metadata.schema;
+
+    return this.expensesRepo.query(
+      `
+      SELECT
+        to_char((e.incurred_at AT TIME ZONE '${OPERATIONAL_TZ}')::date, 'YYYY-MM-DD') AS date,
+        COALESCE(
+          NULLIF(TRIM(e.description), ''),
+          NULLIF(TRIM(e.vendor), ''),
+          NULLIF(TRIM(e.category), ''),
+          INITCAP(REPLACE(TRIM(e.kind), '_', ' '))
+        ) AS label,
+        e.amount::float AS amount
+      FROM ${schema}.expenses e
+      WHERE e.company_id = $1
+        AND e.discarded_at IS NULL
+        AND (e.incurred_at AT TIME ZONE '${OPERATIONAL_TZ}')::date BETWEEN $2::date AND $3::date
+      ORDER BY e.incurred_at ASC, e.id ASC
+      `,
+      [scope.companyId, scope.from, scope.to],
+    );
   }
 
   async getManiobras(
@@ -537,8 +535,10 @@ export class ReportsService {
               durationDays: computeManiobraDurationDays({
                 status: String(row.status ?? ''),
                 departureAt: row.departure_at,
+                returnAt: row.return_at,
                 arrivedAt: row.arrived_at,
                 plannedDepartureAt: row.planned_departure_at,
+                plannedCompletionAt: row.planned_completion_at,
                 plannedArrivalAt: row.planned_arrival_at,
               }),
               lat,
@@ -753,8 +753,10 @@ export class ReportsService {
       client_name: string;
       status: string;
       departure_at: Date | string | null;
+      return_at: Date | string | null;
       arrived_at: Date | string | null;
       planned_departure_at: Date | string | null;
+      planned_completion_at: Date | string | null;
       planned_arrival_at: Date | string | null;
       lat: string | number | null;
       lng: string | number | null;
@@ -771,8 +773,10 @@ export class ReportsService {
         trip.maneuver_code,
         trip.status,
         trip.departure_at,
+        trip.return_at,
         trip.arrived_at,
         trip.planned_departure_at,
+        trip.planned_completion_at,
         trip.planned_arrival_at,
         COALESCE(NULLIF(TRIM(trip.operator_name_snapshot), ''), 'Sin operador') AS operator_name,
         COALESCE(NULLIF(TRIM(trip.client_name), ''), 'Sin cliente') AS client_name,
@@ -803,15 +807,48 @@ export class ReportsService {
   }
 
   /**
-   * Costo por maniobra sin duplicar: si hay gastos en ledger para el trip,
-   * usa solo el ledger; si no, cae a los montos programados del trip.
+   * Costo por maniobra sin duplicar ledger vs montos programados del trip.
+   * Si hay gastos automáticos (diésel/casetas/operador) en ledger, usa la suma
+   * total del ledger (incluye extras/reparaciones vinculados). Si no, usa montos
+   * programados del trip más cualquier gasto extra vinculado.
    */
   private tripResolvedCostSql(
     tripAlias = 'trip',
     tripExpenseExpr = 'te.trip_expense',
+    hasProgrammedLedgerExpr = 'te.has_programmed_ledger',
   ): string {
     const directCost = this.tripDirectCostSql(tripAlias);
-    return `CASE WHEN COALESCE(${tripExpenseExpr}, 0) > 0 THEN COALESCE(${tripExpenseExpr}, 0)::float ELSE (${directCost}) END`;
+    return `CASE
+      WHEN COALESCE(${hasProgrammedLedgerExpr}, false) THEN COALESCE(${tripExpenseExpr}, 0)::float
+      ELSE (${directCost}) + COALESCE(${tripExpenseExpr}, 0)::float
+    END`;
+  }
+
+  /** Gastos automáticos al programar; activan modo ledger completo por maniobra. */
+  private tripProgrammedLedgerKindCondition(expenseAlias = 'e'): string {
+    return `LOWER(TRIM(COALESCE(${expenseAlias}.kind, ''))) IN ('fuel', 'tolls', 'operator_payment')`;
+  }
+
+  /**
+   * Suma de gastos de ledger por maniobra (sin filtrar por periodo).
+   * Incluye todos los rubros vinculados al trip (extras, reparaciones, etc.)
+   * excepto provisiones operativas y descartados.
+   */
+  private tripLedgerExpenseSubquerySql(companyIdParam = '$1'): string {
+    const schema = this.expensesRepo.metadata.schema;
+    const programmedKinds = this.tripProgrammedLedgerKindCondition('e');
+    return `(
+        SELECT
+          e.trip_id,
+          COALESCE(SUM(e.amount), 0)::float AS trip_expense,
+          BOOL_OR(${programmedKinds}) AS has_programmed_ledger
+        FROM ${schema}.expenses e
+        WHERE e.company_id = ${companyIdParam}
+          AND e.trip_id IS NOT NULL
+          AND e.discarded_at IS NULL
+          AND e.is_operational_provision = false
+        GROUP BY e.trip_id
+      )`;
   }
 
   /** Rubro programado vs ledger (diésel, casetas, operador). */
@@ -970,6 +1007,8 @@ export class ReportsService {
     const params = [scope.companyId, scope.from, scope.to, ...filter.params];
     const resolvedCost = this.tripResolvedCostSql('trip', 'te.trip_expense');
 
+    const tripExpenses = this.tripLedgerExpenseSubquerySql('$1');
+
     return this.tripsRepo.query(
       `
       SELECT
@@ -978,18 +1017,7 @@ export class ReportsService {
         COALESCE(SUM(${resolvedCost}), 0)::float AS cost,
         COUNT(*)::int AS trip_count
       FROM ${this.tripsRepo.metadata.schema}.trips trip
-      LEFT JOIN (
-        SELECT
-          e.trip_id,
-          COALESCE(SUM(e.amount), 0)::float AS trip_expense
-        FROM ${this.expensesRepo.metadata.schema}.expenses e
-        WHERE e.company_id = $1
-          AND e.trip_id IS NOT NULL
-          AND e.discarded_at IS NULL
-          AND e.is_operational_provision = false
-          AND (e.incurred_at AT TIME ZONE '${OPERATIONAL_TZ}')::date BETWEEN $2::date AND $3::date
-        GROUP BY e.trip_id
-      ) te ON te.trip_id = trip.id
+      LEFT JOIN ${tripExpenses} te ON te.trip_id = trip.id
       WHERE trip.company_id = $1
           AND trip.deleted_at IS NULL
         AND ${this.completedBillableTripPeriodSql('trip')}
@@ -1016,6 +1044,7 @@ export class ReportsService {
     const filter = tripScopeSql('trip', scope, 4);
     const params = [scope.companyId, scope.from, scope.to, ...filter.params];
     const directCost = this.tripDirectCostSql('trip');
+    const tripExpenses = this.tripLedgerExpenseSubquerySql('$1');
 
     return this.tripsRepo
       .query(
@@ -1025,34 +1054,15 @@ export class ReportsService {
         COALESCE(
           SUM(
             CASE
-              WHEN COALESCE(te.trip_expense, 0) > 0 THEN 0
+              WHEN COALESCE(te.has_programmed_ledger, false) THEN 0
               ELSE ${directCost}
             END
           ),
           0
         )::float AS direct_cost,
-        COALESCE(
-          SUM(
-            CASE
-              WHEN COALESCE(te.trip_expense, 0) > 0 THEN COALESCE(te.trip_expense, 0)::float
-              ELSE 0
-            END
-          ),
-          0
-        )::float AS trip_expenses
+        COALESCE(SUM(COALESCE(te.trip_expense, 0)), 0)::float AS trip_expenses
       FROM ${this.tripsRepo.metadata.schema}.trips trip
-      LEFT JOIN (
-        SELECT
-          e.trip_id,
-          COALESCE(SUM(e.amount), 0)::float AS trip_expense
-        FROM ${this.expensesRepo.metadata.schema}.expenses e
-        WHERE e.company_id = $1
-          AND e.trip_id IS NOT NULL
-          AND e.discarded_at IS NULL
-          AND e.is_operational_provision = false
-          AND (e.incurred_at AT TIME ZONE '${OPERATIONAL_TZ}')::date BETWEEN $2::date AND $3::date
-        GROUP BY e.trip_id
-      ) te ON te.trip_id = trip.id
+      LEFT JOIN ${tripExpenses} te ON te.trip_id = trip.id
       WHERE trip.company_id = $1
           AND trip.deleted_at IS NULL
         AND ${this.completedBillableTripPeriodSql('trip')}
@@ -1212,12 +1222,6 @@ export class ReportsService {
       .getRawMany();
   }
 
-  private daysInRange(from: string, to: string): number {
-    const fromDate = new Date(`${from}T12:00:00`);
-    const toDate = new Date(`${to}T12:00:00`);
-    return Math.max(1, Math.round((toDate.getTime() - fromDate.getTime()) / 86400000) + 1);
-  }
-
   private applyTripScope(
     qb: SelectQueryBuilder<Trip>,
     scope: ReportsScope,
@@ -1244,28 +1248,6 @@ export class ReportsService {
         { from: scope.from, to: scope.to },
       );
     return this.applyTripScope(qb, scope).getCount();
-  }
-
-  private sumCompletedRevenueSplit(
-    scope: ReportsScope,
-  ): Promise<{ collected: string; receivable: string } | undefined> {
-    const qb = this.tripsRepo
-      .createQueryBuilder('trip')
-      .select(
-        `COALESCE(SUM(CASE WHEN trip.client_collected_at IS NOT NULL THEN trip.client_charge ELSE 0 END), 0)`,
-        'collected',
-      )
-      .addSelect(
-        `COALESCE(SUM(CASE WHEN trip.client_collected_at IS NULL THEN trip.client_charge ELSE 0 END), 0)`,
-        'receivable',
-      )
-      .where('trip.status = :status', { status: 'completed' })
-      .andWhere('trip.completed_at IS NOT NULL')
-      .andWhere(
-        `(trip.completed_at AT TIME ZONE '${OPERATIONAL_TZ}')::date BETWEEN :from AND :to`,
-        { from: scope.from, to: scope.to },
-      );
-    return this.applyTripScope(qb, scope).getRawOne<{ collected: string; receivable: string }>();
   }
 
   private sumCompletedRevenue(
@@ -1337,7 +1319,12 @@ export class ReportsService {
         `
       SELECT AVG(
         EXTRACT(EPOCH FROM (
-          COALESCE(trip.arrived_at, trip.planned_arrival_at) -
+          COALESCE(
+            trip.return_at,
+            trip.planned_completion_at,
+            trip.arrived_at,
+            trip.planned_arrival_at
+          ) -
           COALESCE(trip.departure_at, trip.planned_departure_at)
         )) / 86400.0
       )::float AS avg_days
@@ -1347,10 +1334,19 @@ export class ReportsService {
         AND trip.status = 'completed'
         AND trip.completed_at IS NOT NULL
         AND (trip.completed_at AT TIME ZONE '${OPERATIONAL_TZ}')::date BETWEEN $2::date AND $3::date
-        AND COALESCE(trip.arrived_at, trip.planned_arrival_at) IS NOT NULL
+        AND COALESCE(
+          trip.return_at,
+          trip.planned_completion_at,
+          trip.arrived_at,
+          trip.planned_arrival_at
+        ) IS NOT NULL
         AND COALESCE(trip.departure_at, trip.planned_departure_at) IS NOT NULL
-        AND COALESCE(trip.arrived_at, trip.planned_arrival_at)
-          >= COALESCE(trip.departure_at, trip.planned_departure_at)
+        AND COALESCE(
+          trip.return_at,
+          trip.planned_completion_at,
+          trip.arrived_at,
+          trip.planned_arrival_at
+        ) >= COALESCE(trip.departure_at, trip.planned_departure_at)
         ${filter.sql}
       `,
         params,
@@ -1442,127 +1438,6 @@ export class ReportsService {
         { from: scope.from, to: scope.to },
       );
     return this.applyTripScope(qb, scope).getRawOne<{ count: string }>();
-  }
-
-  private queryTripActivity(scope: ReportsScope): Promise<unknown[]> {
-    const filter = tripScopeSql('trip', scope, 4);
-    const params = [scope.companyId, scope.from, scope.to, ...filter.params];
-
-    return this.tripsRepo.query(
-      `
-      WITH days AS (
-        SELECT generate_series($2::date, $3::date, interval '1 day')::date AS day
-      ),
-      completed_counts AS (
-        SELECT
-          (trip.completed_at AT TIME ZONE '${OPERATIONAL_TZ}')::date AS day,
-          COUNT(*)::int AS cnt
-        FROM ${this.tripsRepo.metadata.schema}.trips trip
-        WHERE trip.company_id = $1
-          AND trip.deleted_at IS NULL
-          AND trip.status = 'completed'
-          AND trip.completed_at IS NOT NULL
-          AND (trip.completed_at AT TIME ZONE '${OPERATIONAL_TZ}')::date BETWEEN $2::date AND $3::date
-          ${filter.sql}
-        GROUP BY 1
-      ),
-      in_transit_counts AS (
-        SELECT
-          (COALESCE(trip.departure_at, trip.planned_departure_at) AT TIME ZONE '${OPERATIONAL_TZ}')::date AS day,
-          COUNT(*)::int AS cnt
-        FROM ${this.tripsRepo.metadata.schema}.trips trip
-        WHERE trip.company_id = $1
-          AND trip.deleted_at IS NULL
-          AND trip.status = 'in_transit'
-          AND (COALESCE(trip.departure_at, trip.planned_departure_at) AT TIME ZONE '${OPERATIONAL_TZ}')::date BETWEEN $2::date AND $3::date
-          ${filter.sql}
-        GROUP BY 1
-      ),
-      scheduled_counts AS (
-        SELECT
-          (trip.planned_departure_at AT TIME ZONE '${OPERATIONAL_TZ}')::date AS day,
-          COUNT(*)::int AS cnt
-        FROM ${this.tripsRepo.metadata.schema}.trips trip
-        WHERE trip.company_id = $1
-          AND trip.deleted_at IS NULL
-          AND trip.status = 'scheduled'
-          AND (trip.planned_departure_at AT TIME ZONE '${OPERATIONAL_TZ}')::date BETWEEN $2::date AND $3::date
-          ${filter.sql}
-        GROUP BY 1
-      )
-      SELECT
-        to_char(d.day, 'YYYY-MM-DD') AS date,
-        COALESCE(cc.cnt, 0)::int AS completed,
-        COALESCE(it.cnt, 0)::int AS in_transit,
-        COALESCE(sc.cnt, 0)::int AS scheduled
-      FROM days d
-      LEFT JOIN completed_counts cc ON cc.day = d.day
-      LEFT JOIN in_transit_counts it ON it.day = d.day
-      LEFT JOIN scheduled_counts sc ON sc.day = d.day
-      ORDER BY d.day ASC
-      `,
-      params,
-    );
-  }
-
-  private queryOperationalFlow(scope: ReportsScope): Promise<unknown[]> {
-    const filter = tripScopeSql('trip', scope, 4);
-    const params = [scope.companyId, scope.from, scope.to, ...filter.params];
-
-    return this.tripsRepo.query(
-      `
-      WITH days AS (
-        SELECT generate_series($2::date, $3::date, interval '1 day')::date AS day
-      ),
-      trip_counts AS (
-        SELECT
-          (trip.completed_at AT TIME ZONE '${OPERATIONAL_TZ}')::date AS day,
-          COUNT(*)::int AS cnt
-        FROM ${this.tripsRepo.metadata.schema}.trips trip
-        WHERE trip.company_id = $1
-          AND trip.deleted_at IS NULL
-          AND trip.status = 'completed'
-          AND trip.completed_at IS NOT NULL
-          AND (trip.completed_at AT TIME ZONE '${OPERATIONAL_TZ}')::date BETWEEN $2::date AND $3::date
-          ${filter.sql}
-        GROUP BY 1
-      ),
-      expense_sums AS (
-        SELECT
-          (e.incurred_at AT TIME ZONE '${OPERATIONAL_TZ}')::date AS day,
-          COALESCE(SUM(e.amount), 0)::float AS total
-        FROM ${this.expensesRepo.metadata.schema}.expenses e
-        WHERE e.company_id = $1
-          AND e.discarded_at IS NULL
-          AND (e.incurred_at AT TIME ZONE '${OPERATIONAL_TZ}')::date BETWEEN $2::date AND $3::date
-        GROUP BY 1
-      ),
-      revenue_sums AS (
-        SELECT
-          (trip.completed_at AT TIME ZONE '${OPERATIONAL_TZ}')::date AS day,
-          COALESCE(SUM(trip.client_charge), 0)::float AS total
-        FROM ${this.tripsRepo.metadata.schema}.trips trip
-        WHERE trip.company_id = $1
-          AND trip.deleted_at IS NULL
-          AND trip.status = 'completed'
-          AND trip.completed_at IS NOT NULL
-          AND (trip.completed_at AT TIME ZONE '${OPERATIONAL_TZ}')::date BETWEEN $2::date AND $3::date
-          ${filter.sql}
-        GROUP BY 1
-      )
-      SELECT
-        to_char(d.day, 'YYYY-MM-DD') AS date,
-        COALESCE(tc.cnt, 0)::int AS trips,
-        COALESCE(es.total, 0)::float AS expenses,
-        COALESCE(rs.total, 0)::float AS revenue
-      FROM days d
-      LEFT JOIN trip_counts tc ON tc.day = d.day
-      LEFT JOIN expense_sums es ON es.day = d.day
-      LEFT JOIN revenue_sums rs ON rs.day = d.day
-      ORDER BY d.day ASC
-      `,
-      params,
-    );
   }
 
   private queryTopDestinations(

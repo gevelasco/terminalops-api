@@ -157,9 +157,9 @@ export function tripCompletionAnchorYmd(
 ): string | null {
   for (const value of [
     trip.returnAt,
+    trip.plannedCompletionAt,
     trip.completedAt,
     trip.arrivedAt,
-    trip.plannedCompletionAt,
   ]) {
     if (!value) {
       continue;

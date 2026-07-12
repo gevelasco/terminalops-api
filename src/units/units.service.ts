@@ -51,6 +51,10 @@ import {
 import type { ListResourceLinkOptionsQueryDto } from 'src/common/dto/list-resource-link-options-query.dto';
 import { isFleetLinkOptionsSearchAllowed } from 'src/fleet/fleet-link-options-search.util';
 import { mapUnitLinkOption } from './unit-link-option.mapper';
+import { ActivityEventsService } from 'src/activity-events/activity-events.service';
+import { COMPANY_ACTIVITY_KIND } from 'src/activity-events/company-activity-event.kinds';
+import { buildUnitOperationalId } from 'src/common/utils/unit-operational-id.util';
+import type AuthUser from 'src/types/auth-user.type';
 
 export type UnitsFindAllOptions = FleetListAvailableOptions & {
   includeTenure?: boolean;
@@ -75,9 +79,10 @@ export class UnitsService {
     private readonly verificationExpenseSync: FleetVerificationExpenseSyncService,
     private readonly insuranceExpenseSync: FleetInsuranceExpenseSyncService,
     private readonly gpsExpenseSync: FleetGpsExpenseSyncService,
+    private readonly activityEvents: ActivityEventsService,
   ) {}
 
-  async create(companyId: number, dto: CreateUnitDto) {
+  async create(companyId: number, dto: CreateUnitDto, actor?: AuthUser) {
     rejectClientFleetStatusMutation(dto as unknown as Record<string, unknown>);
     const { fleetMeta, ...rawCore } = dto;
     const core = pickUnitUserMutableFields(
@@ -94,6 +99,16 @@ export class UnitsService {
     if (fleetMeta) {
       await this.saveFleetMeta(companyId, saved.id, fleetMeta);
     }
+    const label = buildUnitOperationalId(saved);
+    await this.activityEvents.record({
+      companyId,
+      kind: COMPANY_ACTIVITY_KIND.UNIT_CREATED,
+      entityType: 'unit',
+      entityId: saved.id,
+      subjectLabel: label,
+      title: 'Alta de unidad',
+      actor,
+    });
     return this.findOne(companyId, saved.id);
   }
 
@@ -175,7 +190,12 @@ export class UnitsService {
     return serializeUnit(row, { tenure });
   }
 
-  async update(companyId: number, unitId: number, dto: UpdateUnitDto) {
+  async update(
+    companyId: number,
+    unitId: number,
+    dto: UpdateUnitDto,
+    actor?: AuthUser,
+  ) {
     rejectClientFleetStatusMutation(dto as unknown as Record<string, unknown>);
     await this.findOne(companyId, unitId);
     const { fleetMeta, ...rawCore } = dto;
@@ -192,6 +212,18 @@ export class UnitsService {
     }
     if (fleetMeta !== undefined) {
       await this.saveFleetMeta(companyId, unitId, fleetMeta);
+    }
+    const row = await this.repo.findOne({ where: { companyId, id: unitId } });
+    if (row) {
+      await this.activityEvents.record({
+        companyId,
+        kind: COMPANY_ACTIVITY_KIND.UNIT_UPDATED,
+        entityType: 'unit',
+        entityId: unitId,
+        subjectLabel: buildUnitOperationalId(row),
+        title: 'Unidad modificada',
+        actor,
+      });
     }
     return this.findOne(companyId, unitId);
   }

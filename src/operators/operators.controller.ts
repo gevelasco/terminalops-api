@@ -71,7 +71,7 @@ export class OperatorsController {
     assertModuleWrite(user, APP_MODULE_CODES.OPERATORS);
     rejectClientFleetStatusMutation(req.body as Record<string, unknown>);
     const companyId = await this.tenantContext.resolveInternalIdFromAuthUser(user);
-    return this.service.update(companyId, operatorId, dto);
+    return this.service.update(companyId, operatorId, dto, user);
   }
 
   @Delete(':operatorId')

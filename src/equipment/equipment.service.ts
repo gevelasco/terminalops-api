@@ -39,6 +39,10 @@ import {
 import type { ListResourceLinkOptionsQueryDto } from 'src/common/dto/list-resource-link-options-query.dto';
 import { isFleetLinkOptionsSearchAllowed } from 'src/fleet/fleet-link-options-search.util';
 import { mapEquipmentLinkOption } from './equipment-link-option.mapper';
+import { ActivityEventsService } from 'src/activity-events/activity-events.service';
+import { COMPANY_ACTIVITY_KIND } from 'src/activity-events/company-activity-event.kinds';
+import { buildEquipmentOperationalId } from 'src/common/utils/unit-operational-id.util';
+import type AuthUser from 'src/types/auth-user.type';
 
 export type EquipmentFindAllOptions = { includeTenure?: boolean };
 
@@ -61,9 +65,10 @@ export class EquipmentService {
     private readonly maintenanceExpenseSync: FleetMaintenanceExpenseSyncService,
     private readonly verificationExpenseSync: FleetVerificationExpenseSyncService,
     private readonly insuranceExpenseSync: FleetInsuranceExpenseSyncService,
+    private readonly activityEvents: ActivityEventsService,
   ) {}
 
-  async create(companyId: number, dto: CreateEquipmentDto) {
+  async create(companyId: number, dto: CreateEquipmentDto, actor?: AuthUser) {
     rejectClientFleetStatusMutation(dto as unknown as Record<string, unknown>);
     const { fleetMeta, unitId: unitIdRef, hitchPosition, ...rawCore } = dto;
     const core = pickEquipmentUserMutableFields(
@@ -93,6 +98,16 @@ export class EquipmentService {
     if (fleetMeta) {
       await this.saveFleetMeta(companyId, saved.id, fleetMeta);
     }
+    const label = buildEquipmentOperationalId(saved);
+    await this.activityEvents.record({
+      companyId,
+      kind: COMPANY_ACTIVITY_KIND.EQUIPMENT_CREATED,
+      entityType: 'equipment',
+      entityId: saved.id,
+      subjectLabel: label,
+      title: 'Alta de equipo',
+      actor,
+    });
     return this.findOne(companyId, saved.id);
   }
 
@@ -173,7 +188,12 @@ export class EquipmentService {
     return serializeEquipment(row, { tenure });
   }
 
-  async update(companyId: number, equipmentId: number, dto: UpdateEquipmentDto) {
+  async update(
+    companyId: number,
+    equipmentId: number,
+    dto: UpdateEquipmentDto,
+    actor?: AuthUser,
+  ) {
     rejectClientFleetStatusMutation(dto as unknown as Record<string, unknown>);
     const current = await this.repo.findOne({
       where: { companyId, id: equipmentId },
@@ -221,6 +241,18 @@ export class EquipmentService {
     }
     if (fleetMeta !== undefined) {
       await this.saveFleetMeta(companyId, equipmentId, fleetMeta);
+    }
+    const row = await this.repo.findOne({ where: { companyId, id: equipmentId } });
+    if (row) {
+      await this.activityEvents.record({
+        companyId,
+        kind: COMPANY_ACTIVITY_KIND.EQUIPMENT_UPDATED,
+        entityType: 'equipment',
+        entityId: equipmentId,
+        subjectLabel: buildEquipmentOperationalId(row),
+        title: 'Equipo modificado',
+        actor,
+      });
     }
     return this.findOne(companyId, equipmentId);
   }

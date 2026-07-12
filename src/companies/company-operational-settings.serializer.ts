@@ -1,6 +1,7 @@
 import { Company } from 'src/companies/entities/company.entity';
 import { toIsoString } from 'src/common/utils/iso-date.util';
 import { operationalCenterGeoForApi } from 'src/operational-centers/operational-center-geo-for-api';
+import { normalizeExpensePaymentMethod } from 'src/expenses/expense-payment-method.util';
 import type { OperationalCenter } from 'src/operational-centers/entities/operational-center.entity';
 
 function dbNumToApi(value?: string | null): number | undefined {
@@ -27,6 +28,18 @@ export function serializeCompanyOperationalSettings(
     tripAutoMaintenanceProvisionPercent: dbNumToApi(
       company.tripAutoMaintenanceProvisionPercent,
     ) ?? 5,
+    tripAutoFuelPaymentMethod: normalizeExpensePaymentMethod(
+      company.tripAutoFuelPaymentMethod,
+    ),
+    tripAutoTollsPaymentMethod: normalizeExpensePaymentMethod(
+      company.tripAutoTollsPaymentMethod,
+    ),
+    tripAutoPerDiemPaymentMethod: normalizeExpensePaymentMethod(
+      company.tripAutoPerDiemPaymentMethod,
+    ),
+    tripAutoControlPaymentMethod: normalizeExpensePaymentMethod(
+      company.tripAutoControlPaymentMethod,
+    ),
     maintenanceKmControlEnabled: company.maintenanceKmControlEnabled,
     maintenanceKmIntervalDefault: dbNumToApi(company.maintenanceKmIntervalDefault),
     maintenanceKmControlChangedAt: toIsoString(company.maintenanceKmControlChangedAt),

@@ -31,6 +31,9 @@ import { rejectClientFleetStatusMutation } from 'src/fleet/fleet-status-lock.uti
 import type { ListResourceLinkOptionsQueryDto } from 'src/common/dto/list-resource-link-options-query.dto';
 import { isFleetLinkOptionsSearchAllowed } from 'src/fleet/fleet-link-options-search.util';
 import { mapOperatorLinkOption } from './operator-link-option.mapper';
+import { ActivityEventsService } from 'src/activity-events/activity-events.service';
+import { COMPANY_ACTIVITY_KIND } from 'src/activity-events/company-activity-event.kinds';
+import type AuthUser from 'src/types/auth-user.type';
 
 export type OperatorsFindAllOptions = FleetListAvailableOptions;
 
@@ -65,6 +68,7 @@ export class OperatorsService {
     private readonly expenseRepo: Repository<Expense>,
     @InjectRepository(Unit)
     private readonly unitRepo: Repository<Unit>,
+    private readonly activityEvents: ActivityEventsService,
   ) {}
 
   async create(companyId: number, dto: CreateOperatorDto) {
@@ -290,7 +294,12 @@ export class OperatorsService {
     return this.getOperationSummary(companyId, operatorId);
   }
 
-  async update(companyId: number, operatorId: number, dto: UpdateOperatorDto) {
+  async update(
+    companyId: number,
+    operatorId: number,
+    dto: UpdateOperatorDto,
+    actor?: AuthUser,
+  ) {
     rejectClientFleetStatusMutation(dto as unknown as Record<string, unknown>);
     await this.findOne(companyId, operatorId);
     const core = this.extractCoreFields(dto);
@@ -298,6 +307,18 @@ export class OperatorsService {
       await this.repo.update({ id: operatorId, companyId }, core);
     }
     await this.saveNested(operatorId, dto);
+    const row = await this.repo.findOne({ where: { companyId, id: operatorId } });
+    if (row) {
+      await this.activityEvents.record({
+        companyId,
+        kind: COMPANY_ACTIVITY_KIND.OPERATOR_UPDATED,
+        entityType: 'operator',
+        entityId: operatorId,
+        subjectLabel: row.name?.trim() || `Operador #${operatorId}`,
+        title: 'Operador modificado',
+        actor,
+      });
+    }
     return this.findOne(companyId, operatorId);
   }
 
