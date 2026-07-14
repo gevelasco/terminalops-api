@@ -8,7 +8,7 @@
   "scripts": {
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
-    "start": "node dist/src/main.js",
+    "start": "npm run migration:run:server && node dist/src/main.js",
     "start:dev": "nest start --watch",
     "start:local": "npm run migration:run && npm run start:dev",
     "docker:up": "docker compose -p terminalops-api -f docker-compose.local.yml --env-file .env up -d",
@@ -17,7 +17,7 @@
     "migration:run:server": "node dist/src/migrate.js",
     "start:debug": "nest start --debug --watch",
     "prestart:prod": "node -e \"require('fs').accessSync('dist/src/main.js')\"",
-    "start:prod": "node dist/src/main.js",
+    "start:prod": "npm run migration:run:server && node dist/src/main.js",
     "migration:run": "npm run typeorm migration:run -- -d ./config/migration.config.ts",
     "migration:revert": "npm run typeorm migration:revert -- -d ./config/migration.config.ts",
     "migration:generate": "npm run typeorm migration:generate -- -d ./config/migration.config.ts",
