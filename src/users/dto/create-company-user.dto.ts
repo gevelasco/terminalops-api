@@ -2,6 +2,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   ArrayUnique,
   IsArray,
+  IsEmail,
   IsIn,
   IsOptional,
   IsString,
@@ -32,11 +33,10 @@ export class CreateCompanyUserDto {
   @MaxLength(120)
   displayName?: string;
 
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
+  @ApiProperty({ example: 'jperez@empresa.com' })
+  @IsEmail()
   @MaxLength(254)
-  email?: string;
+  email: string;
 
   @ApiPropertyOptional()
   @IsOptional()

@@ -24,6 +24,7 @@
     "typeorm": "ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
     "check:trip-distance": "node scripts/check-trip-distance-rules.mjs",
+    "db:export-grupo-vsc": "bash scripts/export-grupo-vsc-dump.sh",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",

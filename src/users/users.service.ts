@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   Injectable,
@@ -110,24 +111,16 @@ export class UsersService {
     const nextEmail = dto.email?.trim().toLowerCase();
 
     if (nextUsername && nextUsername !== user.username.trim().toLowerCase()) {
-      const conflict = await this.findUpdateConflict(
-        user.id,
-        nextUsername,
-        nextEmail ?? user.email ?? '',
-      );
-      if (conflict === 'username') {
-        throw new ConflictException('El nombre de usuario ya está registrado.');
+      if (await this.isUsernameTakenInCompany(user.companyId, nextUsername, user.id)) {
+        throw new ConflictException(
+          'El nombre de usuario ya está registrado en esta empresa.',
+        );
       }
       user.username = nextUsername;
     }
 
     if (nextEmail && nextEmail !== (user.email?.trim().toLowerCase() ?? '')) {
-      const conflict = await this.findUpdateConflict(
-        user.id,
-        nextUsername ?? user.username,
-        nextEmail,
-      );
-      if (conflict === 'email') {
+      if (await this.isEmailTaken(nextEmail, user.id)) {
         throw new ConflictException('El correo electrónico ya está registrado.');
       }
       user.email = nextEmail;
@@ -190,94 +183,54 @@ export class UsersService {
     await this.usersRepo.save(user);
   }
 
-  async findUpdateConflict(
-    userId: number,
-    username: string,
-    email: string,
-  ): Promise<'username' | 'email' | null> {
-    const normalizedUsername = username.trim().toLowerCase();
-    const normalizedEmail = email.trim().toLowerCase();
-    const existing = await this.usersRepo
+  /** Correo único en toda la app (cualquier empresa). */
+  async isEmailTaken(email: string, excludeUserId?: number): Promise<boolean> {
+    const normalized = email.trim().toLowerCase();
+    if (!normalized) {
+      return false;
+    }
+    const qb = this.usersRepo
       .createQueryBuilder('user')
-      .where('user.id <> :userId', { userId })
-      .andWhere(
-        `(LOWER(user.username) IN (:username, :email)
-          OR LOWER(COALESCE(user.email, '')) IN (:username, :email))`,
-        { username: normalizedUsername, email: normalizedEmail },
-      )
-      .getMany();
-
-    if (existing.length === 0) {
-      return null;
+      .where('LOWER(btrim(user.email)) = :email', { email: normalized });
+    if (excludeUserId != null) {
+      qb.andWhere('user.id <> :excludeUserId', { excludeUserId });
     }
-
-    if (
-      existing.some(
-        (row) => row.username.trim().toLowerCase() === normalizedUsername,
-      )
-    ) {
-      return 'username';
-    }
-    if (
-      existing.some(
-        (row) => row.email?.trim().toLowerCase() === normalizedEmail,
-      )
-    ) {
-      return 'email';
-    }
-    return 'username';
+    return (await qb.getCount()) > 0;
   }
 
-  findByLogin(login: string) {
-    const normalized = login.trim().toLowerCase();
+  /** Username único solo dentro de la misma empresa. */
+  async isUsernameTakenInCompany(
+    companyId: number,
+    username: string,
+    excludeUserId?: number,
+  ): Promise<boolean> {
+    const normalized = username.trim().toLowerCase();
+    if (!normalized) {
+      return false;
+    }
+    const qb = this.usersRepo
+      .createQueryBuilder('user')
+      .where('user.companyId = :companyId', { companyId })
+      .andWhere('LOWER(btrim(user.username)) = :username', {
+        username: normalized,
+      });
+    if (excludeUserId != null) {
+      qb.andWhere('user.id <> :excludeUserId', { excludeUserId });
+    }
+    return (await qb.getCount()) > 0;
+  }
+
+  findByEmail(email: string) {
+    const normalized = email.trim().toLowerCase();
     return this.usersRepo
       .createQueryBuilder('user')
       .addSelect('user.passwordHash')
       .leftJoinAndSelect('user.company', 'company')
       .leftJoinAndSelect('company.primaryOperationalCenter', 'primaryOperationalCenter')
       .leftJoinAndSelect('user.preferences', 'preferences')
-      .where('LOWER(user.username) = :login OR LOWER(user.email) = :login', {
-        login: normalized,
-      })
+      .leftJoinAndSelect('user.moduleAccess', 'moduleAccess')
+      .where('LOWER(btrim(user.email)) = :email', { email: normalized })
       .getOne();
-  }
-
-  async findSignUpConflict(
-    username: string,
-    email: string,
-  ): Promise<'username' | 'email' | null> {
-    const normalizedUsername = username.trim().toLowerCase();
-    const normalizedEmail = email.trim().toLowerCase();
-    const existing = await this.usersRepo
-      .createQueryBuilder('user')
-      .where(
-        `LOWER(user.username) IN (:username, :email)
-         OR LOWER(COALESCE(user.email, '')) IN (:username, :email)`,
-        {
-          username: normalizedUsername,
-          email: normalizedEmail,
-        },
-      )
-      .getMany();
-
-    if (existing.length === 0) {
-      return null;
-    }
-
-    const usernameTaken = existing.some(
-      (row) => row.username.trim().toLowerCase() === normalizedUsername,
-    );
-    const emailTaken = existing.some(
-      (row) => row.email?.trim().toLowerCase() === normalizedEmail,
-    );
-
-    if (usernameTaken) {
-      return 'username';
-    }
-    if (emailTaken) {
-      return 'email';
-    }
-    return 'username';
   }
 
   generateAuthUser(user: AppUser): AuthUser {
@@ -397,14 +350,30 @@ export class UsersService {
       theme?: ThemeScheme;
     },
   ) {
+    const username = data.username.trim();
+    const email = data.email?.trim().toLowerCase();
+    if (!email) {
+      throw new BadRequestException('El correo electrónico es obligatorio.');
+    }
+    if (await this.isEmailTaken(email)) {
+      throw new ConflictException(
+        `El correo "${email}" ya está registrado. Usa otro correo.`,
+      );
+    }
+    if (await this.isUsernameTakenInCompany(companyId, username)) {
+      throw new ConflictException(
+        `El usuario "${username}" ya existe en esta empresa.`,
+      );
+    }
+
     const passwordHash = await hashPassword(data.password, this.saltRounds);
     const role = data.role ?? 'staff';
     const user = await this.usersRepo.save(
       this.usersRepo.create({
         companyId,
-        username: data.username.trim(),
-        displayName: data.displayName?.trim() ?? data.username.trim(),
-        email: data.email?.trim().toLowerCase(),
+        username,
+        displayName: data.displayName?.trim() ?? username,
+        email,
         phone: data.phone?.trim(),
         jobTitle:
           data.jobTitle?.trim() ||
@@ -523,7 +492,7 @@ export class UsersService {
       username: string;
       password: string;
       displayName?: string;
-      email?: string;
+      email: string;
       phone?: string;
       jobTitle?: string;
       photoDataUrl?: string;
@@ -611,24 +580,16 @@ export class UsersService {
     const nextEmail = data.email?.trim().toLowerCase();
 
     if (nextUsername && nextUsername !== user.username.trim().toLowerCase()) {
-      const conflict = await this.findUpdateConflict(
-        user.id,
-        nextUsername,
-        nextEmail ?? user.email ?? '',
-      );
-      if (conflict === 'username') {
-        throw new ConflictException('El nombre de usuario ya está registrado.');
+      if (await this.isUsernameTakenInCompany(companyId, nextUsername, user.id)) {
+        throw new ConflictException(
+          'El nombre de usuario ya está registrado en esta empresa.',
+        );
       }
       user.username = nextUsername;
     }
 
     if (nextEmail && nextEmail !== (user.email?.trim().toLowerCase() ?? '')) {
-      const conflict = await this.findUpdateConflict(
-        user.id,
-        nextUsername ?? user.username,
-        nextEmail,
-      );
-      if (conflict === 'email') {
+      if (await this.isEmailTaken(nextEmail, user.id)) {
         throw new ConflictException('El correo electrónico ya está registrado.');
       }
       user.email = nextEmail;

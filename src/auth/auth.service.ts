@@ -30,7 +30,7 @@ export class AuthService {
   ) {}
 
   async login(dto: LoginDto) {
-    const user = await this.usersService.findByLogin(dto.login);
+    const user = await this.usersService.findByEmail(dto.email);
     if (!user || !isAppUserLoginAllowed(user.status)) {
       throw new HttpException('Invalid credentials', HttpStatus.UNAUTHORIZED);
     }
@@ -69,13 +69,7 @@ export class AuthService {
 
     const username = dto.username.trim();
     const email = dto.email.trim().toLowerCase();
-    const conflict = await this.usersService.findSignUpConflict(username, email);
-    if (conflict === 'username') {
-      throw new ConflictException(
-        `El usuario "${username}" ya está registrado. Inicia sesión o elige otro nombre de usuario.`,
-      );
-    }
-    if (conflict === 'email') {
+    if (await this.usersService.isEmailTaken(email)) {
       throw new ConflictException(
         `El correo "${email}" ya está registrado. Inicia sesión o usa otro correo.`,
       );

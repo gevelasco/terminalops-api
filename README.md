@@ -106,14 +106,15 @@ El JWT incluye `companyId` y `companyName`; el guard valida que `:companyId` coi
 
 | Ruta | Descripción |
 |------|-------------|
-| `POST /auth/login` | Login (`login`, `password`) → access + refresh token |
+| `POST /auth/login` | Login (`email`, `password`) → access + refresh token |
 | `POST /auth/refresh` | Renueva tokens |
 | `POST /auth/sign-up` | Alta de empresa + usuario admin (dev) |
 
 Tras `npm run migration:run`, la migración de seed crea:
 
 - Empresa demo: **TerminalOps Demo** (`id: 1`)
-- Usuario: `gvelasco` / `Admin123` (`id: 1`, `companyId: 1`)
+- Correo: `gvelasco@terminalops.demo` / `Admin123` (`username` interno: `gvelasco`, `id: 1`, `companyId: 1`)
+  En entornos con datos propios (p. ej. Grupo VSC), usa el correo del usuario.
 
 Todos los IDs en la API y la base de datos son **numéricos** (`serial`), al estilo fintrack-api.
 
