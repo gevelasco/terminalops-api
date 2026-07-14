@@ -6,8 +6,8 @@ export const APP_MODULE_CODES = {
   CLIENTS: 'clients',
   EXPENSES: 'expenses',
   REPORTS: 'reports',
-  CUENTA: 'cuenta',
-  USUARIOS: 'usuarios',
+  ACCOUNT: 'account',
+  USERS: 'users',
 } as const;
 
 export type AppModuleCode =
@@ -51,12 +51,12 @@ const OPERATIONAL_MODULE_CODES: AppModuleCode[] = [
 
 const ADMIN_MODULE_CODES: AppModuleCode[] = [
   ...OPERATIONAL_MODULE_CODES,
-  APP_MODULE_CODES.USUARIOS,
+  APP_MODULE_CODES.USERS,
 ];
 
 const OWNER_MODULE_CODES: AppModuleCode[] = [
   ...ADMIN_MODULE_CODES,
-  APP_MODULE_CODES.CUENTA,
+  APP_MODULE_CODES.ACCOUNT,
 ];
 
 export function normalizeStaffModuleGrants(
