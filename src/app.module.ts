@@ -18,6 +18,7 @@ import { UnitsModule } from './units/units.module';
 import { TenantModule } from './common/tenant/tenant.module';
 import { ActivityEventsModule } from './activity-events/activity-events.module';
 import { typeOrmEntityGlobsFromDir } from './database/typeorm-entity-globs';
+import { typeOrmMigrationGlobsFromDir } from './database/typeorm-migration-globs';
 import EnvConfig from './types/env-config.type';
 
 @Module({
@@ -36,6 +37,10 @@ import EnvConfig from './types/env-config.type';
         password: configService.get('DB_PASSWORD', { infer: true }),
         database: configService.get('DB_DATABASE', { infer: true }),
         entities: typeOrmEntityGlobsFromDir(__dirname),
+        migrations: typeOrmMigrationGlobsFromDir(__dirname),
+        migrationsTableName: 'migrations_list',
+        migrationsTransactionMode: 'each',
+        migrationsRun: true,
         autoLoadEntities: true,
         ssl: false,
         synchronize: false,

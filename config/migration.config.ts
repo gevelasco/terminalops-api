@@ -3,6 +3,7 @@ import { config as loadEnv } from 'dotenv';
 import * as path from 'path';
 import * as fs from 'fs';
 import { typeOrmEntityGlobsFromDir } from '../src/database/typeorm-entity-globs';
+import { typeOrmMigrationGlobsFromDir } from '../src/database/typeorm-migration-globs';
 
 const envPath = path.resolve(__dirname, '../.env');
 if (fs.existsSync(envPath)) {
@@ -23,7 +24,6 @@ const isLocal =
   !process.env.NODE_ENV;
 
 const entitiesRoot = path.join(process.cwd(), isLocal ? 'src' : 'dist/src');
-const migrationsRoot = entitiesRoot;
 
 const dataSource = new DataSource({
   type: 'postgres',
@@ -35,8 +35,11 @@ const dataSource = new DataSource({
   entities: typeOrmEntityGlobsFromDir(entitiesRoot, {
     includeTypeScript: isLocal,
   }),
-  migrations: [path.join(migrationsRoot, 'migrations/*.{ts,js}')],
+  migrations: typeOrmMigrationGlobsFromDir(entitiesRoot, {
+    includeTypeScript: isLocal,
+  }),
   migrationsTableName: 'migrations_list',
+  migrationsTransactionMode: 'each',
 });
 
 export default dataSource;

@@ -5,6 +5,7 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  * conserva únicamente la empresa "Grupo VSC" y todo su cascado
  * (usuarios, clientes, flota, viajes, gastos, etc.).
  *
+ * Si no existe "Grupo VSC" (p. ej. deploy fresco con seed Demo), no-op.
  * No toca tablas globales (p. ej. fuel_prices).
  * Irreversible: down() no restaura empresas eliminadas.
  */
@@ -22,9 +23,13 @@ export class KeepOnlyGrupoVscTenant1747000000000 implements MigrationInterface {
         FROM terminalops.companies
         WHERE lower(btrim(name)) = lower(btrim('Grupo VSC'));
 
+        -- Fresh deploys seed "TerminalOps Demo", not Grupo VSC. No-op instead of
+        -- aborting: with TypeORM transaction=all, RAISE would roll back the whole
+        -- migration batch (including CREATE SCHEMA / trips).
         IF v_keep_count = 0 THEN
-          RAISE EXCEPTION
-            'KeepOnlyGrupoVscTenant: no se encontró la empresa "Grupo VSC"; abortando sin borrar datos';
+          RAISE NOTICE
+            'KeepOnlyGrupoVscTenant: no "Grupo VSC" tenant; skipping prune';
+          RETURN;
         END IF;
 
         IF v_keep_count > 1 THEN
