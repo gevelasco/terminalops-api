@@ -210,4 +210,28 @@ export class CompaniesService {
 
     return this.repo.save(company);
   }
+
+  async updateAccountInfo(
+    user: AuthUser,
+    companyId: number,
+    data: { name?: string; tagline?: string },
+  ) {
+    if (user.role !== 'admin' && user.role !== 'superadmin') {
+      throw new ForbiddenException('Solo administradores pueden editar la información de la empresa');
+    }
+    const company = await this.findOne(companyId);
+    assertCompanyAccess(user, companyId);
+
+    if (data.name !== undefined) {
+      const trimmed = data.name.trim();
+      if (!trimmed) {
+        throw new ForbiddenException('El nombre de la empresa no puede estar vacío');
+      }
+      company.name = trimmed;
+    }
+    if (data.tagline !== undefined) {
+      company.tagline = data.tagline.trim() || undefined;
+    }
+    return this.repo.save(company);
+  }
 }

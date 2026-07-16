@@ -205,16 +205,26 @@ export function buildOperatorOperationSummary(
   unitsById: ReadonlyMap<number, Unit>,
   asOf: Date = new Date(),
   paymentScheduleRaw?: string | null,
+  periodFrom?: string,
+  periodTo?: string,
 ): OperatorOperationSummaryDto {
   const asOfYmd = localYmd(asOf);
   const paymentSchedule = normalizeOperatorPaymentSchedule(paymentScheduleRaw);
-  const recentTrips = trips.filter((trip) =>
-    isTripWithinRecentDays(trip, asOfYmd, OPERATOR_SUMMARY_RECENT_DAYS),
-  );
-  const statusCounts = countTripsByStatus(recentTrips);
+
+  const usePeriod = !!periodFrom && !!periodTo;
+  const scopedTrips = usePeriod
+    ? trips.filter((t) => {
+        const ymd = tripActivityYmd(t);
+        return ymd != null && ymd >= periodFrom && ymd <= periodTo;
+      })
+    : trips.filter((trip) =>
+        isTripWithinRecentDays(trip, asOfYmd, OPERATOR_SUMMARY_RECENT_DAYS),
+      );
+
+  const statusCounts = countTripsByStatus(scopedTrips);
 
   const completedKm = Math.round(
-    recentTrips
+    scopedTrips
       .filter((t) => t.status === 'completed')
       .reduce((sum, t) => sum + tripKm(t), 0),
   );
@@ -224,6 +234,8 @@ export function buildOperatorOperationSummary(
     expenses,
     paymentSchedule,
     asOf,
+    usePeriod ? periodFrom : undefined,
+    usePeriod ? periodTo : undefined,
   );
   const paymentSummary = summarizeOperatorPaymentRows(paymentSections, asOfYmd);
 

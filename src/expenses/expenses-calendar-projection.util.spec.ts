@@ -36,6 +36,7 @@ describe('expenses-calendar-projection.util', () => {
       units: [],
       equipment: [],
       operators: [],
+      tenures: [],
       expenses: [],
       actualItems: [],
     });
@@ -75,6 +76,7 @@ describe('expenses-calendar-projection.util', () => {
       ],
       equipment: [],
       operators: [],
+      tenures: [],
       expenses: [],
       actualItems: [],
     });
@@ -110,6 +112,7 @@ describe('expenses-calendar-projection.util', () => {
       ],
       equipment: [],
       operators: [],
+      tenures: [],
       expenses: [
         {
           id: 700,
@@ -155,6 +158,7 @@ describe('expenses-calendar-projection.util', () => {
         } as never,
       ],
       operators: [],
+      tenures: [],
       expenses: [],
       actualItems: [],
     });
@@ -177,6 +181,7 @@ describe('expenses-calendar-projection.util', () => {
       units: [],
       equipment: [],
       operators: [],
+      tenures: [],
       expenses: [
         {
           id: 99,
@@ -214,6 +219,7 @@ describe('expenses-calendar-projection.util', () => {
           paymentSchedule: 'weekly',
         } as never,
       ],
+      tenures: [],
       expenses: [],
       actualItems: [],
     });
@@ -246,6 +252,7 @@ describe('expenses-calendar-projection.util', () => {
           paymentSchedule: 'maneuver',
         } as never,
       ],
+      tenures: [],
       expenses: [],
       actualItems: [],
     });
@@ -275,6 +282,7 @@ describe('expenses-calendar-projection.util', () => {
           paymentSchedule: 'maneuver',
         } as never,
       ],
+      tenures: [],
       expenses: [],
       actualItems: [],
       asOf: new Date('2026-07-05T12:00:00.000Z'),
@@ -291,6 +299,7 @@ describe('expenses-calendar-projection.util', () => {
       units: [],
       equipment: [],
       operators: [],
+      tenures: [],
       expenses: [],
       actualItems: [
         {
@@ -333,6 +342,7 @@ describe('expenses-calendar-projection.util', () => {
       ],
       equipment: [],
       operators: [{ id: 20, paymentSchedule: 'maneuver' } as never],
+      tenures: [],
       expenses: [],
       actualItems: [
         {

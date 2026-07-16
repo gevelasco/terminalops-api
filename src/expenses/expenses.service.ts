@@ -131,6 +131,7 @@ export class ExpensesService {
         verificationScope: relationFields.verificationScope,
         invoiceRequired: dto.invoiceRequired ?? false,
         isOperationalProvision: dto.isOperationalProvision ?? false,
+        paidAt: dto.paidAt ? parseOperationalIncurredAt(dto.paidAt) : (dto.paidAt === null ? null : undefined),
       }),
     );
     const activity = expenseActivityOnCreate(saved);
@@ -240,8 +241,6 @@ export class ExpensesService {
       'per_diem',
       'operator_payment',
       'operator_commission',
-      'insurance',
-      'gps',
       'verification',
     ] as const;
 
@@ -279,6 +278,7 @@ export class ExpensesService {
       units,
       equipment,
       operators,
+      tenures: [],
       expenses: dedupExpenses,
       actualItems: actualResult.items,
     });
@@ -398,6 +398,37 @@ export class ExpensesService {
     return (await qb.getCount()) > 0;
   }
 
+  async hasFleetTenureExpenseWithDescription(
+    companyId: number,
+    params: {
+      relatedUnitId?: number;
+      relatedEquipmentId?: number;
+      description: string;
+    },
+  ): Promise<boolean> {
+    const description = params.description.trim();
+    if (!description) {
+      return false;
+    }
+    const qb = this.repo
+      .createQueryBuilder('e')
+      .where('e.companyId = :companyId', { companyId })
+      .andWhere('e.kind = :kind', { kind: 'tenure_payment' })
+      .andWhere('e.discardedAt IS NULL')
+      .andWhere('e.description = :description', { description });
+    if (params.relatedUnitId != null) {
+      qb.andWhere('e.relatedUnitId = :relatedUnitId', {
+        relatedUnitId: params.relatedUnitId,
+      });
+    }
+    if (params.relatedEquipmentId != null) {
+      qb.andWhere('e.relatedEquipmentId = :relatedEquipmentId', {
+        relatedEquipmentId: params.relatedEquipmentId,
+      });
+    }
+    return (await qb.getCount()) > 0;
+  }
+
   async hasFleetGpsExpenseOnDate(
     companyId: number,
     params: {
@@ -442,6 +473,105 @@ export class ExpensesService {
     return (await qb.getCount()) > 0;
   }
 
+  async findScheduledExpenses(
+    companyId: number,
+    kind: string,
+    params: {
+      relatedUnitId?: number;
+      relatedEquipmentId?: number;
+      insuranceTarget?: 'unit' | 'equipment';
+    },
+  ): Promise<Expense[]> {
+    const qb = this.repo
+      .createQueryBuilder('e')
+      .where('e.companyId = :companyId', { companyId })
+      .andWhere('e.kind = :kind', { kind })
+      .andWhere('e.discardedAt IS NULL');
+    if (params.insuranceTarget === 'unit' && params.relatedUnitId != null) {
+      qb.andWhere('e.insuranceTarget = :it', { it: 'unit' });
+      qb.andWhere('e.relatedUnitId = :uid', { uid: params.relatedUnitId });
+    } else if (params.insuranceTarget === 'equipment' && params.relatedEquipmentId != null) {
+      qb.andWhere('e.insuranceTarget = :it', { it: 'equipment' });
+      qb.andWhere('e.relatedEquipmentId = :eid', { eid: params.relatedEquipmentId });
+    } else {
+      if (params.relatedUnitId != null) {
+        qb.andWhere('e.relatedUnitId = :uid', { uid: params.relatedUnitId });
+      }
+      if (params.relatedEquipmentId != null) {
+        qb.andWhere('e.relatedEquipmentId = :eid', { eid: params.relatedEquipmentId });
+      }
+    }
+    return qb.orderBy('e.incurredAt', 'ASC').getMany();
+  }
+
+  async discardUnpaidScheduledExpenses(
+    companyId: number,
+    kind: string,
+    params: {
+      relatedUnitId?: number;
+      relatedEquipmentId?: number;
+      insuranceTarget?: 'unit' | 'equipment';
+    },
+  ): Promise<number> {
+    const existing = await this.findScheduledExpenses(companyId, kind, params);
+    const unpaidIds = existing
+      .filter((e) => e.paidAt == null)
+      .map((e) => e.id);
+    if (unpaidIds.length === 0) return 0;
+    const result = await this.repo
+      .createQueryBuilder()
+      .update(Expense)
+      .set({ discardedAt: new Date() })
+      .whereInIds(unpaidIds)
+      .execute();
+    return result.affected ?? 0;
+  }
+
+  async bulkCreateScheduledExpenses(
+    companyId: number,
+    drafts: Array<CreateExpenseDto & { paidAt?: string | null }>,
+  ): Promise<void> {
+    if (drafts.length === 0) return;
+    const entities = await Promise.all(
+      drafts.map(async (dto) => {
+        const relatedUnitId = dto.relatedUnitId
+          ? await this.resolveUnitId(companyId, dto.relatedUnitId)
+          : undefined;
+        const relatedEquipmentId = dto.relatedEquipmentId
+          ? await this.resolveEquipmentId(companyId, dto.relatedEquipmentId)
+          : undefined;
+        const relationFields = normalizeExpenseRelationFields({
+          kind: dto.kind,
+          maintenanceTarget: dto.maintenanceTarget,
+          insuranceTarget: dto.insuranceTarget,
+          verificationScope: dto.verificationScope,
+          relatedUnitId: relatedUnitId ?? null,
+          relatedEquipmentId: relatedEquipmentId ?? null,
+        });
+        return this.repo.create({
+          companyId,
+          category: dto.category,
+          amount: String(dto.amount),
+          currency: dto.currency ?? 'MXN',
+          incurredAt: parseOperationalIncurredAt(dto.incurredAt),
+          kind: dto.kind,
+          relatedUnitId,
+          relatedEquipmentId,
+          description: dto.description,
+          vendor: expenseTextColumn(dto.vendor),
+          paymentMethod: expenseTextColumn(dto.paymentMethod),
+          maintenanceTarget: relationFields.maintenanceTarget,
+          insuranceTarget: relationFields.insuranceTarget,
+          verificationScope: relationFields.verificationScope,
+          invoiceRequired: dto.invoiceRequired ?? false,
+          isOperationalProvision: dto.isOperationalProvision ?? false,
+          paidAt: dto.paidAt ? parseOperationalIncurredAt(dto.paidAt) : null,
+        });
+      }),
+    );
+    await this.repo.save(entities);
+  }
+
   /** Descarta gastos vinculados a una maniobra eliminada (soft delete operativo). */
   async discardByTripId(companyId: number, tripId: number): Promise<number> {
     const result = await this.repo
@@ -481,6 +611,7 @@ export class ExpensesService {
       insuranceTarget,
       verificationScope,
       kind,
+      paidAt,
       ...rest
     } = dto;
 
@@ -560,6 +691,9 @@ export class ExpensesService {
         maintenanceTarget: relationFields.maintenanceTarget,
         insuranceTarget: relationFields.insuranceTarget,
         verificationScope: relationFields.verificationScope,
+        ...(paidAt !== undefined && {
+          paidAt: paidAt ? parseOperationalIncurredAt(paidAt) : null,
+        }),
       } as Parameters<Repository<Expense>['update']>[1]);
     const updated = await this.repo.findOne({
       where: { companyId, id: expenseId },

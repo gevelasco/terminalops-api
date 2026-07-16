@@ -45,6 +45,9 @@ export type FleetMetaTenureFields = {
   trailerRecurringPaymentAmount?: number;
   trailerRecurringPaymentDate?: string;
   trailerRecurringInstallmentCount?: number;
+  trailerRecurringPaymentCadence?: string;
+  trailerRecurringLastPaymentDate?: string;
+  trailerTenureBeneficiary?: string;
   trailerManagementOwnerPayout?: number;
 };
 
@@ -60,6 +63,9 @@ export function fleetMetaDtoHasTenureFields(meta: FleetMetaTenureFields): boolea
     meta.trailerRecurringPaymentAmount !== undefined ||
     meta.trailerRecurringPaymentDate !== undefined ||
     meta.trailerRecurringInstallmentCount !== undefined ||
+    meta.trailerRecurringPaymentCadence !== undefined ||
+    meta.trailerRecurringLastPaymentDate !== undefined ||
+    meta.trailerTenureBeneficiary !== undefined ||
     meta.trailerManagementOwnerPayout !== undefined
   );
 }
@@ -96,6 +102,9 @@ export function fleetMetaDtoToTenureRow(
       row.recurringPaymentAmount = null;
       row.recurringPaymentDate = null;
       row.recurringInstallmentCount = null;
+      row.recurringPaymentCadence = null;
+      row.recurringLastPaymentDate = null;
+      row.tenureBeneficiary = null;
       row.managementOwnerPayout = null;
     } else if (mode === 'financed' || mode === 'leased') {
       row.commercialValue = null;
@@ -105,6 +114,7 @@ export function fleetMetaDtoToTenureRow(
       row.recurringPaymentAmount = null;
       row.recurringPaymentDate = null;
       row.recurringInstallmentCount = null;
+      row.recurringLastPaymentDate = null;
     }
   }
 
@@ -121,6 +131,16 @@ export function fleetMetaDtoToTenureRow(
   }
   if (meta.trailerRecurringInstallmentCount !== undefined) {
     row.recurringInstallmentCount = meta.trailerRecurringInstallmentCount ?? null;
+  }
+  if (meta.trailerRecurringPaymentCadence !== undefined) {
+    row.recurringPaymentCadence = meta.trailerRecurringPaymentCadence?.trim() || null;
+  }
+  if (meta.trailerRecurringLastPaymentDate !== undefined) {
+    const date = meta.trailerRecurringLastPaymentDate;
+    row.recurringLastPaymentDate = date === null ? null : emptyDateToUndefined(date) ?? null;
+  }
+  if (meta.trailerTenureBeneficiary !== undefined) {
+    row.tenureBeneficiary = meta.trailerTenureBeneficiary?.trim() || null;
   }
   if (meta.trailerManagementOwnerPayout !== undefined) {
     row.managementOwnerPayout = numericFieldToDb(meta.trailerManagementOwnerPayout);
@@ -141,6 +161,9 @@ export function tenureEntityToFleetMetaFields(
     trailerRecurringPaymentAmount: dbNumToApi(tenure.recurringPaymentAmount),
     trailerRecurringPaymentDate: tenure.recurringPaymentDate ?? undefined,
     trailerRecurringInstallmentCount: tenure.recurringInstallmentCount ?? undefined,
+    trailerRecurringPaymentCadence: tenure.recurringPaymentCadence ?? undefined,
+    trailerRecurringLastPaymentDate: tenure.recurringLastPaymentDate ?? undefined,
+    trailerTenureBeneficiary: tenure.tenureBeneficiary ?? undefined,
     trailerManagementOwnerPayout: dbNumToApi(tenure.managementOwnerPayout),
   };
   const hasValue = Object.values(fields).some((v) => v !== undefined);

@@ -95,4 +95,9 @@ export class CreateExpenseDto {
   @IsOptional()
   @IsBoolean()
   isOperationalProvision?: boolean;
+
+  @ApiPropertyOptional({ description: 'Fecha en que se pagó (ISO). null = pendiente.' })
+  @IsOptional()
+  @IsDateString()
+  paidAt?: string | null;
 }

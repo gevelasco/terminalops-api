@@ -19,6 +19,8 @@ import {
 } from 'src/fleet/fleet-coverage-schedule.util';
 import { gpsServiceConceptLabel, buildGpsPaymentExpenseDescription } from 'src/fleet/fleet-gps-expense-sync.util';
 import { insurancePolicyConceptLabel, buildInsurancePaymentExpenseDescription } from 'src/fleet/fleet-insurance-expense-sync.util';
+import type { FleetAssetTenure } from 'src/fleet/entities/fleet-asset-tenure.entity';
+import { cadenceToMonths } from 'src/fleet/fleet-coverage-payment-period.util';
 import { VERIFICATION_SCOPE_SPECS } from 'src/fleet/fleet-verification-expense-sync.util';
 import { buildOperatorPaymentRows } from 'src/operators/operator-payment-rows.util';
 import {
@@ -35,7 +37,8 @@ export type ProjectedExpenseSource =
   | 'insurance'
   | 'gps'
   | 'verification'
-  | 'operator_payment';
+  | 'operator_payment'
+  | 'tenure_payment';
 
 export type ProjectedExpenseNature = 'committed' | 'scheduled';
 
@@ -97,6 +100,7 @@ export interface ExpenseCalendarProjectionInput {
   units: readonly Unit[];
   equipment: readonly Equipment[];
   operators: readonly Operator[];
+  tenures: readonly FleetAssetTenure[];
   expenses: readonly Expense[];
   actualItems: ReadonlyArray<Record<string, unknown>>;
   asOf?: Date;
@@ -500,6 +504,98 @@ function buildFleetGpsProjections(
   return rows;
 }
 
+function tenureConceptLabel(cadence: string | undefined): string {
+  const months = cadenceToMonths(cadence);
+  if (months === 1) return 'Financiamiento - mensual';
+  if (months === 3) return 'Financiamiento - trimestral';
+  if (months === 12) return 'Financiamiento - anual';
+  return 'Financiamiento';
+}
+
+function buildFleetTenureProjections(
+  tenures: readonly FleetAssetTenure[],
+  units: readonly Unit[],
+  equipment: readonly Equipment[],
+  expenses: readonly Expense[],
+  from: string,
+  to: string,
+): ProjectedExpenseRow[] {
+  const rows: ProjectedExpenseRow[] = [];
+  const unitMap = new Map(units.map((u) => [u.id, u]));
+  const eqMap = new Map(equipment.map((e) => [e.id, e]));
+
+  for (const tenure of tenures) {
+    const mode = tenure.tenureMode?.trim();
+    if (mode !== 'financed' && mode !== 'leased') continue;
+    const cost = parseMoney(tenure.recurringPaymentAmount);
+    if (cost <= 0) continue;
+    const startDate = tenure.recurringPaymentDate?.trim();
+    if (!startDate) continue;
+    const totalInstallments = tenure.recurringInstallmentCount ?? 0;
+    if (totalInstallments <= 0) continue;
+    const cadence = tenure.recurringPaymentCadence?.trim();
+    const stepMonths = cadenceToMonths(cadence);
+    if (stepMonths === 0) continue;
+
+    const isUnit = tenure.unitId != null;
+    const relatedUnitId = tenure.unitId ?? null;
+    const relatedEquipmentId = tenure.equipmentId ?? null;
+    const tenureVendor = tenure.tenureBeneficiary?.trim() || undefined;
+    let assetLabel = '';
+    if (isUnit && relatedUnitId != null) {
+      const unit = unitMap.get(relatedUnitId);
+      assetLabel = unit ? buildUnitOperationalId(unit) : `U-${relatedUnitId}`;
+    } else if (relatedEquipmentId != null) {
+      const eq = eqMap.get(relatedEquipmentId);
+      assetLabel = eq ? buildEquipmentOperationalId(eq) : `EQ-${relatedEquipmentId}`;
+    }
+
+    const tenureExpenses = expenses.filter(
+      (e) =>
+        e.kind === 'tenure_payment' &&
+        ((relatedUnitId != null && e.relatedUnitId === relatedUnitId) ||
+          (relatedEquipmentId != null && e.relatedEquipmentId === relatedEquipmentId)),
+    );
+
+    for (let i = 0; i < totalInstallments; i++) {
+      const dueDate = addMonthsYmd(startDate, i * stepMonths);
+      if (!dueDate || !isYmdInRange(dueDate, from, to)) continue;
+
+      const alreadyPaid = tenureExpenses.some((e) => {
+        const incurred = formatOperationalIncurredDateYmd(e.incurredAt);
+        return incurred === dueDate;
+      });
+      if (alreadyPaid) continue;
+
+      const prefix = isUnit ? 'unit' : 'equipment';
+      const entityId = isUnit ? relatedUnitId : relatedEquipmentId;
+      rows.push({
+        id: `${prefix}:${entityId}:tenure:${dueDate}`,
+        source: 'tenure_payment',
+        nature: 'scheduled',
+        kind: 'tenure_payment',
+        rubroLabel: expenseRubroLabel('administracion'),
+        conceptLabel: tenureConceptLabel(cadence),
+        amount: formatMoney(cost),
+        currency: 'MXN',
+        dueDate,
+        tripId: null,
+        relatedUnitId,
+        relatedEquipmentId,
+        relatedOperatorId: null,
+        fleetRelationLabel: assetLabel,
+        ...(isUnit
+          ? { relatedUnitLabel: assetLabel }
+          : { relatedEquipmentLabel: assetLabel }),
+        vendor: tenureVendor,
+        hint: `Cuota de financiamiento (${i + 1}/${totalInstallments})`,
+      });
+    }
+  }
+
+  return rows;
+}
+
 function buildVerificationProjections(
   units: readonly Unit[],
   equipment: readonly Equipment[],
@@ -701,6 +797,27 @@ function buildOperatorPaymentProjections(
   return rows;
 }
 
+function resolveActualStatusLabel(item: Record<string, unknown>): string {
+  const kind = String(item['kind'] ?? '');
+  if (!PROGRAMADO_EXPENSE_KINDS.has(kind)) {
+    return 'Realizado';
+  }
+  const paidAt = item['paidAt'];
+  if (paidAt != null && paidAt !== '' && paidAt !== false) {
+    return 'Pagado';
+  }
+  const dateYmd =
+    typeof item['incurredDate'] === 'string' && item['incurredDate']
+      ? item['incurredDate']
+      : typeof item['incurredAt'] === 'string'
+        ? item['incurredAt'].slice(0, 10)
+        : '';
+  const today = new Date();
+  const todayYmd = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  if (dateYmd < todayYmd) return 'Vencido';
+  return 'Pendiente';
+}
+
 function actualEntryFromSerialized(
   item: Record<string, unknown>,
 ): ExpenseCalendarEntry {
@@ -734,7 +851,7 @@ function actualEntryFromSerialized(
     amount,
     currency: String(item['currency'] ?? 'MXN'),
     dateYmd,
-    statusLabel: 'Realizado',
+    statusLabel: resolveActualStatusLabel(item),
     expenseId:
       typeof item['id'] === 'number'
         ? item['id']
@@ -765,7 +882,7 @@ type ExpenseCalendarMarkerBucket =
   | 'recurrentes'
   | 'porPagar';
 
-const PROGRAMADO_EXPENSE_KINDS = new Set(['insurance', 'gps', 'verification']);
+const PROGRAMADO_EXPENSE_KINDS = new Set(['insurance', 'gps', 'verification', 'tenure_payment']);
 
 /** Rubros fuera del flujo operativo recurrente (reparaciones, gastos ad hoc, etc.). */
 const EVENTUAL_EXPENSE_RUBROS = new Set([
@@ -778,13 +895,24 @@ const EVENTUAL_EXPENSE_RUBROS = new Set([
 
 const EVENTUAL_EXPENSE_KINDS = new Set(['repair', 'other', 'unit_purchase', 'equipment_purchase']);
 
-function markerBucketForActual(kind: string, tripId: number | null | undefined): ExpenseCalendarMarkerBucket {
-  const normalizedKind = kind.trim().toLowerCase();
-  if (PROGRAMADO_EXPENSE_KINDS.has(normalizedKind)) {
+function markerBucketForActual(item: Record<string, unknown>): ExpenseCalendarMarkerBucket {
+  const kind = String(item['kind'] ?? '').trim().toLowerCase();
+  if (PROGRAMADO_EXPENSE_KINDS.has(kind)) {
+    const paidAt = item['paidAt'];
+    if (paidAt == null || paidAt === '' || paidAt === false) {
+      return 'porPagar';
+    }
     return 'recurrentes';
   }
-  const rubro = expenseRubroFromKind(normalizedKind, tripId ?? null);
-  if (EVENTUAL_EXPENSE_RUBROS.has(rubro) || EVENTUAL_EXPENSE_KINDS.has(normalizedKind)) {
+  const tripIdRaw = item['tripId'];
+  const tripId =
+    typeof tripIdRaw === 'number'
+      ? tripIdRaw
+      : tripIdRaw != null && String(tripIdRaw).trim() !== ''
+        ? Number(tripIdRaw)
+        : null;
+  const rubro = expenseRubroFromKind(kind, tripId != null && Number.isFinite(tripId) ? tripId : null);
+  if (EVENTUAL_EXPENSE_RUBROS.has(rubro) || EVENTUAL_EXPENSE_KINDS.has(kind)) {
     return 'eventuales';
   }
   return 'directos';
@@ -802,23 +930,12 @@ function buildMarkers(
   };
 
   for (const item of actualItems) {
-    const kind = String(item['kind'] ?? '');
-    const tripIdRaw = item['tripId'];
-    const tripId =
-      typeof tripIdRaw === 'number'
-        ? tripIdRaw
-        : tripIdRaw != null && String(tripIdRaw).trim() !== ''
-          ? Number(tripIdRaw)
-          : null;
     const amountRaw = item['amount'];
     const amount =
       typeof amountRaw === 'number'
         ? amountRaw
         : parseMoney(String(amountRaw ?? '0'));
-    const bucket = markerBucketForActual(
-      kind,
-      tripId != null && Number.isFinite(tripId) ? tripId : null,
-    );
+    const bucket = markerBucketForActual(item);
     totals[bucket] += amount;
   }
 
@@ -869,15 +986,6 @@ export function buildExpenseCalendarProjection(
   const asOf = input.asOf ?? new Date();
   const projected = [
     ...buildTripCommittedProjections(input.trips, input.expenses, input.from, input.to),
-    ...buildFleetInsuranceProjections(
-      input.units,
-      input.equipment,
-      input.expenses,
-      input.from,
-      input.to,
-      asOf,
-    ),
-    ...buildFleetGpsProjections(input.units, input.expenses, input.from, input.to, asOf),
     ...buildVerificationProjections(
       input.units,
       input.equipment,

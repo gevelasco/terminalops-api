@@ -171,6 +171,8 @@ export class OperatorsService {
   async getOperationSummary(
     companyId: number,
     operatorId: number,
+    periodFrom?: string,
+    periodTo?: string,
   ): Promise<OperatorOperationSummaryDto> {
     const operator = await this.repo.findOne({
       where: { companyId, id: operatorId },
@@ -211,6 +213,8 @@ export class OperatorsService {
       unitsById,
       new Date(),
       operator.paymentSchedule,
+      periodFrom,
+      periodTo,
     );
   }
 
@@ -290,6 +294,55 @@ export class OperatorsService {
         ...(paymentMethod != null ? { paymentMethod } : {}),
       }),
     );
+
+    return this.getOperationSummary(companyId, operatorId);
+  }
+
+  async revertTripPayment(
+    companyId: number,
+    operatorId: number,
+    tripId: number,
+  ): Promise<OperatorOperationSummaryDto> {
+    const operator = await this.repo.findOne({
+      where: { companyId, id: operatorId },
+      select: ['id'],
+    });
+    if (!operator) {
+      throw new NotFoundException(`Operator ${operatorId} not found`);
+    }
+
+    const trip = await this.tripRepo.findOne({
+      where: { companyId, id: tripId, operatorId },
+    });
+    if (!trip) {
+      throw new NotFoundException(
+        `Trip ${tripId} not found for operator ${operatorId}`,
+      );
+    }
+
+    const expenses = await this.expenseRepo.find({
+      where: { companyId, tripId, discardedAt: IsNull() },
+    });
+
+    const now = new Date();
+    let discarded = 0;
+    for (const expense of expenses) {
+      if (
+        expense.kind !== 'operator_payment' &&
+        expense.kind !== 'operator_commission'
+      ) {
+        continue;
+      }
+      expense.discardedAt = now;
+      await this.expenseRepo.save(expense);
+      discarded += 1;
+    }
+
+    if (discarded === 0) {
+      throw new BadRequestException(
+        'No hay pagos registrados para revertir en esta maniobra.',
+      );
+    }
 
     return this.getOperationSummary(companyId, operatorId);
   }

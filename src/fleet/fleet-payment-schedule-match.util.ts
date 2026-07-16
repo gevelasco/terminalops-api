@@ -53,5 +53,6 @@ export function fleetPaymentExpenseForCycle(
 }
 
 export function fleetCycleIsPaid(matchedExpense: Expense | undefined): boolean {
-  return matchedExpense != null;
+  if (!matchedExpense) return false;
+  return matchedExpense.paidAt != null;
 }

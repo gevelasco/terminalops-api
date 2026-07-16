@@ -21,6 +21,9 @@ import { FleetMaintenanceExpenseSyncService } from 'src/fleet/fleet-maintenance-
 import { FleetVerificationExpenseSyncService } from 'src/fleet/fleet-verification-expense-sync.service';
 import { FleetInsuranceExpenseSyncService } from 'src/fleet/fleet-insurance-expense-sync.service';
 import { FleetGpsExpenseSyncService } from 'src/fleet/fleet-gps-expense-sync.service';
+import { FleetTenureExpenseSyncService } from 'src/fleet/fleet-tenure-expense-sync.service';
+import { FleetExpenseBootstrapService } from 'src/fleet/fleet-expense-bootstrap.service';
+import { Expense } from 'src/expenses/entities/expense.entity';
 
 @Module({
   imports: [
@@ -36,6 +39,7 @@ import { FleetGpsExpenseSyncService } from 'src/fleet/fleet-gps-expense-sync.ser
       TripEquipment,
       CompanyOperationConfiguration,
       Company,
+      Expense,
     ]),
   ],
   providers: [
@@ -49,6 +53,8 @@ import { FleetGpsExpenseSyncService } from 'src/fleet/fleet-gps-expense-sync.ser
     FleetVerificationExpenseSyncService,
     FleetInsuranceExpenseSyncService,
     FleetGpsExpenseSyncService,
+    FleetTenureExpenseSyncService,
+    FleetExpenseBootstrapService,
   ],
   exports: [
     FleetTenureService,
@@ -61,6 +67,7 @@ import { FleetGpsExpenseSyncService } from 'src/fleet/fleet-gps-expense-sync.ser
     FleetVerificationExpenseSyncService,
     FleetInsuranceExpenseSyncService,
     FleetGpsExpenseSyncService,
+    FleetTenureExpenseSyncService,
     TripsModule,
   ],
 })

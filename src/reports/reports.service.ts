@@ -1,10 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, SelectQueryBuilder } from 'typeorm';
+import { In, IsNull, Repository, SelectQueryBuilder } from 'typeorm';
+import { Equipment } from 'src/equipment/entities/equipment.entity';
 import { Expense } from 'src/expenses/entities/expense.entity';
+import { FleetAssetTenure } from 'src/fleet/entities/fleet-asset-tenure.entity';
 import { FleetOverviewService } from 'src/fleet/fleet-overview.service';
 import { Trip } from 'src/trips/entities/trip.entity';
+import { Unit } from 'src/units/entities/unit.entity';
 import { FleetMaintenanceEntry } from 'src/units/entities/fleet-maintenance-entry.entity';
+import { buildPayableItems } from './reports-payable-items.util';
 import type { ReportsGeneralQueryDto } from './dto/reports-general-query.dto';
 import type { ReportsBalanceDto } from './dto/reports-balance.dto';
 import type { ReportsManiobrasDto } from './dto/reports-maniobras.dto';
@@ -132,6 +136,12 @@ export class ReportsService {
     private readonly expensesRepo: Repository<Expense>,
     @InjectRepository(FleetMaintenanceEntry)
     private readonly maintenanceEntriesRepo: Repository<FleetMaintenanceEntry>,
+    @InjectRepository(Unit)
+    private readonly unitsRepo: Repository<Unit>,
+    @InjectRepository(Equipment)
+    private readonly equipmentRepo: Repository<Equipment>,
+    @InjectRepository(FleetAssetTenure)
+    private readonly tenuresRepo: Repository<FleetAssetTenure>,
     private readonly fleetOverview: FleetOverviewService,
   ) {}
 
@@ -158,6 +168,8 @@ export class ReportsService {
       operatorSpendRow,
       incomeEventRows,
       expenseEventRows,
+      receivableEventRows,
+      payableEventRows,
     ] = await Promise.all([
       this.sumCollectedInPeriod(scope),
       this.sumReceivableOpen(scope),
@@ -175,6 +187,8 @@ export class ReportsService {
       this.sumExpenseByKinds(scope, ['operator_payment', 'operator_commission']),
       this.queryDailyIncomeEvents(scope),
       this.queryDailyExpenseEvents(scope),
+      this.queryDailyReceivableEvents(scope),
+      this.queryDailyPayableEvents(scope),
     ]);
 
     const collectedInPeriod = Math.round(parseMoneySum(collectedRow?.sum) * 100) / 100;
@@ -191,10 +205,53 @@ export class ReportsService {
         ? Math.round((accruedMargin / accruedRevenue) * 1000) / 10
         : null;
 
+    const projectionKinds = [
+      'fuel', 'tolls', 'per_diem', 'operator_payment', 'operator_commission',
+      'insurance', 'gps', 'verification', 'tenure_payment',
+    ] as const;
+
+    const [payableUnits, payableEquipment, payableTenures, projectionExpenses, allExpenses] =
+      await Promise.all([
+        this.unitsRepo.find({
+          where: { companyId: scope.companyId },
+          relations: ['fleetProfile'],
+        }),
+        this.equipmentRepo.find({
+          where: { companyId: scope.companyId },
+          relations: ['fleetProfile'],
+        }),
+        this.tenuresRepo.find({ where: { companyId: scope.companyId } }),
+        this.expensesRepo.find({
+          where: {
+            companyId: scope.companyId,
+            discardedAt: IsNull(),
+            kind: In([...projectionKinds]),
+          },
+        }),
+        this.expensesRepo.find({
+          where: {
+            companyId: scope.companyId,
+            discardedAt: IsNull(),
+          },
+        }),
+      ]);
+
+    const payableItems = buildPayableItems({
+      units: payableUnits,
+      equipment: payableEquipment,
+      tenures: payableTenures,
+      projectionExpenses,
+      allExpenses,
+      from: scope.from,
+      to: scope.to,
+    });
+
     const expensesByRubro = buildExpensesByRubroFromKindRows(expenseKindRows);
     const dailyActivity = this.buildDailyActivity(
       incomeEventRows,
       expenseEventRows,
+      receivableEventRows,
+      payableEventRows,
       scope.from,
       scope.to,
     );
@@ -209,6 +266,7 @@ export class ReportsService {
     const creditByClient = creditRows.map((row) => ({
       clientName: String(row.client_name ?? 'Sin cliente'),
       amount: Math.round(parseMoneySum(row.amount) * 100) / 100,
+      tripCount: Number(row.trip_count) || 0,
       nextDueDate: row.next_due ? String(row.next_due) : null,
     }));
 
@@ -284,6 +342,7 @@ export class ReportsService {
         },
         expensesByRubro,
         dailyActivity,
+        payableItems,
       },
     };
   }
@@ -291,6 +350,8 @@ export class ReportsService {
   private buildDailyActivity(
     incomeRows: Array<{ date: string; label: string; amount: string }>,
     expenseRows: Array<{ date: string; label: string; amount: string }>,
+    receivableRows: Array<{ date: string; label: string; amount: string }>,
+    payableRows: Array<{ date: string; label: string; amount: string }>,
     from: string,
     to: string,
   ): ReportsBalanceDailyActivityDayDto[] {
@@ -307,9 +368,7 @@ export class ReportsService {
 
     for (const row of incomeRows) {
       const date = String(row.date ?? '').slice(0, 10);
-      if (!date) {
-        continue;
-      }
+      if (!date) continue;
       ensure(date).push({
         kind: 'income',
         label: String(row.label ?? 'Ingreso'),
@@ -319,12 +378,30 @@ export class ReportsService {
 
     for (const row of expenseRows) {
       const date = String(row.date ?? '').slice(0, 10);
-      if (!date) {
-        continue;
-      }
+      if (!date) continue;
       ensure(date).push({
         kind: 'expense',
         label: String(row.label ?? 'Gasto'),
+        amount: Math.round(parseMoneySum(row.amount) * 100) / 100,
+      });
+    }
+
+    for (const row of receivableRows) {
+      const date = String(row.date ?? '').slice(0, 10);
+      if (!date) continue;
+      ensure(date).push({
+        kind: 'receivable',
+        label: String(row.label ?? 'Por cobrar'),
+        amount: Math.round(parseMoneySum(row.amount) * 100) / 100,
+      });
+    }
+
+    for (const row of payableRows) {
+      const date = String(row.date ?? '').slice(0, 10);
+      if (!date) continue;
+      ensure(date).push({
+        kind: 'payable',
+        label: String(row.label ?? 'Por pagar'),
         amount: Math.round(parseMoneySum(row.amount) * 100) / 100,
       });
     }
@@ -338,10 +415,12 @@ export class ReportsService {
       const d = String(cursor.getDate()).padStart(2, '0');
       const date = `${y}-${m}-${d}`;
       const events = byDate.get(date) ?? [];
-      const incomeCount = events.filter((event) => event.kind === 'income').length;
-      const expenseCount = events.filter((event) => event.kind === 'expense').length;
-      if (incomeCount > 0 || expenseCount > 0) {
-        days.push({ date, incomeCount, expenseCount, events });
+      const incomeCount = events.filter((e) => e.kind === 'income').length;
+      const expenseCount = events.filter((e) => e.kind === 'expense').length;
+      const receivableCount = events.filter((e) => e.kind === 'receivable').length;
+      const payableCount = events.filter((e) => e.kind === 'payable').length;
+      if (incomeCount > 0 || expenseCount > 0 || receivableCount > 0 || payableCount > 0) {
+        days.push({ date, incomeCount, expenseCount, receivableCount, payableCount, events });
       }
       cursor.setDate(cursor.getDate() + 1);
     }
@@ -401,6 +480,72 @@ export class ReportsService {
       FROM ${schema}.expenses e
       WHERE e.company_id = $1
         AND e.discarded_at IS NULL
+        AND (e.kind NOT IN ('insurance','gps','tenure_payment') OR e.paid_at IS NOT NULL)
+        AND (e.incurred_at AT TIME ZONE '${OPERATIONAL_TZ}')::date BETWEEN $2::date AND $3::date
+      ORDER BY e.incurred_at ASC, e.id ASC
+      `,
+      [scope.companyId, scope.from, scope.to],
+    );
+  }
+
+  private queryDailyReceivableEvents(
+    scope: ReportsScope,
+  ): Promise<Array<{ date: string; label: string; amount: string }>> {
+    const filter = tripScopeSql('trip', scope, 4);
+    const params = [scope.companyId, scope.from, scope.to, ...filter.params];
+    const schema = this.tripsRepo.metadata.schema;
+
+    return this.tripsRepo.query(
+      `
+      SELECT
+        to_char(
+          ((trip.completed_at AT TIME ZONE '${OPERATIONAL_TZ}')::date + trip.credit_days),
+          'YYYY-MM-DD'
+        ) AS date,
+        CONCAT(
+          COALESCE(NULLIF(TRIM(trip.client_name), ''), 'Sin cliente'),
+          CASE
+            WHEN NULLIF(TRIM(trip.maneuver_code), '') IS NOT NULL
+            THEN CONCAT(' · ', TRIM(trip.maneuver_code))
+            ELSE ''
+          END
+        ) AS label,
+        trip.client_charge::float AS amount
+      FROM ${schema}.trips trip
+      WHERE trip.company_id = $1
+        AND trip.deleted_at IS NULL
+        AND ${this.billableTripCondition('trip')}
+        AND trip.client_collected_at IS NULL
+        AND trip.completed_at IS NOT NULL
+        AND ((trip.completed_at AT TIME ZONE '${OPERATIONAL_TZ}')::date + trip.credit_days)
+            BETWEEN $2::date AND $3::date
+        ${filter.sql}
+      ORDER BY ((trip.completed_at AT TIME ZONE '${OPERATIONAL_TZ}')::date + trip.credit_days) ASC, trip.id ASC
+      `,
+      params,
+    );
+  }
+
+  private queryDailyPayableEvents(
+    scope: ReportsScope,
+  ): Promise<Array<{ date: string; label: string; amount: string }>> {
+    const schema = this.expensesRepo.metadata.schema;
+    return this.expensesRepo.query(
+      `
+      SELECT
+        to_char((e.incurred_at AT TIME ZONE '${OPERATIONAL_TZ}')::date, 'YYYY-MM-DD') AS date,
+        COALESCE(
+          NULLIF(TRIM(e.description), ''),
+          NULLIF(TRIM(e.vendor), ''),
+          NULLIF(TRIM(e.category), ''),
+          INITCAP(REPLACE(TRIM(e.kind), '_', ' '))
+        ) AS label,
+        e.amount::float AS amount
+      FROM ${schema}.expenses e
+      WHERE e.company_id = $1
+        AND e.discarded_at IS NULL
+        AND e.paid_at IS NULL
+        AND e.kind IN ('insurance','gps','tenure_payment')
         AND (e.incurred_at AT TIME ZONE '${OPERATIONAL_TZ}')::date BETWEEN $2::date AND $3::date
       ORDER BY e.incurred_at ASC, e.id ASC
       `,
@@ -909,7 +1054,10 @@ export class ReportsService {
       .createQueryBuilder('e')
       .select('COALESCE(SUM(e.amount), 0)', 'sum')
       .where('e.companyId = :companyId', { companyId: scope.companyId })
-      .andWhere('e.isOperationalProvision = true')
+      .andWhere('e.discardedAt IS NULL')
+      .andWhere(
+        `(e.isOperationalProvision = true OR e.kind = 'operational_control')`,
+      )
       .andWhere(
         `(e.incurred_at AT TIME ZONE '${OPERATIONAL_TZ}')::date BETWEEN :from AND :to`,
         { from: scope.from, to: scope.to },
@@ -938,7 +1086,7 @@ export class ReportsService {
   private queryCreditByClient(
     scope: ReportsScope,
   ): Promise<
-    Array<{ client_name: string; amount: string; next_due: string | null }>
+    Array<{ client_name: string; amount: string; next_due: string | null; trip_count: string }>
   > {
     const filter = tripScopeSql('trip', scope, 2);
     const params = [scope.companyId, ...filter.params];
@@ -948,6 +1096,7 @@ export class ReportsService {
       SELECT
         COALESCE(NULLIF(TRIM(trip.client_name), ''), 'Sin cliente') AS client_name,
         COALESCE(SUM(trip.client_charge), 0)::float AS amount,
+        COUNT(*)::int AS trip_count,
         MIN(
           CASE
             WHEN trip.completed_at IS NOT NULL THEN
@@ -1213,9 +1362,13 @@ export class ReportsService {
       .addSelect('COUNT(*)', 'count')
       .where('e.companyId = :companyId', { companyId: scope.companyId })
       .andWhere('e.isOperationalProvision = false')
+      .andWhere('e.discarded_at IS NULL')
       .andWhere(
         `(e.incurred_at AT TIME ZONE '${OPERATIONAL_TZ}')::date BETWEEN :from AND :to`,
         { from: scope.from, to: scope.to },
+      )
+      .andWhere(
+        `(e.kind NOT IN ('insurance','gps','tenure_payment') OR e.paid_at IS NOT NULL)`,
       )
       .groupBy('e.kind')
       .addGroupBy('CASE WHEN e.tripId IS NULL THEN 0 ELSE 1 END')
@@ -1270,9 +1423,13 @@ export class ReportsService {
       .createQueryBuilder('e')
       .select('COALESCE(SUM(e.amount), 0)', 'sum')
       .where('e.companyId = :companyId', { companyId: scope.companyId })
+      .andWhere('e.discarded_at IS NULL')
       .andWhere(
         `(e.incurred_at AT TIME ZONE '${OPERATIONAL_TZ}')::date BETWEEN :from AND :to`,
         { from: scope.from, to: scope.to },
+      )
+      .andWhere(
+        `(e.kind NOT IN ('insurance','gps','tenure_payment') OR e.paid_at IS NOT NULL)`,
       )
       .getRawOne<{ sum: string }>();
   }
@@ -1281,9 +1438,13 @@ export class ReportsService {
     return this.expensesRepo
       .createQueryBuilder('e')
       .where('e.companyId = :companyId', { companyId: scope.companyId })
+      .andWhere('e.discarded_at IS NULL')
       .andWhere(
         `(e.incurred_at AT TIME ZONE '${OPERATIONAL_TZ}')::date BETWEEN :from AND :to`,
         { from: scope.from, to: scope.to },
+      )
+      .andWhere(
+        `(e.kind NOT IN ('insurance','gps','tenure_payment') OR e.paid_at IS NOT NULL)`,
       )
       .getCount();
   }

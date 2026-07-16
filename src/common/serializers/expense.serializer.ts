@@ -42,6 +42,7 @@ export function serializeExpense(expense: Expense): Record<string, unknown> {
       expense.relatedOperator?.id ?? expense.relatedOperatorId ?? null,
     isOperationalProvision: expense.isOperationalProvision,
     invoiceRequired: expense.invoiceRequired,
+    paidAt: expense.paidAt ? toIsoString(expense.paidAt) : null,
     createdAt: toIsoString(expense.createdAt),
     updatedAt: toIsoString(expense.updatedAt),
   };

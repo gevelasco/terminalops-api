@@ -31,9 +31,9 @@ import { FleetMaintenanceWorkflowService } from 'src/fleet/fleet-maintenance-wor
 import { FleetMaintenanceExpenseSyncService } from 'src/fleet/fleet-maintenance-expense-sync.service';
 import { FleetVerificationExpenseSyncService } from 'src/fleet/fleet-verification-expense-sync.service';
 import { FleetInsuranceExpenseSyncService } from 'src/fleet/fleet-insurance-expense-sync.service';
+import { FleetTenureExpenseSyncService } from 'src/fleet/fleet-tenure-expense-sync.service';
 import {
-  unitFleetMetaInsuranceConfigTouched,
-  unitFleetMetaInsurancePaymentDateTouched,
+  unitFleetMetaInsuranceTouched,
   unitFleetMetaVerificationTouched,
 } from 'src/fleet/fleet-meta-expense-sync-scope.util';
 import type { ListResourceLinkOptionsQueryDto } from 'src/common/dto/list-resource-link-options-query.dto';
@@ -65,6 +65,7 @@ export class EquipmentService {
     private readonly maintenanceExpenseSync: FleetMaintenanceExpenseSyncService,
     private readonly verificationExpenseSync: FleetVerificationExpenseSyncService,
     private readonly insuranceExpenseSync: FleetInsuranceExpenseSyncService,
+    private readonly tenureExpenseSync: FleetTenureExpenseSyncService,
     private readonly activityEvents: ActivityEventsService,
   ) {}
 
@@ -277,11 +278,11 @@ export class EquipmentService {
     await this.findOne(companyId, equipmentId);
     const existing = await this.profileRepo.findOne({ where: { equipmentId } });
     if (existing) {
-      await this.insuranceExpenseSync.ensureInitialInsurancePremium({
+      await this.insuranceExpenseSync.ensureAllInsuranceInstallments({
         companyId,
         insuranceTarget: 'equipment',
         relatedEquipmentId: equipmentId,
-        previous: existing,
+        profile: existing as any,
       });
     }
     return this.findOne(companyId, equipmentId);
@@ -359,21 +360,12 @@ export class EquipmentService {
       });
     }
 
-    if (unitFleetMetaInsurancePaymentDateTouched(existing, fleetMeta)) {
-      await this.insuranceExpenseSync.syncForInsurancePaymentSave({
+    if (unitFleetMetaInsuranceTouched(existing, fleetMeta)) {
+      await this.insuranceExpenseSync.ensureAllInsuranceInstallments({
         companyId,
         insuranceTarget: 'equipment',
         relatedEquipmentId: equipmentId,
-        previous: existing,
-        incoming: fleetMeta,
-      });
-    } else if (unitFleetMetaInsuranceConfigTouched(existing, fleetMeta)) {
-      await this.insuranceExpenseSync.ensureInitialInsurancePremium({
-        companyId,
-        insuranceTarget: 'equipment',
-        relatedEquipmentId: equipmentId,
-        previous: existing,
-        incoming: fleetMeta,
+        profile: { ...existing, ...fleetMeta } as any,
       });
     }
 
@@ -382,6 +374,30 @@ export class EquipmentService {
       { equipmentId },
       fleetMeta,
     );
+
+    const tenureConfigProvided =
+      fleetMeta.trailerRecurringPaymentAmount !== undefined ||
+      fleetMeta.trailerRecurringPaymentCadence !== undefined ||
+      fleetMeta.trailerRecurringPaymentDate !== undefined ||
+      fleetMeta.trailerRecurringInstallmentCount !== undefined ||
+      fleetMeta.trailerTenureBeneficiary !== undefined;
+    if (tenureConfigProvided) {
+      const tenure = await this.fleetTenureService.findByEquipment(companyId, equipmentId);
+      if (tenure) {
+        await this.tenureExpenseSync.ensureAllTenureInstallments({
+          companyId,
+          relatedEquipmentId: equipmentId,
+          profile: {
+            recurringPaymentAmount: tenure.recurringPaymentAmount,
+            recurringPaymentCadence: tenure.recurringPaymentCadence,
+            recurringPaymentDate: tenure.recurringPaymentDate,
+            recurringLastPaymentDate: tenure.recurringLastPaymentDate,
+            recurringInstallmentCount: tenure.recurringInstallmentCount,
+            tenureBeneficiary: tenure.tenureBeneficiary,
+          },
+        });
+      }
+    }
 
     if (fleetMeta.maintenanceEntries !== undefined) {
       const previous = await this.maintenanceRepo.find({

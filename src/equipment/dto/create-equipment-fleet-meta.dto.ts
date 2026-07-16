@@ -88,6 +88,20 @@ export class CreateEquipmentFleetMetaDto {
   @Min(0)
   trailerRecurringInstallmentCount?: number;
 
+  @ApiPropertyOptional({ enum: ['monthly', 'quarterly', 'annual'] })
+  @IsOptional()
+  @IsIn(['monthly', 'quarterly', 'annual'])
+  trailerRecurringPaymentCadence?: string;
+
+  @ApiPropertyOptional()
+  @OptionalIsoDate()
+  trailerRecurringLastPaymentDate?: string;
+
+  @ApiPropertyOptional({ description: 'Beneficiario de cuotas de financiamiento o arrendamiento' })
+  @IsOptional()
+  @IsString()
+  trailerTenureBeneficiary?: string;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsNumber()

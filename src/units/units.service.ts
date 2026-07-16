@@ -29,11 +29,10 @@ import { FleetMaintenanceExpenseSyncService } from 'src/fleet/fleet-maintenance-
 import { FleetVerificationExpenseSyncService } from 'src/fleet/fleet-verification-expense-sync.service';
 import { FleetInsuranceExpenseSyncService } from 'src/fleet/fleet-insurance-expense-sync.service';
 import { FleetGpsExpenseSyncService } from 'src/fleet/fleet-gps-expense-sync.service';
+import { FleetTenureExpenseSyncService } from 'src/fleet/fleet-tenure-expense-sync.service';
 import {
-  unitFleetMetaGpsConfigTouched,
-  unitFleetMetaGpsPaymentDateTouched,
-  unitFleetMetaInsuranceConfigTouched,
-  unitFleetMetaInsurancePaymentDateTouched,
+  unitFleetMetaInsuranceTouched,
+  unitFleetMetaGpsTouched,
   unitFleetMetaVerificationTouched,
 } from 'src/fleet/fleet-meta-expense-sync-scope.util';
 
@@ -79,6 +78,7 @@ export class UnitsService {
     private readonly verificationExpenseSync: FleetVerificationExpenseSyncService,
     private readonly insuranceExpenseSync: FleetInsuranceExpenseSyncService,
     private readonly gpsExpenseSync: FleetGpsExpenseSyncService,
+    private readonly tenureExpenseSync: FleetTenureExpenseSyncService,
     private readonly activityEvents: ActivityEventsService,
   ) {}
 
@@ -287,37 +287,20 @@ export class UnitsService {
       });
     }
 
-    if (unitFleetMetaInsurancePaymentDateTouched(existing, fleetMeta)) {
-      await this.insuranceExpenseSync.syncForInsurancePaymentSave({
+    if (unitFleetMetaInsuranceTouched(existing, fleetMeta)) {
+      await this.insuranceExpenseSync.ensureAllInsuranceInstallments({
         companyId,
         insuranceTarget: 'unit',
         relatedUnitId: unitId,
-        previous: existing,
-        incoming: fleetMeta,
-      });
-    } else if (unitFleetMetaInsuranceConfigTouched(existing, fleetMeta)) {
-      await this.insuranceExpenseSync.ensureInitialInsurancePremium({
-        companyId,
-        insuranceTarget: 'unit',
-        relatedUnitId: unitId,
-        previous: existing,
-        incoming: fleetMeta,
+        profile: { ...existing, ...fleetMeta } as any,
       });
     }
 
-    if (unitFleetMetaGpsPaymentDateTouched(existing, fleetMeta)) {
-      await this.gpsExpenseSync.syncForGpsPaymentSave({
+    if (unitFleetMetaGpsTouched(existing, fleetMeta)) {
+      await this.gpsExpenseSync.ensureAllGpsInstallments({
         companyId,
         relatedUnitId: unitId,
-        previous: existing,
-        incoming: fleetMeta,
-      });
-    } else if (unitFleetMetaGpsConfigTouched(existing, fleetMeta)) {
-      await this.gpsExpenseSync.ensureInitialGpsService({
-        companyId,
-        relatedUnitId: unitId,
-        previous: existing,
-        incoming: fleetMeta,
+        profile: { ...existing, ...fleetMeta } as any,
       });
     }
 
@@ -326,6 +309,30 @@ export class UnitsService {
     });
 
     await this.fleetTenureService.upsertFromFleetMeta(companyId, { unitId }, fleetMeta);
+
+    const tenureConfigProvided =
+      fleetMeta.trailerRecurringPaymentAmount !== undefined ||
+      fleetMeta.trailerRecurringPaymentCadence !== undefined ||
+      fleetMeta.trailerRecurringPaymentDate !== undefined ||
+      fleetMeta.trailerRecurringInstallmentCount !== undefined ||
+      fleetMeta.trailerTenureBeneficiary !== undefined;
+    if (tenureConfigProvided) {
+      const tenure = await this.fleetTenureService.findByUnit(companyId, unitId);
+      if (tenure) {
+        await this.tenureExpenseSync.ensureAllTenureInstallments({
+          companyId,
+          relatedUnitId: unitId,
+          profile: {
+            recurringPaymentAmount: tenure.recurringPaymentAmount,
+            recurringPaymentCadence: tenure.recurringPaymentCadence,
+            recurringPaymentDate: tenure.recurringPaymentDate,
+            recurringLastPaymentDate: tenure.recurringLastPaymentDate,
+            recurringInstallmentCount: tenure.recurringInstallmentCount,
+            tenureBeneficiary: tenure.tenureBeneficiary,
+          },
+        });
+      }
+    }
 
     if (fleetMeta.maintenanceEntries !== undefined) {
       const previous = await this.maintenanceRepo.find({

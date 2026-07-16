@@ -51,6 +51,15 @@ export class FleetAssetTenure {
   @Column({ name: 'recurring_installment_count', type: 'int', nullable: true })
   recurringInstallmentCount?: number;
 
+  @Column({ name: 'recurring_payment_cadence', nullable: true })
+  recurringPaymentCadence?: string;
+
+  @Column({ name: 'recurring_last_payment_date', type: 'date', nullable: true })
+  recurringLastPaymentDate?: string | null;
+
+  @Column({ name: 'tenure_beneficiary', type: 'text', nullable: true })
+  tenureBeneficiary?: string | null;
+
   @Column({
     name: 'management_owner_payout',
     type: 'numeric',

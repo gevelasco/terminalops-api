@@ -60,6 +60,7 @@ import { FleetOverviewService } from '../fleet/fleet-overview.service';
 import { FleetBrandsService } from '../fleet/fleet-brands.service';
 import { CompaniesService } from './companies.service';
 import { UpdateCompanyOperationalSettingsDto } from './dto/update-company-operational-settings.dto';
+import { UpdateCompanyAccountDto } from './dto/update-company-account.dto';
 import { UpdateCompanyDieselReferencePriceDto } from './dto/update-company-diesel-reference-price.dto';
 import { FuelPriceService } from '../fuel/fuel-price.service';
 import { serializeCompanyOperationalSettings } from './company-operational-settings.serializer';
@@ -190,13 +191,20 @@ export class CompaniesController {
   async getClientBalance(
     @Param('companyId', ParseIntPipe) companyId: number,
     @Param('clientId') clientId: string,
+    @Query('from') periodFrom: string | undefined,
+    @Query('to') periodTo: string | undefined,
     @LoggedUser() user: AuthUser,
   ) {
     const tenantId = await this.companiesService.assertAccessAndResolve(
       user,
       companyId,
     );
-    return this.clientsBalanceService.getClientBalance(tenantId, clientId);
+    return this.clientsBalanceService.getClientBalance(
+      tenantId,
+      clientId,
+      periodFrom,
+      periodTo,
+    );
   }
 
   @Get(':companyId/clients/:clientId/cargo-history')
@@ -727,6 +735,18 @@ export class CompaniesController {
     @LoggedUser() user: AuthUser,
   ) {
     await this.companiesService.assertAccessAndResolve(user, companyId);
+    return this.usersService.getCompanyAccount(companyId, user);
+  }
+
+  @Patch(':companyId/account')
+  @ApiOperation({ summary: 'Actualizar nombre / leyenda de empresa' })
+  async updateCompanyAccount(
+    @Param('companyId', ParseIntPipe) companyId: number,
+    @Body() dto: UpdateCompanyAccountDto,
+    @LoggedUser() user: AuthUser,
+  ) {
+    await this.companiesService.assertAccessAndResolve(user, companyId);
+    await this.companiesService.updateAccountInfo(user, companyId, dto);
     return this.usersService.getCompanyAccount(companyId, user);
   }
 

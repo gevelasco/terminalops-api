@@ -78,6 +78,9 @@ export class Expense {
   @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
   updatedAt: Date;
 
+  @Column({ name: 'paid_at', type: 'timestamptz', nullable: true })
+  paidAt?: Date | null;
+
   @Column({ name: 'discarded_at', type: 'timestamptz', nullable: true })
   discardedAt?: Date | null;
 

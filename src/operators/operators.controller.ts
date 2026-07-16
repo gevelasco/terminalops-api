@@ -7,6 +7,7 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  Query,
   UseGuards,
   Req,
 } from '@nestjs/common';
@@ -35,10 +36,12 @@ export class OperatorsController {
   @Get(':operatorId/operation-summary')
   async getOperationSummary(
     @Param('operatorId', ParseIntPipe) operatorId: number,
+    @Query('from') periodFrom: string | undefined,
+    @Query('to') periodTo: string | undefined,
     @LoggedUser() user: AuthUser,
   ) {
     const companyId = await this.tenantContext.resolveInternalIdFromAuthUser(user);
-    return this.service.getOperationSummary(companyId, operatorId);
+    return this.service.getOperationSummary(companyId, operatorId, periodFrom, periodTo);
   }
 
   @Post(':operatorId/trips/:tripId/confirm-payment')
@@ -50,6 +53,17 @@ export class OperatorsController {
     assertModuleWrite(user, APP_MODULE_CODES.OPERATORS);
     const companyId = await this.tenantContext.resolveInternalIdFromAuthUser(user);
     return this.service.confirmTripPayment(companyId, operatorId, tripId);
+  }
+
+  @Post(':operatorId/trips/:tripId/revert-payment')
+  async revertTripPayment(
+    @Param('operatorId', ParseIntPipe) operatorId: number,
+    @Param('tripId', ParseIntPipe) tripId: number,
+    @LoggedUser() user: AuthUser,
+  ) {
+    assertModuleWrite(user, APP_MODULE_CODES.OPERATORS);
+    const companyId = await this.tenantContext.resolveInternalIdFromAuthUser(user);
+    return this.service.revertTripPayment(companyId, operatorId, tripId);
   }
 
   @Get(':operatorId')

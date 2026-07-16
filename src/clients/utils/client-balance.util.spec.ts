@@ -25,6 +25,7 @@ function trip(
     operationalDistanceKm: 120,
     returnAt: '2026-06-01T18:00:00.000Z',
     plannedCompletionAt: '2026-06-01T18:00:00.000Z',
+    createdAt: '2026-06-01T00:00:00.000Z',
     ...partial,
   };
 }

@@ -260,6 +260,8 @@ export function buildOperatorPaymentRows(
   expenses: readonly Expense[],
   paymentScheduleRaw: string | null | undefined,
   asOf: Date = new Date(),
+  periodFrom?: string,
+  periodTo?: string,
 ): OperatorPaymentRowSections {
   const asOfYmd = localYmd(asOf);
   const schedule = normalizeOperatorPaymentSchedule(paymentScheduleRaw);
@@ -316,13 +318,10 @@ export function buildOperatorPaymentRows(
       continue;
     }
 
-    if (
-      isCompletionWithinRecentDays(
-        completionYmd,
-        asOfYmd,
-        OPERATOR_PAYMENT_RECENT_DAYS,
-      )
-    ) {
+    const inScope = periodFrom && periodTo
+      ? (completionYmd != null && completionYmd >= periodFrom && completionYmd <= periodTo)
+      : isCompletionWithinRecentDays(completionYmd, asOfYmd, OPERATOR_PAYMENT_RECENT_DAYS);
+    if (inScope) {
       recentPaymentRows.push(row);
     }
   }

@@ -21,6 +21,9 @@ export class Company {
   @Column()
   name: string;
 
+  @Column({ nullable: true })
+  tagline?: string;
+
   @Column({ name: 'legal_name', nullable: true })
   legalName?: string;
 

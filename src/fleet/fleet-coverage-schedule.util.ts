@@ -72,7 +72,7 @@ function addCadenceStep(anchorYmd: string, cadence: string | undefined): string 
   return formatYmd(next);
 }
 
-function isInsurancePaymentExpense(e: Expense): boolean {
+export function isInsurancePaymentExpense(e: Expense): boolean {
   const desc = (e.description ?? '').trim();
   return (
     e.kind === 'insurance' &&
@@ -80,7 +80,7 @@ function isInsurancePaymentExpense(e: Expense): boolean {
   );
 }
 
-function isGpsPaymentExpense(e: Expense): boolean {
+export function isGpsPaymentExpense(e: Expense): boolean {
   const desc = (e.description ?? '').trim();
   return (
     e.kind === 'gps' &&

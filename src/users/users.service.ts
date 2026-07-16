@@ -476,12 +476,24 @@ export class UsersService {
     if (!user?.company || user.companyId !== companyId) {
       throw new NotFoundException('Empresa no encontrada');
     }
+    const company = user.company;
+    const createdAt = toIsoString(company.createdAt) ?? null;
+
+    let subscriptionEndsAt = toIsoString(company.subscriptionEndsAt) ?? null;
+    if (!subscriptionEndsAt && company.createdAt) {
+      const sixMonths = new Date(company.createdAt);
+      sixMonths.setMonth(sixMonths.getMonth() + 6);
+      subscriptionEndsAt = sixMonths.toISOString();
+    }
+
     return {
-      id: user.company.id,
-      name: user.company.name,
-      subscriptionStatus: user.company.subscriptionStatus,
-      subscriptionPlan: user.company.subscriptionPlan ?? null,
-      subscriptionEndsAt: toIsoString(user.company.subscriptionEndsAt) ?? null,
+      id: company.id,
+      name: company.name,
+      tagline: company.tagline ?? null,
+      subscriptionStatus: company.subscriptionStatus,
+      subscriptionPlan: company.subscriptionPlan ?? 'trial',
+      subscriptionEndsAt,
+      createdAt,
     };
   }
 

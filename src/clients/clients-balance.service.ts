@@ -7,10 +7,12 @@ import { Expense } from 'src/expenses/entities/expense.entity';
 import { Trip } from 'src/trips/entities/trip.entity';
 import type {
   ClientBalanceOverviewResponseDto,
+  ClientBalancePeriodSummaryDto,
   ClientBalanceSummaryDto,
 } from './utils/client-balance.util';
 import {
   buildClientBalanceOverview,
+  buildClientBalancePeriodSummary,
   buildClientBalanceSummary,
 } from './utils/client-balance.util';
 import { parseMoney } from './utils/client-balance-money.util';
@@ -47,7 +49,9 @@ export class ClientsBalanceService {
   async getClientBalance(
     companyId: number,
     clientIdRef: string,
-  ): Promise<ClientBalanceSummaryDto> {
+    periodFrom?: string,
+    periodTo?: string,
+  ): Promise<ClientBalanceSummaryDto & { period?: ClientBalancePeriodSummaryDto }> {
     const clientId = parseOptionalNumericId(clientIdRef, 'Client');
     if (clientId == null) {
       throw new NotFoundException('Client not found');
@@ -73,7 +77,20 @@ export class ClientsBalanceService {
         ? await this.loadTripExpensesForIds(companyId, tripIds)
         : [];
 
-    return buildClientBalanceSummary(String(clientId), trips, expenses);
+    const summary = buildClientBalanceSummary(String(clientId), trips, expenses);
+
+    if (periodFrom && periodTo) {
+      const period = buildClientBalancePeriodSummary(
+        String(clientId),
+        trips,
+        expenses,
+        periodFrom,
+        periodTo,
+      );
+      return { ...summary, period };
+    }
+
+    return summary;
   }
 
   private async loadCompanyBalanceTrips(

@@ -26,6 +26,7 @@ export type ClientBalanceTripRow = {
   operationalDistanceKm: number | null | undefined;
   returnAt: string | null | undefined;
   plannedCompletionAt: string | null | undefined;
+  createdAt: string | null | undefined;
 };
 
 export type ClientBalanceExpenseKind =
@@ -74,6 +75,7 @@ export function mapTripEntityToBalanceRow(trip: Trip): ClientBalanceTripRow {
     ),
     returnAt: exposedActual.returnAt?.toISOString() ?? null,
     plannedCompletionAt: trip.plannedCompletionAt?.toISOString() ?? null,
+    createdAt: trip.createdAt?.toISOString() ?? null,
   };
 }
 

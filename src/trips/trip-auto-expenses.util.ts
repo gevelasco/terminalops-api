@@ -138,7 +138,7 @@ export function buildTripAutoExpenses(
       kind: TRIP_AUTO_EXPENSE_KIND.OPERATIONAL_CONTROL,
       description: `Control operativo ${provisionRate}% — maniobra ${maneuverRef}`,
       paymentMethod: controlPaymentMethod,
-      isOperationalProvision: false,
+      isOperationalProvision: true,
     });
   }
 

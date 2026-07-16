@@ -68,7 +68,103 @@ export class ClientsService {
       .orderBy('client.name', 'ASC')
       .addOrderBy('contacts.sortOrder', 'ASC')
       .getMany();
-    return rows.map((row) => serializeClient(row));
+
+    const healthMap = await this.computeCommercialHealth(companyId);
+    return rows.map((row) => {
+      const health = healthMap.get(row.id);
+      return { ...serializeClient(row), commercialHealth: health ?? 'not_evaluated' };
+    });
+  }
+
+  /**
+   * Mirrors the frontend's `deriveClientCommercialHealthFromCredit`:
+   *
+   *  - No trips → watch_list
+   *  - Receivable ≤ 0 → good_standing
+   *  - No next due date → watch_list
+   *  - Next due < today → restricted
+   *  - Next due ≤ today + 10d → due_soon
+   *  - Otherwise → good_standing
+   *
+   * Billable = (completed OR cancelled+false_maneuver), has_client_billing ≠ false,
+   *            client_charge > 0.
+   * Due date  = COALESCE(return_at, planned_completion_at) + credit_days.
+   */
+  private async computeCommercialHealth(
+    companyId: number,
+  ): Promise<Map<number, string>> {
+    const DUE_SOON_DAYS = 10;
+
+    const rows: Array<{
+      client_id: number;
+      has_trips: boolean;
+      receivable: string;
+      next_due: string | null;
+    }> = await this.clientsRepo.query(
+      `
+      SELECT
+        sub.client_id,
+        TRUE AS has_trips,
+        COALESCE(SUM(
+          CASE WHEN sub.is_receivable THEN sub.charge ELSE 0 END
+        ), 0) AS receivable,
+        MIN(
+          CASE WHEN sub.is_receivable THEN sub.due_date ELSE NULL END
+        )::text AS next_due
+      FROM (
+        SELECT
+          t.client_id,
+          COALESCE(t.client_charge, 0)::numeric AS charge,
+          (
+            COALESCE(t.has_client_billing, TRUE) = TRUE
+            AND COALESCE(t.client_charge, 0) > 0
+            AND (
+              t.status = 'completed'
+              OR (t.status = 'cancelled' AND t.false_maneuver = TRUE)
+            )
+            AND t.client_collected_at IS NULL
+          ) AS is_receivable,
+          (
+            COALESCE(t.return_at, t.planned_completion_at)::date
+            + GREATEST(COALESCE(t.credit_days, 0), 0)
+          ) AS due_date
+        FROM terminalops.trips t
+        WHERE t.company_id = $1
+          AND t.deleted_at IS NULL
+          AND t.client_id IS NOT NULL
+      ) sub
+      GROUP BY sub.client_id
+      `,
+      [companyId],
+    );
+
+    const map = new Map<number, string>();
+    const today = new Date();
+    today.setHours(12, 0, 0, 0);
+    const todayMs = today.getTime();
+    const dueSoonMs = DUE_SOON_DAYS * 86_400_000;
+
+    for (const row of rows) {
+      const receivable = parseFloat(row.receivable) || 0;
+      if (receivable <= 0) {
+        map.set(row.client_id, 'good_standing');
+        continue;
+      }
+      const due = row.next_due?.trim();
+      if (!due) {
+        map.set(row.client_id, 'watch_list');
+        continue;
+      }
+      const dueMs = new Date(`${due}T12:00:00`).getTime();
+      if (dueMs < todayMs) {
+        map.set(row.client_id, 'restricted');
+      } else if (dueMs <= todayMs + dueSoonMs) {
+        map.set(row.client_id, 'due_soon');
+      } else {
+        map.set(row.client_id, 'good_standing');
+      }
+    }
+    return map;
   }
 
   async findPickerOptions(companyId: number): Promise<ClientPickerOptionDto[]> {

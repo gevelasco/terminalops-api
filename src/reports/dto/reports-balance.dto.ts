@@ -60,7 +60,7 @@ export type ReportsBalanceExpenseRubroDto = {
 };
 
 export type ReportsBalanceDailyActivityEventDto = {
-  kind: 'income' | 'expense';
+  kind: 'income' | 'expense' | 'receivable' | 'payable';
   label: string;
   amount: number;
 };
@@ -69,7 +69,18 @@ export type ReportsBalanceDailyActivityDayDto = {
   date: string;
   incomeCount: number;
   expenseCount: number;
+  receivableCount: number;
+  payableCount: number;
   events: ReportsBalanceDailyActivityEventDto[];
+};
+
+export type ReportsBalancePayableItemDto = {
+  description: string;
+  amount: number;
+  beneficiary: string | null;
+  installmentLabel: string;
+  dueDate: string;
+  status: 'paid' | 'pending' | 'overdue';
 };
 
 export type ReportsBalanceInsightsDto = {
@@ -80,6 +91,7 @@ export type ReportsBalanceInsightsDto = {
   profitability: ReportsBalanceProfitabilityDto;
   expensesByRubro: ReportsBalanceExpenseRubroDto[];
   dailyActivity: ReportsBalanceDailyActivityDayDto[];
+  payableItems: ReportsBalancePayableItemDto[];
 };
 
 export type ReportsBalanceDto = {
