@@ -84,6 +84,7 @@ describe('UsersService (A3 operational analysis SSOT)', () => {
         operationalAnalysisEnabled: false,
         operationalAnalysisChangedAt: new Date('2025-06-01T12:00:00.000Z'),
         primaryOperationalCenter: {
+          id: 42,
           name: 'Patio SSOT',
           postalCode: '66220',
           cityMunicipality: 'San Pedro, Nuevo León',
@@ -101,6 +102,7 @@ describe('UsersService (A3 operational analysis SSOT)', () => {
 
     const authUser = service.generateAuthUser(user);
 
+    expect(authUser.operationalCenterId).toBe('42');
     expect(authUser.operationalCenterPostalCode).toBe('66220');
     expect(authUser.operationalCenterLocality).toBe('Valle Oriente');
     expect(authUser.operationalCenterName).toBe('Patio SSOT');

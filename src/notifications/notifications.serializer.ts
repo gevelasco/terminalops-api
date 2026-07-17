@@ -20,6 +20,9 @@ function iconForActivityKind(kind: string): string {
   if (kind.startsWith('expense.')) {
     return 'settlement';
   }
+  if (kind.startsWith('payment.')) {
+    return 'settlement';
+  }
   if (kind.startsWith('trip.')) {
     return 'route';
   }

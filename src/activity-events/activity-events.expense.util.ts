@@ -25,17 +25,56 @@ export function expenseActivityOnCreate(expense: Expense): {
   return null;
 }
 
-export function expenseActivityOnUpdate(expense: Expense): {
+export function expenseActivityOnUpdate(
+  expense: Expense,
+  previous?: Expense,
+): {
   kind: string;
   title: string;
 } | null {
   if (expense.discardedAt != null) {
     return null;
   }
+  if (previous?.paidAt == null && expense.paidAt != null) {
+    return {
+      kind: COMPANY_ACTIVITY_KIND.PAYMENT_CONFIRMED,
+      title: paymentTransitionTitle(expense.kind, true),
+    };
+  }
+  if (previous?.paidAt != null && expense.paidAt == null) {
+    return {
+      kind: COMPANY_ACTIVITY_KIND.PAYMENT_REVERTED,
+      title: paymentTransitionTitle(expense.kind, false),
+    };
+  }
   return {
     kind: COMPANY_ACTIVITY_KIND.EXPENSE_UPDATED,
     title: 'Gasto modificado',
   };
+}
+
+function paymentTransitionTitle(kind: string, confirmed: boolean): string {
+  const action = confirmed ? 'confirmado' : 'removido';
+  switch (kind) {
+    case 'insurance':
+      return confirmed
+        ? 'Pago de seguro confirmado'
+        : 'Confirmación de seguro removida';
+    case 'gps':
+      return confirmed
+        ? 'Pago de GPS confirmado'
+        : 'Confirmación de GPS removida';
+    case 'tenure_payment':
+      return confirmed
+        ? 'Cuota de financiamiento confirmada'
+        : 'Confirmación de cuota removida';
+    case 'verification':
+      return confirmed
+        ? 'Pago de verificación confirmado'
+        : 'Confirmación de verificación removida';
+    default:
+      return `Pago ${action}`;
+  }
 }
 
 function isManualExpense(expense: Expense): boolean {

@@ -106,7 +106,7 @@ export class TripsController {
   ) {
     assertModuleWrite(user, APP_MODULE_CODES.TRIPS);
     const companyId = await this.tenantContext.resolveInternalIdFromAuthUser(user);
-    return this.service.setClientCollected(companyId, tripId, collected);
+    return this.service.setClientCollected(companyId, tripId, collected, user);
   }
 
   @Delete(':tripId')

@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { IsNull, Repository } from 'typeorm';
+import { IsNull, Repository, type EntityManager } from 'typeorm';
 import { Company } from 'src/companies/entities/company.entity';
 import { Trip } from 'src/trips/entities/trip.entity';
 import { operationalKmFromStoredTrip } from 'src/trips/trip-operational-distance.util';
@@ -70,15 +70,20 @@ export class UnitTripOdometerService {
     );
   }
 
-  /** Revierte km acreditados al eliminar una maniobra completada. */
-  async reverseCreditForTrip(trip: Trip): Promise<void> {
+  /**
+   * Revierte km acreditados al eliminar una maniobra completada.
+   * Acepta un EntityManager para participar en la transacción de la eliminación
+   * (limpiar el marcador y restar el odómetro deben ser atómicos).
+   */
+  async reverseCreditForTrip(trip: Trip, manager?: EntityManager): Promise<void> {
     const creditedMarker = trip.unitOdometerKmCredited;
     const km = parseStoredKm(creditedMarker);
     if (km == null || km <= 0 || trip.unitId == null || !creditedMarker) {
       return;
     }
 
-    const cleared = await this.tripsRepo.update(
+    const tripsRepo = manager ? manager.getRepository(Trip) : this.tripsRepo;
+    const cleared = await tripsRepo.update(
       {
         id: trip.id,
         companyId: trip.companyId,
@@ -95,6 +100,7 @@ export class UnitTripOdometerService {
       trip.unitId,
       km,
       'reverse',
+      manager,
     );
 
     this.logger.debug(
@@ -125,9 +131,16 @@ export class UnitTripOdometerService {
     unitId: number,
     km: number,
     mode: 'credit' | 'reverse',
+    manager?: EntityManager,
   ): Promise<boolean> {
+    const companiesRepo = manager
+      ? manager.getRepository(Company)
+      : this.companiesRepo;
+    const profileRepo = manager
+      ? manager.getRepository(UnitFleetProfile)
+      : this.profileRepo;
     const [company, profile] = await Promise.all([
-      this.companiesRepo.findOne({
+      companiesRepo.findOne({
         where: { id: companyId },
         select: [
           'id',
@@ -135,7 +148,7 @@ export class UnitTripOdometerService {
           'maintenanceKmIntervalDefault',
         ],
       }),
-      this.profileRepo.findOne({ where: { unitId } }),
+      profileRepo.findOne({ where: { unitId } }),
     ]);
     if (!profile) {
       return false;
@@ -168,7 +181,7 @@ export class UnitTripOdometerService {
       patch.maintenanceKmCounter = formatStoredKm(nextCounter);
     }
 
-    await this.profileRepo.update({ unitId }, patch);
+    await profileRepo.update({ unitId }, patch);
     return true;
   }
 }

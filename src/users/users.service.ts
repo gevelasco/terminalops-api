@@ -320,10 +320,11 @@ export class UsersService {
           user.preferences?.controlAutomaticRecognitionChangedAt,
       ),
       ...(() => {
-        const geo = operationalCenterGeoForApi(
-          user.company?.primaryOperationalCenter,
-        );
+        const primary = user.company?.primaryOperationalCenter;
+        const geo = operationalCenterGeoForApi(primary);
         return {
+          operationalCenterId:
+            primary?.id != null ? String(primary.id) : undefined,
           operationalCenterName: geo.operationalCenterName,
           operationalCenterPostalCode: geo.operationalCenterPostalCode,
           operationalCenterCityMunicipality: geo.operationalCenterCityMunicipality,

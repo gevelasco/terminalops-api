@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, IsNull, Repository, SelectQueryBuilder } from 'typeorm';
+import { Repository, SelectQueryBuilder } from 'typeorm';
 import { Equipment } from 'src/equipment/entities/equipment.entity';
 import { Expense } from 'src/expenses/entities/expense.entity';
 import { FleetAssetTenure } from 'src/fleet/entities/fleet-asset-tenure.entity';
@@ -51,7 +51,9 @@ function parseMoneySum(raw: string | null | undefined): number {
   return Number.isFinite(n) && n >= 0 ? n : 0;
 }
 
-function parseOptionalCoord(raw: string | number | null | undefined): number | null {
+function parseOptionalCoord(
+  raw: string | number | null | undefined,
+): number | null {
   if (raw == null || raw === '') {
     return null;
   }
@@ -184,20 +186,29 @@ export class ReportsService {
       this.queryProfitabilityTotals(scope),
       this.queryExpensesByKind(scope),
       this.sumExpenseByKinds(scope, ['tolls']),
-      this.sumExpenseByKinds(scope, ['operator_payment', 'operator_commission']),
+      this.sumExpenseByKinds(scope, [
+        'operator_payment',
+        'operator_commission',
+      ]),
       this.queryDailyIncomeEvents(scope),
       this.queryDailyExpenseEvents(scope),
       this.queryDailyReceivableEvents(scope),
       this.queryDailyPayableEvents(scope),
     ]);
 
-    const collectedInPeriod = Math.round(parseMoneySum(collectedRow?.sum) * 100) / 100;
-    const receivableOpen = Math.round(parseMoneySum(receivableRow?.sum) * 100) / 100;
-    const accruedRevenue = Math.round(parseMoneySum(accruedRow?.sum) * 100) / 100;
+    const collectedInPeriod =
+      Math.round(parseMoneySum(collectedRow?.sum) * 100) / 100;
+    const receivableOpen =
+      Math.round(parseMoneySum(receivableRow?.sum) * 100) / 100;
+    const accruedRevenue =
+      Math.round(parseMoneySum(accruedRow?.sum) * 100) / 100;
     const expenses = Math.round(parseMoneySum(expensesRow?.sum) * 100) / 100;
-    const provisions = Math.round(parseMoneySum(provisionsRow?.sum) * 100) / 100;
-    const accountsPayable = Math.round(parseMoneySum(payableRow?.sum) * 100) / 100;
-    const realExpenses = Math.round(Math.max(expenses - provisions, 0) * 100) / 100;
+    const provisions =
+      Math.round(parseMoneySum(provisionsRow?.sum) * 100) / 100;
+    const accountsPayable =
+      Math.round(parseMoneySum(payableRow?.sum) * 100) / 100;
+    const realExpenses =
+      Math.round(Math.max(expenses - provisions, 0) * 100) / 100;
     const cashMargin = Math.round((collectedInPeriod - expenses) * 100) / 100;
     const accruedMargin = Math.round((accruedRevenue - expenses) * 100) / 100;
     const marginPercent =
@@ -206,35 +217,60 @@ export class ReportsService {
         : null;
 
     const projectionKinds = [
-      'fuel', 'tolls', 'per_diem', 'operator_payment', 'operator_commission',
-      'insurance', 'gps', 'verification', 'tenure_payment',
+      'fuel',
+      'tolls',
+      'per_diem',
+      'operator_payment',
+      'operator_commission',
+      'insurance',
+      'gps',
+      'verification',
+      'tenure_payment',
     ] as const;
 
-    const [payableUnits, payableEquipment, payableTenures, projectionExpenses, allExpenses] =
-      await Promise.all([
-        this.unitsRepo.find({
-          where: { companyId: scope.companyId },
-          relations: ['fleetProfile'],
-        }),
-        this.equipmentRepo.find({
-          where: { companyId: scope.companyId },
-          relations: ['fleetProfile'],
-        }),
-        this.tenuresRepo.find({ where: { companyId: scope.companyId } }),
-        this.expensesRepo.find({
-          where: {
-            companyId: scope.companyId,
-            discardedAt: IsNull(),
-            kind: In([...projectionKinds]),
-          },
-        }),
-        this.expensesRepo.find({
-          where: {
-            companyId: scope.companyId,
-            discardedAt: IsNull(),
-          },
-        }),
-      ]);
+    // Gastos acotados al periodo del reporte; `buildPayableItems` de todos
+    // modos descarta lo que cae fuera de [from, to], así que traer el ledger
+    // completo solo escalaba con el historial.
+    // La dedup de ciclos (seguro/GPS/cuotas) puede casar pagos con fecha
+    // distinta al vencimiento (índice de cuota, pago adelantado/atrasado):
+    // se usa una ventana de ±12 meses alrededor del periodo, no el histórico.
+    const [
+      payableUnits,
+      payableEquipment,
+      payableTenures,
+      projectionExpenses,
+      allExpenses,
+    ] = await Promise.all([
+      this.unitsRepo.find({
+        where: { companyId: scope.companyId },
+        relations: ['fleetProfile'],
+      }),
+      this.equipmentRepo.find({
+        where: { companyId: scope.companyId },
+        relations: ['fleetProfile'],
+      }),
+      this.tenuresRepo.find({ where: { companyId: scope.companyId } }),
+      this.expensesRepo
+        .createQueryBuilder('e')
+        .where('e.companyId = :companyId', { companyId: scope.companyId })
+        .andWhere('e.discarded_at IS NULL')
+        .andWhere('e.kind IN (:...kinds)', { kinds: [...projectionKinds] })
+        .andWhere(
+          `(e.incurred_at AT TIME ZONE '${OPERATIONAL_TZ}')::date
+               BETWEEN (:from::date - interval '12 months') AND (:to::date + interval '12 months')`,
+          { from: scope.from, to: scope.to },
+        )
+        .getMany(),
+      this.expensesRepo
+        .createQueryBuilder('e')
+        .where('e.companyId = :companyId', { companyId: scope.companyId })
+        .andWhere('e.discarded_at IS NULL')
+        .andWhere(
+          `(e.incurred_at AT TIME ZONE '${OPERATIONAL_TZ}')::date BETWEEN :from::date AND :to::date`,
+          { from: scope.from, to: scope.to },
+        )
+        .getMany(),
+    ]);
 
     const payableItems = buildPayableItems({
       units: payableUnits,
@@ -298,7 +334,8 @@ export class ReportsService {
     const profitabilityTripExpenses =
       Math.round(parseMoneySum(profitabilityRow?.trip_expenses) * 100) / 100;
     const profitabilityTotalCost =
-      Math.round((profitabilityDirectCost + profitabilityTripExpenses) * 100) / 100;
+      Math.round((profitabilityDirectCost + profitabilityTripExpenses) * 100) /
+      100;
     const profitabilityMargin =
       Math.round((profitabilityRevenue - profitabilityTotalCost) * 100) / 100;
     const profitabilityMarginPercent =
@@ -320,8 +357,7 @@ export class ReportsService {
         accountsPayable,
         cashMargin,
         accruedMargin,
-        marginPercent:
-          profitabilityMarginPercent ?? marginPercent,
+        marginPercent: profitabilityMarginPercent ?? marginPercent,
         tollsSpendInPeriod:
           Math.round(parseMoneySum(tollsSpendRow?.sum) * 100) / 100,
         operatorSpendInPeriod:
@@ -417,10 +453,24 @@ export class ReportsService {
       const events = byDate.get(date) ?? [];
       const incomeCount = events.filter((e) => e.kind === 'income').length;
       const expenseCount = events.filter((e) => e.kind === 'expense').length;
-      const receivableCount = events.filter((e) => e.kind === 'receivable').length;
+      const receivableCount = events.filter(
+        (e) => e.kind === 'receivable',
+      ).length;
       const payableCount = events.filter((e) => e.kind === 'payable').length;
-      if (incomeCount > 0 || expenseCount > 0 || receivableCount > 0 || payableCount > 0) {
-        days.push({ date, incomeCount, expenseCount, receivableCount, payableCount, events });
+      if (
+        incomeCount > 0 ||
+        expenseCount > 0 ||
+        receivableCount > 0 ||
+        payableCount > 0
+      ) {
+        days.push({
+          date,
+          incomeCount,
+          expenseCount,
+          receivableCount,
+          payableCount,
+          events,
+        });
       }
       cursor.setDate(cursor.getDate() + 1);
     }
@@ -579,7 +629,11 @@ export class ReportsService {
       geoRows,
     ] = await Promise.all([
       this.countCompletedTrips(scope),
-      this.countCompletedTrips({ ...scope, from: previous.from, to: previous.to }),
+      this.countCompletedTrips({
+        ...scope,
+        from: previous.from,
+        to: previous.to,
+      }),
       this.tripsRepo.count({
         where: { companyId: scope.companyId, status: 'in_transit' },
       }),
@@ -783,9 +837,7 @@ export class ReportsService {
       .then((rows) => rows[0]);
   }
 
-  private queryRecurringIncidentRoutes(
-    scope: ReportsScope,
-  ): Promise<
+  private queryRecurringIncidentRoutes(scope: ReportsScope): Promise<
     Array<{
       destination: string;
       incident_count: string;
@@ -888,9 +940,7 @@ export class ReportsService {
     );
   }
 
-  private queryGeoMapTrips(
-    scope: ReportsScope,
-  ): Promise<
+  private queryGeoMapTrips(scope: ReportsScope): Promise<
     Array<{
       trip_id: string;
       maneuver_code: string;
@@ -997,7 +1047,10 @@ export class ReportsService {
   }
 
   /** Rubro programado vs ledger (diésel, casetas, operador). */
-  private tripCategoryCostSql(tripFieldExpr: string, ledgerExpr: string): string {
+  private tripCategoryCostSql(
+    tripFieldExpr: string,
+    ledgerExpr: string,
+  ): string {
     return `CASE WHEN COALESCE(${ledgerExpr}, 0) > 0 THEN COALESCE(${ledgerExpr}, 0)::float ELSE COALESCE(${tripFieldExpr}, 0)::float END`;
   }
 
@@ -1049,7 +1102,9 @@ export class ReportsService {
     return this.applyTripScope(qb, scope).getRawOne<{ sum: string }>();
   }
 
-  private sumProvisions(scope: ReportsScope): Promise<{ sum: string } | undefined> {
+  private sumProvisions(
+    scope: ReportsScope,
+  ): Promise<{ sum: string } | undefined> {
     return this.expensesRepo
       .createQueryBuilder('e')
       .select('COALESCE(SUM(e.amount), 0)', 'sum')
@@ -1083,10 +1138,13 @@ export class ReportsService {
       .getRawOne<{ sum: string }>();
   }
 
-  private queryCreditByClient(
-    scope: ReportsScope,
-  ): Promise<
-    Array<{ client_name: string; amount: string; next_due: string | null; trip_count: string }>
+  private queryCreditByClient(scope: ReportsScope): Promise<
+    Array<{
+      client_name: string;
+      amount: string;
+      next_due: string | null;
+      trip_count: string;
+    }>
   > {
     const filter = tripScopeSql('trip', scope, 2);
     const params = [scope.companyId, ...filter.params];
@@ -1121,7 +1179,9 @@ export class ReportsService {
 
   private queryIncomeByClient(
     scope: ReportsScope,
-  ): Promise<Array<{ client_name: string; amount: string; trip_count: string }>> {
+  ): Promise<
+    Array<{ client_name: string; amount: string; trip_count: string }>
+  > {
     const filter = tripScopeSql('trip', scope, 4);
     const params = [scope.companyId, scope.from, scope.to, ...filter.params];
 
@@ -1147,10 +1207,13 @@ export class ReportsService {
     );
   }
 
-  private queryMarginByClient(
-    scope: ReportsScope,
-  ): Promise<
-    Array<{ client_name: string; revenue: string; cost: string; trip_count: string }>
+  private queryMarginByClient(scope: ReportsScope): Promise<
+    Array<{
+      client_name: string;
+      revenue: string;
+      cost: string;
+      trip_count: string;
+    }>
   > {
     const filter = tripScopeSql('trip', scope, 4);
     const params = [scope.companyId, scope.from, scope.to, ...filter.params];
@@ -1180,9 +1243,7 @@ export class ReportsService {
     );
   }
 
-  private queryProfitabilityTotals(
-    scope: ReportsScope,
-  ): Promise<
+  private queryProfitabilityTotals(scope: ReportsScope): Promise<
     | {
         revenue: string;
         direct_cost: string;
@@ -1222,9 +1283,7 @@ export class ReportsService {
       .then((rows) => rows[0]);
   }
 
-  private queryUnitProfitability(
-    scope: ReportsScope,
-  ): Promise<
+  private queryUnitProfitability(scope: ReportsScope): Promise<
     Array<{
       unit_label: string;
       revenue: string;
@@ -1240,7 +1299,10 @@ export class ReportsService {
     const tripSchema = this.tripsRepo.metadata.schema;
     const expenseSchema = this.expensesRepo.metadata.schema;
     const dieselCost = this.tripCategoryCostSql('ta.trip_diesel', 'te.fuel');
-    const operatorCost = this.tripCategoryCostSql('ta.trip_operator', 'te.operator');
+    const operatorCost = this.tripCategoryCostSql(
+      'ta.trip_operator',
+      'te.operator',
+    );
     const tollsCost = this.tripCategoryCostSql('ta.trip_tolls', 'te.tolls');
 
     return this.tripsRepo.query(
@@ -1353,7 +1415,9 @@ export class ReportsService {
 
   private queryExpensesByKind(
     scope: ReportsScope,
-  ): Promise<Array<{ kind: string; has_trip: string; sum: string; count: string }>> {
+  ): Promise<
+    Array<{ kind: string; has_trip: string; sum: string; count: string }>
+  > {
     return this.expensesRepo
       .createQueryBuilder('e')
       .select('e.kind', 'kind')
@@ -1381,7 +1445,9 @@ export class ReportsService {
   ): SelectQueryBuilder<Trip> {
     qb.andWhere('trip.companyId = :companyId', { companyId: scope.companyId });
     if (scope.clientIds.length > 0) {
-      qb.andWhere('trip.clientId IN (:...clientIds)', { clientIds: scope.clientIds });
+      qb.andWhere('trip.clientId IN (:...clientIds)', {
+        clientIds: scope.clientIds,
+      });
     }
     if (scope.paymentMethods.length > 0) {
       qb.andWhere('trip.paymentMethod IN (:...paymentMethods)', {
@@ -1418,7 +1484,9 @@ export class ReportsService {
     return this.applyTripScope(qb, scope).getRawOne<{ sum: string }>();
   }
 
-  private sumExpenses(scope: ReportsScope): Promise<{ sum: string } | undefined> {
+  private sumExpenses(
+    scope: ReportsScope,
+  ): Promise<{ sum: string } | undefined> {
     return this.expensesRepo
       .createQueryBuilder('e')
       .select('COALESCE(SUM(e.amount), 0)', 'sum')
@@ -1542,10 +1610,12 @@ export class ReportsService {
     );
   }
 
-  private queryCargoWeightByContainer(
-    scope: ReportsScope,
-  ): Promise<
-    Array<{ container_type: string; trip_count: string; avg_weight_tons: string }>
+  private queryCargoWeightByContainer(scope: ReportsScope): Promise<
+    Array<{
+      container_type: string;
+      trip_count: string;
+      avg_weight_tons: string;
+    }>
   > {
     const filter = tripScopeSql('trip', scope, 4);
     const params = [scope.companyId, scope.from, scope.to, ...filter.params];
@@ -1675,16 +1745,18 @@ export class ReportsService {
     const statusMix = buildReportsFleetStatusMix(overview.items);
     const complianceUnits = buildReportsFleetComplianceUnits(overview.items);
 
-    const avgDaysWithoutOperation = computeAvgDaysWithoutOperation(overview.items);
+    const avgDaysWithoutOperation = computeAvgDaysWithoutOperation(
+      overview.items,
+    );
 
     const totalOperationalKm =
       Math.round(parseMoneySum(totalKmRow?.sum) * 10) / 10;
     const totalDieselLiters =
       Math.round(parseMoneySum(dieselRow?.liters) * 10) / 10;
-    const totalDieselAmount = Math.round(parseMoneySum(dieselRow?.amount) * 100) / 100;
-    const maintenanceSpendInPeriod = Math.round(
-      parseMoneySum(maintenanceSpendRow?.sum) * 100,
-    ) / 100;
+    const totalDieselAmount =
+      Math.round(parseMoneySum(dieselRow?.amount) * 100) / 100;
+    const maintenanceSpendInPeriod =
+      Math.round(parseMoneySum(maintenanceSpendRow?.sum) * 100) / 100;
 
     return {
       summary: {
@@ -1715,8 +1787,10 @@ export class ReportsService {
         })),
         complianceUnits,
         tireWearByUnit: tireWearRows.map((row) => {
-          const operationalKm = Math.round(parseMoneySum(row.operational_km) * 10) / 10;
-          const avgWeightTons = Math.round(parseApproxWeightTons(row.avg_weight_tons) * 10) / 10;
+          const operationalKm =
+            Math.round(parseMoneySum(row.operational_km) * 10) / 10;
+          const avgWeightTons =
+            Math.round(parseApproxWeightTons(row.avg_weight_tons) * 10) / 10;
           const wear = estimateTireWearMxn(operationalKm, avgWeightTons);
           return {
             unitCode: String(row.unit_code ?? '—'),
@@ -1749,9 +1823,13 @@ export class ReportsService {
       const diesel = Math.round(parseMoneySum(row.diesel) * 100) / 100;
       const operator = Math.round(parseMoneySum(row.operator) * 100) / 100;
       const tolls = Math.round(parseMoneySum(row.tolls) * 100) / 100;
-      const maintenance = Math.round(parseMoneySum(row.maintenance) * 100) / 100;
+      const maintenance =
+        Math.round(parseMoneySum(row.maintenance) * 100) / 100;
       const tires = Math.round(parseMoneySum(row.tires) * 100) / 100;
-      const netMargin = Math.round((revenue - diesel - operator - tolls - maintenance - tires) * 100) / 100;
+      const netMargin =
+        Math.round(
+          (revenue - diesel - operator - tolls - maintenance - tires) * 100,
+        ) / 100;
       return {
         unitLabel: String(row.unit_label ?? '—'),
         revenue,
@@ -1780,12 +1858,13 @@ export class ReportsService {
         `(trip.completed_at AT TIME ZONE '${OPERATIONAL_TZ}')::date BETWEEN :from AND :to`,
         { from: scope.from, to: scope.to },
       );
-    return this.applyTripScope(qb, scope).getRawOne<{ liters: string; amount: string }>();
+    return this.applyTripScope(qb, scope).getRawOne<{
+      liters: string;
+      amount: string;
+    }>();
   }
 
-  private queryTopUnitsByKm(
-    scope: ReportsScope,
-  ): Promise<
+  private queryTopUnitsByKm(scope: ReportsScope): Promise<
     Array<{
       unit_label: string;
       completed: string;
@@ -1840,9 +1919,7 @@ export class ReportsService {
       .then((rows) => Number(rows[0]?.count ?? 0) || 0);
   }
 
-  private queryFleetMaintenanceEvents(
-    scope: ReportsScope,
-  ): Promise<
+  private queryFleetMaintenanceEvents(scope: ReportsScope): Promise<
     Array<{
       asset_label: string;
       unit_id: number | null;
@@ -1881,9 +1958,7 @@ export class ReportsService {
     );
   }
 
-  private queryTireWearByUnit(
-    scope: ReportsScope,
-  ): Promise<
+  private queryTireWearByUnit(scope: ReportsScope): Promise<
     Array<{
       unit_code: string;
       trip_count: string;
@@ -1939,7 +2014,9 @@ export class ReportsService {
       .select('COALESCE(SUM(e.amount), 0)', 'sum')
       .where('e.companyId = :companyId', { companyId: scope.companyId })
       .andWhere('e.kind IN (:...kinds)', { kinds: [...kinds] })
-      .andWhere('(e.relatedUnitId IS NOT NULL OR e.relatedEquipmentId IS NOT NULL)')
+      .andWhere(
+        '(e.relatedUnitId IS NOT NULL OR e.relatedEquipmentId IS NOT NULL)',
+      )
       .andWhere(
         `(e.incurred_at AT TIME ZONE '${OPERATIONAL_TZ}')::date BETWEEN :from AND :to`,
         { from: scope.from, to: scope.to },

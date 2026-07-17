@@ -26,7 +26,9 @@ function tenureConceptLabel(cadence: string | undefined): string {
   return 'Financiamiento';
 }
 
-function parsePositiveCost(raw: string | number | null | undefined): number | null {
+function parsePositiveCost(
+  raw: string | number | null | undefined,
+): number | null {
   if (raw == null || raw === '') return null;
   const amount = Number(raw);
   return Number.isFinite(amount) && amount > 0 ? amount : null;
@@ -77,53 +79,70 @@ export class FleetTenureExpenseSyncService {
     const startParsed = parseYmd(startDate);
     if (!startParsed) return;
 
-    const existing = await this.expensesService.findScheduledExpenses(
-      companyId,
-      'tenure_payment',
-      { relatedUnitId, relatedEquipmentId },
-    );
+    // Descartar cuotas no pagadas y regenerar el calendario debe ser atómico:
+    // un fallo a medias dejaba al activo sin cuotas programadas.
+    await this.expensesService.runInTransaction(async (manager) => {
+      const existing = await this.expensesService.findScheduledExpenses(
+        companyId,
+        'tenure_payment',
+        { relatedUnitId, relatedEquipmentId },
+        manager,
+      );
 
-    const paidByDate = new Map<string, true>();
-    for (const e of existing) {
-      if (e.paidAt != null) {
-        paidByDate.set(formatOperationalIncurredDateYmd(e.incurredAt), true);
+      const paidByDate = new Map<string, true>();
+      for (const e of existing) {
+        if (e.paidAt != null) {
+          paidByDate.set(formatOperationalIncurredDateYmd(e.incurredAt), true);
+        }
       }
-    }
 
-    await this.expensesService.discardUnpaidScheduledExpenses(
-      companyId,
-      'tenure_payment',
-      { relatedUnitId, relatedEquipmentId },
-    );
+      await this.expensesService.discardUnpaidScheduledExpenses(
+        companyId,
+        'tenure_payment',
+        { relatedUnitId, relatedEquipmentId },
+        manager,
+      );
 
-    const vendor = (profile.tenureBeneficiary ?? '').toString().trim() || undefined;
-    const category = tenureConceptLabel(cadence);
+      const vendor =
+        (profile.tenureBeneficiary ?? '').toString().trim() || undefined;
+      const category = tenureConceptLabel(cadence);
 
-    const drafts: Array<CreateExpenseDto & { paidAt?: string | null }> = [];
+      const drafts: Array<CreateExpenseDto & { paidAt?: string | null }> = [];
 
-    for (let i = 0; i < totalInstallments; i++) {
-      const dueDate = formatYmd(addMonths(startParsed, i * stepMonths));
-      if (paidByDate.has(dueDate)) continue;
+      for (let i = 0; i < totalInstallments; i++) {
+        const dueDate = formatYmd(addMonths(startParsed, i * stepMonths));
+        if (paidByDate.has(dueDate)) continue;
 
-      const periodLabel = coveragePaymentPeriodLabel(cadence, startDate, dueDate);
-      const description = periodLabel
-        ? `${TENURE_PAYMENT_DESC_PREFIX} (${periodLabel})`
-        : `${TENURE_PAYMENT_DESC_PREFIX} (${i + 1}/${totalInstallments})`;
+        const periodLabel = coveragePaymentPeriodLabel(
+          cadence,
+          startDate,
+          dueDate,
+        );
+        const description = periodLabel
+          ? `${TENURE_PAYMENT_DESC_PREFIX} (${periodLabel})`
+          : `${TENURE_PAYMENT_DESC_PREFIX} (${i + 1}/${totalInstallments})`;
 
-      drafts.push({
-        category,
-        amount: cost,
-        incurredAt: dueDate,
-        kind: 'tenure_payment',
-        relatedUnitId: relatedUnitId != null ? String(relatedUnitId) : undefined,
-        relatedEquipmentId: relatedEquipmentId != null ? String(relatedEquipmentId) : undefined,
-        description,
-        vendor,
-        paidAt: null,
-      });
-    }
+        drafts.push({
+          category,
+          amount: cost,
+          incurredAt: dueDate,
+          kind: 'tenure_payment',
+          relatedUnitId:
+            relatedUnitId != null ? String(relatedUnitId) : undefined,
+          relatedEquipmentId:
+            relatedEquipmentId != null ? String(relatedEquipmentId) : undefined,
+          description,
+          vendor,
+          paidAt: null,
+        });
+      }
 
-    await this.expensesService.bulkCreateScheduledExpenses(companyId, drafts);
+      await this.expensesService.bulkCreateScheduledExpenses(
+        companyId,
+        drafts,
+        manager,
+      );
+    });
   }
 
   /** @deprecated Use ensureAllTenureInstallments instead. */
@@ -136,15 +155,20 @@ export class FleetTenureExpenseSyncService {
   }): Promise<void> {
     const profile: TenurePaymentProfileLike = {
       recurringPaymentAmount:
-        params.incoming.recurringPaymentAmount ?? params.previous?.recurringPaymentAmount,
+        params.incoming.recurringPaymentAmount ??
+        params.previous?.recurringPaymentAmount,
       recurringPaymentCadence:
-        params.incoming.recurringPaymentCadence ?? params.previous?.recurringPaymentCadence,
+        params.incoming.recurringPaymentCadence ??
+        params.previous?.recurringPaymentCadence,
       recurringPaymentDate:
-        params.incoming.recurringPaymentDate ?? params.previous?.recurringPaymentDate,
+        params.incoming.recurringPaymentDate ??
+        params.previous?.recurringPaymentDate,
       recurringLastPaymentDate:
-        params.incoming.recurringLastPaymentDate ?? params.previous?.recurringLastPaymentDate,
+        params.incoming.recurringLastPaymentDate ??
+        params.previous?.recurringLastPaymentDate,
       recurringInstallmentCount:
-        params.incoming.recurringInstallmentCount ?? params.previous?.recurringInstallmentCount,
+        params.incoming.recurringInstallmentCount ??
+        params.previous?.recurringInstallmentCount,
       tenureBeneficiary:
         params.incoming.tenureBeneficiary ?? params.previous?.tenureBeneficiary,
     };

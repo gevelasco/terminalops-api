@@ -102,7 +102,9 @@ export class DestinationRatesService {
       .leftJoinAndSelect('rate.prices', 'prices')
       .leftJoinAndSelect('prices.operationConfiguration', 'operationConfiguration')
       .leftJoinAndSelect('rate.originOperationalCenter', 'originOperationalCenter')
-      .loadRelationCountAndMap('rate.maneuverCount', 'rate.trips', 'trip')
+      .loadRelationCountAndMap('rate.maneuverCount', 'rate.trips', 'trip', (qb) =>
+        qb.andWhere('trip.deleted_at IS NULL'),
+      )
       .where('rate.companyId = :companyId', { companyId })
       .orderBy('rate.postalCode', 'ASC')
       .addOrderBy('rate.locality', 'ASC')
@@ -182,6 +184,57 @@ export class DestinationRatesService {
       return { exists: false };
     }
     return { exists: true, destinationRateId: row.id };
+  }
+
+  /**
+   * Match fino para el drawer de nueva maniobra: ruta operativa activa +
+   * preferencia por la tarifa vinculada a la entrega del cliente.
+   * Misma semántica que `resolveManeuverDestinationRate` en el front.
+   */
+  async matchManeuverRate(
+    companyId: number,
+    params: {
+      originOperationalCenterId: string;
+      postalCode: string;
+      locality: string;
+      clientDestinationRateId?: string;
+    },
+  ): Promise<{ rate: ReturnType<typeof serializeDestinationRate> | null }> {
+    const originCenterId = parseOptionalNumericId(params.originOperationalCenterId);
+    if (originCenterId == null) {
+      return { rate: null };
+    }
+    await this.operationalCenters.resolveCenterId(companyId, originCenterId);
+
+    const routeMatch = await this.findMatchingRate(companyId, {
+      originOperationalCenterId: originCenterId,
+      destinationPostalCode: params.postalCode,
+      destinationLocality: params.locality,
+    });
+
+    const linkedId = params.clientDestinationRateId
+      ? parseOptionalNumericId(params.clientDestinationRateId)
+      : null;
+    if (linkedId == null) {
+      return { rate: routeMatch ? serializeDestinationRate(routeMatch) : null };
+    }
+
+    const linked = await this.getRateEntity(companyId, linkedId);
+    if (!linked || !linked.active) {
+      return { rate: routeMatch ? serializeDestinationRate(routeMatch) : null };
+    }
+
+    const linkedMatchesRoute =
+      linked.originOperationalCenterId === originCenterId &&
+      linked.postalCode ===
+        this.normalizeRouteDestinationPostalCode(params.postalCode) &&
+      linked.locality.trim().toLowerCase() ===
+        this.normalizeRouteDestinationLocality(params.locality).toLowerCase();
+    if (!linkedMatchesRoute) {
+      // La entrega del cliente apunta a otra ruta: no sugerir tarifa distinta.
+      return { rate: null };
+    }
+    return { rate: serializeDestinationRate(linked) };
   }
 
   /**

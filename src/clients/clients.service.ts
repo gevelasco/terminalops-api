@@ -63,7 +63,9 @@ export class ClientsService {
       .leftJoinAndSelect('client.paymentTerms', 'paymentTerms')
       .leftJoinAndSelect('client.delivery', 'delivery')
       .leftJoinAndSelect('client.contacts', 'contacts')
-      .loadRelationCountAndMap('client.maneuverCount', 'client.trips', 'trip')
+      .loadRelationCountAndMap('client.maneuverCount', 'client.trips', 'trip', (qb) =>
+        qb.andWhere('trip.deleted_at IS NULL'),
+      )
       .where('client.companyId = :companyId', { companyId })
       .orderBy('client.name', 'ASC')
       .addOrderBy('contacts.sortOrder', 'ASC')

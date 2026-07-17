@@ -1,10 +1,10 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
-  IsIn,
   IsInt,
   IsOptional,
   IsString,
+  Matches,
   Max,
   Min,
 } from 'class-validator';
@@ -27,15 +27,15 @@ export class ListTripsQueryDto {
   page?: number;
 
   @ApiPropertyOptional({
-    description: 'Filas por página. Omitir o 0 para devolver todo el rango.',
+    description: 'Filas por página (máximo 100).',
     default: 15,
-    minimum: 0,
+    minimum: 1,
     maximum: 100,
   })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
-  @Min(0)
+  @Min(1)
   @Max(100)
   limit?: number;
 
@@ -47,10 +47,34 @@ export class ListTripsQueryDto {
   q?: string;
 
   @ApiPropertyOptional({
-    enum: TRIP_LIST_STATUSES,
-    description: 'Filtrar por estatus de maniobra',
+    description:
+      'Filtrar por estatus de maniobra. Acepta varios separados por coma (p. ej. "scheduled,in_transit").',
+    example: 'scheduled,in_transit',
   })
   @IsOptional()
-  @IsIn([...TRIP_LIST_STATUSES])
-  status?: TripListStatusFilter;
+  @IsString()
+  @Matches(
+    new RegExp(
+      `^(${TRIP_LIST_STATUSES.join('|')})(,(${TRIP_LIST_STATUSES.join('|')}))*$`,
+    ),
+    { message: 'status must be a comma-separated list of valid trip statuses' },
+  )
+  status?: string;
+}
+
+export function parseTripListStatusFilter(
+  status?: string,
+): TripListStatusFilter[] {
+  if (!status?.trim()) {
+    return [];
+  }
+  const allowed = new Set<string>(TRIP_LIST_STATUSES);
+  return [
+    ...new Set(
+      status
+        .split(',')
+        .map((s) => s.trim())
+        .filter((s) => allowed.has(s)),
+    ),
+  ] as TripListStatusFilter[];
 }

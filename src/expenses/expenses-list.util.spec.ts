@@ -1,3 +1,20 @@
+import {
+  EXPENSE_LIST_DEFAULT_LIMIT,
+  normalizeExpenseListLimit,
+} from './expenses-list.util';
+
+describe('normalizeExpenseListLimit', () => {
+  it.each([undefined, 0, -1, 101, 12])(
+    'uses the safe default for %s',
+    (limit) => {
+      expect(normalizeExpenseListLimit(limit)).toBe(EXPENSE_LIST_DEFAULT_LIMIT);
+    },
+  );
+
+  it.each([10, 15, 25, 50, 100])('accepts the supported limit %s', (limit) => {
+    expect(normalizeExpenseListLimit(limit)).toBe(limit);
+  });
+});
 import { applyExpenseListFilters } from './expenses-list.util';
 import type { Expense } from './entities/expense.entity';
 import type { SelectQueryBuilder } from 'typeorm';

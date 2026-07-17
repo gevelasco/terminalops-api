@@ -53,5 +53,10 @@ function serializeEquipmentRef(
     type: equipment.type ?? undefined,
     status: equipment.status ?? undefined,
     isActive: equipment.isActive !== false,
+    // Necesarios para armar el código operativo (MARCA-AÑO-PLACA) y ordenar
+    // el convoy (lead/rear) sin descargar el catálogo completo de /equipment.
+    trailerBrandAbbr: equipment.trailerBrandAbbr ?? undefined,
+    trailerYear: equipment.trailerYear ?? undefined,
+    hitchPosition: equipment.hitchPosition ?? undefined,
   };
 }

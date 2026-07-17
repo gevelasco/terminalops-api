@@ -43,6 +43,8 @@ export type AuthUser = {
   dieselControlChangedAt?: string;
   controlAutomaticRecognition?: boolean;
   controlAutomaticRecognitionChangedAt?: string;
+  /** ID público del centro operativo principal (único por empresa hoy). */
+  operationalCenterId?: string;
   operationalCenterName?: string;
   operationalCenterPostalCode?: string;
   operationalCenterCityMunicipality?: string;

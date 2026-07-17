@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, type EntityManager } from 'typeorm';
 import { CompanyActivityEvent } from './entities/company-activity-event.entity';
 import { activityActorFromUser } from './activity-events.actor.util';
 import type AuthUser from 'src/types/auth-user.type';
@@ -65,6 +65,33 @@ export class ActivityEventsService {
     }
 
     await this.repo.save(row);
+  }
+
+  /**
+   * Borra los eventos ligados a una maniobra eliminada (por entidad o por
+   * metadata.tripId) para que no quede rastro en el feed de notificaciones.
+   */
+  async purgeForTrip(
+    companyId: number,
+    tripId: number,
+    manager?: EntityManager,
+  ): Promise<void> {
+    const repo = manager
+      ? manager.getRepository(CompanyActivityEvent)
+      : this.repo;
+    await repo
+      .createQueryBuilder()
+      .delete()
+      .from(CompanyActivityEvent)
+      .where('company_id = :companyId', { companyId })
+      .andWhere(
+        `(
+          (entity_type = 'trip' AND entity_id = :tripIdText)
+          OR metadata ->> 'tripId' = :tripIdText
+        )`,
+        { tripIdText: String(tripId) },
+      )
+      .execute();
   }
 
   async listForCompany(

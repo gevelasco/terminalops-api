@@ -52,7 +52,7 @@ export class OperatorsController {
   ) {
     assertModuleWrite(user, APP_MODULE_CODES.OPERATORS);
     const companyId = await this.tenantContext.resolveInternalIdFromAuthUser(user);
-    return this.service.confirmTripPayment(companyId, operatorId, tripId);
+    return this.service.confirmTripPayment(companyId, operatorId, tripId, user);
   }
 
   @Post(':operatorId/trips/:tripId/revert-payment')
@@ -63,7 +63,7 @@ export class OperatorsController {
   ) {
     assertModuleWrite(user, APP_MODULE_CODES.OPERATORS);
     const companyId = await this.tenantContext.resolveInternalIdFromAuthUser(user);
-    return this.service.revertTripPayment(companyId, operatorId, tripId);
+    return this.service.revertTripPayment(companyId, operatorId, tripId, user);
   }
 
   @Get(':operatorId')

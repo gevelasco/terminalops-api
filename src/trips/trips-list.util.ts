@@ -1,7 +1,10 @@
 import type { SelectQueryBuilder } from 'typeorm';
 import { TERMINALOPS_SCHEMA } from 'src/common/constants/schema-name';
 import type { Trip } from './entities/trip.entity';
-import type { ListTripsQueryDto } from './dto/list-trips-query.dto';
+import {
+  parseTripListStatusFilter,
+  type ListTripsQueryDto,
+} from './dto/list-trips-query.dto';
 import { tripNotDeletedSql } from './trip-visibility.util';
 
 export const TRIP_LIST_DEFAULT_LIMIT = 15;
@@ -9,8 +12,8 @@ export const TRIP_LIST_DEFAULT_LIMIT = 15;
 export const TRIP_LIST_ALLOWED_LIMITS = [10, 15, 25, 50, 100] as const;
 
 export function normalizeTripListLimit(limit?: number): number {
-  if (limit == null || limit === 0) {
-    return 0;
+  if (limit == null) {
+    return TRIP_LIST_DEFAULT_LIMIT;
   }
   if ((TRIP_LIST_ALLOWED_LIMITS as readonly number[]).includes(limit)) {
     return limit;
@@ -26,9 +29,9 @@ export function applyTripListFilters(
   qb.where('trip.companyId = :companyId', { companyId });
   qb.andWhere(tripNotDeletedSql('trip'));
 
-  const status = query?.status?.trim();
-  if (status) {
-    qb.andWhere('trip.status = :status', { status });
+  const statuses = parseTripListStatusFilter(query?.status);
+  if (statuses.length > 0) {
+    qb.andWhere('trip.status IN (:...statuses)', { statuses });
   }
 
   const q = query?.q?.trim();

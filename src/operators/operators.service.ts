@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, IsNull, Repository } from 'typeorm';
 import { serializeOperator } from 'src/common/serializers/operator.serializer';
@@ -92,7 +96,12 @@ export class OperatorsService {
       .leftJoinAndSelect('operator.publicInsurance', 'publicInsurance')
       .leftJoinAndSelect('operator.privateInsurance', 'privateInsurance')
       .leftJoinAndSelect('operator.documents', 'documents')
-      .loadRelationCountAndMap('operator.maneuverCount', 'operator.trips', 'trip')
+      .loadRelationCountAndMap(
+        'operator.maneuverCount',
+        'operator.trips',
+        'trip',
+        (qb) => qb.andWhere('trip.deleted_at IS NULL'),
+      )
       .where('operator.companyId = :companyId', { companyId });
 
     if (options?.available) {
@@ -182,7 +191,7 @@ export class OperatorsService {
       throw new NotFoundException(`Operator ${operatorId} not found`);
     }
     const trips = await this.tripRepo.find({
-      where: { companyId, operatorId },
+      where: { companyId, operatorId, deletedAt: IsNull() },
       relations: ['unit', 'tripEquipment', 'tripEquipment.equipment'],
       order: { plannedDepartureAt: 'DESC' },
     });
@@ -222,6 +231,7 @@ export class OperatorsService {
     companyId: number,
     operatorId: number,
     tripId: number,
+    actor?: AuthUser,
   ): Promise<OperatorOperationSummaryDto> {
     const operator = await this.repo.findOne({
       where: { companyId, id: operatorId },
@@ -231,69 +241,95 @@ export class OperatorsService {
       throw new NotFoundException(`Operator ${operatorId} not found`);
     }
 
-    const trip = await this.tripRepo.findOne({
-      where: { companyId, id: tripId, operatorId },
-    });
-    if (!trip) {
-      throw new NotFoundException(
-        `Trip ${tripId} not found for operator ${operatorId}`,
-      );
-    }
-    if (trip.status !== 'completed') {
-      throw new BadRequestException(
-        'Solo se puede confirmar pago en maniobras completadas.',
-      );
-    }
-
-    const quota = Number(trip.operatorQuota ?? 0);
-    if (!Number.isFinite(quota) || quota <= 0) {
-      throw new BadRequestException('La maniobra no tiene cuota de operador.');
-    }
-
-    const expenses = await this.expenseRepo.find({
-      where: { companyId, tripId, discardedAt: IsNull() },
-      select: ['id', 'tripId', 'kind', 'amount'],
-    });
-    let paid = 0;
-    for (const expense of expenses) {
-      if (
-        expense.kind !== 'operator_payment' &&
-        expense.kind !== 'operator_commission'
-      ) {
-        continue;
+    // Transacción con lock sobre la maniobra: dos confirmaciones simultáneas
+    // ya no pueden leer el mismo saldo y duplicar el pago.
+    const result = await this.tripRepo.manager.transaction(async (em) => {
+      const trip = await em.getRepository(Trip).findOne({
+        where: { companyId, id: tripId, operatorId, deletedAt: IsNull() },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!trip) {
+        throw new NotFoundException(
+          `Trip ${tripId} not found for operator ${operatorId}`,
+        );
       }
-      const amount = Number(expense.amount ?? 0);
-      if (Number.isFinite(amount) && amount > 0) {
-        paid += amount;
+      if (trip.status !== 'completed') {
+        throw new BadRequestException(
+          'Solo se puede confirmar pago en maniobras completadas.',
+        );
       }
-    }
-    const balance = Math.max(0, quota - paid);
-    if (balance <= 0) {
-      return this.getOperationSummary(companyId, operatorId);
-    }
 
-    const completionYmd =
-      tripCompletionAnchorYmd(trip) ??
-      new Date().toISOString().slice(0, 10);
-    const maneuverRef = trip.maneuverCode?.trim() || `#${trip.id}`;
-    const paymentMethod = expenseTextColumn(operator.paymentMethod);
+      const quota = Number(trip.operatorQuota ?? 0);
+      if (!Number.isFinite(quota) || quota <= 0) {
+        throw new BadRequestException(
+          'La maniobra no tiene cuota de operador.',
+        );
+      }
 
-    await this.expenseRepo.save(
-      this.expenseRepo.create({
+      const expenses = await em.getRepository(Expense).find({
+        where: { companyId, tripId, discardedAt: IsNull() },
+        select: ['id', 'tripId', 'kind', 'amount'],
+      });
+      let paid = 0;
+      for (const expense of expenses) {
+        if (
+          expense.kind !== 'operator_payment' &&
+          expense.kind !== 'operator_commission'
+        ) {
+          continue;
+        }
+        const amount = Number(expense.amount ?? 0);
+        if (Number.isFinite(amount) && amount > 0) {
+          paid += amount;
+        }
+      }
+      const balance = Math.max(0, quota - paid);
+      if (balance <= 0) {
+        return null;
+      }
+
+      const completionYmd =
+        tripCompletionAnchorYmd(trip) ?? new Date().toISOString().slice(0, 10);
+      const maneuverRef = trip.maneuverCode?.trim() || `#${trip.id}`;
+      const paymentMethod = expenseTextColumn(operator.paymentMethod);
+
+      const expenseRepo = em.getRepository(Expense);
+      const savedExpense = await expenseRepo.save(
+        expenseRepo.create({
+          companyId,
+          tripId: trip.id,
+          category: 'Pago a operador',
+          amount: (Math.round(balance * 100) / 100).toFixed(2),
+          currency: 'MXN',
+          incurredAt: parseOperationalIncurredAt(completionYmd),
+          kind: 'operator_payment',
+          description: `Pago a operador — maniobra ${maneuverRef}`,
+          relatedOperatorId: operatorId,
+          relatedUnitId: trip.unitId ?? undefined,
+          isOperationalProvision: false,
+          ...(paymentMethod != null ? { paymentMethod } : {}),
+        }),
+      );
+      return { savedExpense, balance, maneuverRef };
+    });
+
+    if (result) {
+      await this.activityEvents.record({
         companyId,
-        tripId: trip.id,
-        category: 'Pago a operador',
-        amount: (Math.round(balance * 100) / 100).toFixed(2),
-        currency: 'MXN',
-        incurredAt: parseOperationalIncurredAt(completionYmd),
-        kind: 'operator_payment',
-        description: `Pago a operador — maniobra ${maneuverRef}`,
-        relatedOperatorId: operatorId,
-        relatedUnitId: trip.unitId ?? undefined,
-        isOperationalProvision: false,
-        ...(paymentMethod != null ? { paymentMethod } : {}),
-      }),
-    );
+        kind: COMPANY_ACTIVITY_KIND.PAYMENT_CONFIRMED,
+        entityType: 'expense',
+        entityId: result.savedExpense.id,
+        subjectLabel: `Operador · maniobra ${result.maneuverRef}`,
+        title: 'Pago a operador confirmado',
+        actor,
+        metadata: {
+          operatorId,
+          tripId,
+          amount: result.balance,
+          expenseKind: result.savedExpense.kind,
+        },
+      });
+    }
 
     return this.getOperationSummary(companyId, operatorId);
   }
@@ -302,6 +338,7 @@ export class OperatorsService {
     companyId: number,
     operatorId: number,
     tripId: number,
+    actor?: AuthUser,
   ): Promise<OperatorOperationSummaryDto> {
     const operator = await this.repo.findOne({
       where: { companyId, id: operatorId },
@@ -312,7 +349,7 @@ export class OperatorsService {
     }
 
     const trip = await this.tripRepo.findOne({
-      where: { companyId, id: tripId, operatorId },
+      where: { companyId, id: tripId, operatorId, deletedAt: IsNull() },
     });
     if (!trip) {
       throw new NotFoundException(
@@ -320,22 +357,27 @@ export class OperatorsService {
       );
     }
 
-    const expenses = await this.expenseRepo.find({
-      where: { companyId, tripId, discardedAt: IsNull() },
-    });
+    // Un solo UPDATE atómico: antes se descartaba gasto por gasto y un fallo
+    // a la mitad dejaba la reversión incompleta.
+    const discardedRows: Array<{ id: number; amount: string }> =
+      await this.expenseRepo
+        .createQueryBuilder()
+        .update(Expense)
+        .set({ discardedAt: new Date() })
+        .where('company_id = :companyId', { companyId })
+        .andWhere('trip_id = :tripId', { tripId })
+        .andWhere('discarded_at IS NULL')
+        .andWhere(`kind IN ('operator_payment', 'operator_commission')`)
+        .returning(['id', 'amount'])
+        .execute()
+        .then((result) => result.raw as Array<{ id: number; amount: string }>);
 
-    const now = new Date();
-    let discarded = 0;
-    for (const expense of expenses) {
-      if (
-        expense.kind !== 'operator_payment' &&
-        expense.kind !== 'operator_commission'
-      ) {
-        continue;
-      }
-      expense.discardedAt = now;
-      await this.expenseRepo.save(expense);
-      discarded += 1;
+    const discarded = discardedRows.length;
+    let revertedAmount = 0;
+    let revertedExpenseId: number | null = null;
+    for (const row of discardedRows) {
+      revertedAmount += Number(row.amount ?? 0);
+      revertedExpenseId ??= row.id;
     }
 
     if (discarded === 0) {
@@ -343,6 +385,22 @@ export class OperatorsService {
         'No hay pagos registrados para revertir en esta maniobra.',
       );
     }
+    const maneuverRef = trip.maneuverCode?.trim() || `#${trip.id}`;
+    await this.activityEvents.record({
+      companyId,
+      kind: COMPANY_ACTIVITY_KIND.PAYMENT_REVERTED,
+      entityType: 'expense',
+      entityId: revertedExpenseId ?? tripId,
+      subjectLabel: `Operador · maniobra ${maneuverRef}`,
+      title: 'Confirmación de pago a operador removida',
+      actor,
+      metadata: {
+        operatorId,
+        tripId,
+        amount: Math.round(revertedAmount * 100) / 100,
+        discardedExpenses: discarded,
+      },
+    });
 
     return this.getOperationSummary(companyId, operatorId);
   }
@@ -360,7 +418,9 @@ export class OperatorsService {
       await this.repo.update({ id: operatorId, companyId }, core);
     }
     await this.saveNested(operatorId, dto);
-    const row = await this.repo.findOne({ where: { companyId, id: operatorId } });
+    const row = await this.repo.findOne({
+      where: { companyId, id: operatorId },
+    });
     if (row) {
       await this.activityEvents.record({
         companyId,
@@ -391,9 +451,7 @@ export class OperatorsService {
       documents: _docs,
       ...rawCore
     } = dto;
-    return pickOperatorUserMutableFields(
-      rawCore as unknown as Record<string, unknown>,
-    ) as Partial<Operator>;
+    return pickOperatorUserMutableFields(rawCore);
   }
 
   private async saveNested(
@@ -419,9 +477,12 @@ export class OperatorsService {
         this.publicInsuranceRepo.create({
           operatorId,
           nss: dto.publicInsurance.nss ?? '',
-          imssAltaDate: this.emptyDateToUndefined(dto.publicInsurance.imssAltaDate),
+          imssAltaDate: this.emptyDateToUndefined(
+            dto.publicInsurance.imssAltaDate,
+          ),
           infonavit: dto.publicInsurance.infonavit ?? false,
-          infonavitCreditNumber: dto.publicInsurance.infonavitCreditNumber ?? '',
+          infonavitCreditNumber:
+            dto.publicInsurance.infonavitCreditNumber ?? '',
           fonacot: dto.publicInsurance.fonacot ?? false,
           fonacotCreditNumber: dto.publicInsurance.fonacotCreditNumber ?? '',
           notes: dto.publicInsurance.notes ?? '',
@@ -508,6 +569,7 @@ export class OperatorsService {
           companyId,
           operatorId: In(operatorIds),
           status: 'completed',
+          deletedAt: IsNull(),
         },
         select: [
           'id',
@@ -564,7 +626,7 @@ export class OperatorsService {
     if (operatorIds.length === 0) {
       return [];
     }
-    const rows = (await this.tripRepo.query(
+    const rows = await this.tripRepo.query(
       `
         SELECT DISTINCT ON (t.operator_id)
           t.id,
@@ -579,6 +641,7 @@ export class OperatorsService {
           t.planned_departure_at AS "plannedDepartureAt"
         FROM ${TERMINALOPS_SCHEMA}.trips t
         WHERE t.company_id = $1
+          AND t.deleted_at IS NULL
           AND t.operator_id = ANY($2::int[])
         ORDER BY
           t.operator_id,
@@ -590,18 +653,7 @@ export class OperatorsService {
           ) DESC NULLS LAST
       `,
       [companyId, operatorIds],
-    )) as Array<{
-      id: number;
-      operatorId: number;
-      maneuverCode: string;
-      origin: string;
-      destination: string;
-      status: string;
-      completedAt?: Date | string | null;
-      returnAt?: Date | string | null;
-      arrivedAt?: Date | string | null;
-      plannedDepartureAt?: Date | string | null;
-    }>;
+    );
 
     return rows.map(
       (row) =>

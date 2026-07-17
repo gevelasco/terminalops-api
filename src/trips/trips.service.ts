@@ -7,7 +7,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, IsNull } from 'typeorm';
+import { Repository, IsNull, type EntityManager } from 'typeorm';
 import { isAdminRole } from 'src/common/constants/app-modules';
 import { assertTripBitacoraAccess } from 'src/common/utils/module-permission.util';
 import type AuthUser from 'src/types/auth-user.type';
@@ -140,7 +140,10 @@ export class TripsService {
     'incidents',
   ] as const;
 
-  async findAll(companyId: number, query?: ListTripsQueryDto): Promise<TripsListResult> {
+  async findAll(
+    companyId: number,
+    query?: ListTripsQueryDto,
+  ): Promise<TripsListResult> {
     await this.tripLifecycle.ensureCompanyLifecycleFresh(companyId);
 
     const limit = normalizeTripListLimit(query?.limit);
@@ -189,7 +192,7 @@ export class TripsService {
       const id = Number(idRaw);
       if (Number.isFinite(id) && id > 0) {
         const row = await this.tripsRepo.findOne({
-          where: { companyId, id },
+          where: { companyId, id, deletedAt: IsNull() },
           select: [
             'id',
             'maneuverCode',
@@ -431,7 +434,8 @@ export class TripsService {
     }
 
     const isRoundTrip = dto.isRoundTrip !== false;
-    const defaultOriginCenter = await this.operationalCenters.getDefaultEntity(companyId);
+    const defaultOriginCenter =
+      await this.operationalCenters.getDefaultEntity(companyId);
     const originCenterId =
       parseOptionalNumericId(dto.originOperationalCenterId) ??
       defaultOriginCenter.id;
@@ -545,20 +549,9 @@ export class TripsService {
       tollCalculationMode: dto.tollCalculationMode,
       hasClientBilling: dto.hasClientBilling ?? !!dto.clientName?.trim(),
     });
-    let trip = await this.tripsRepo.save(entity);
-
-    await this.tripLifecycle.applyLifecycleChainForTrip(trip, new Date(), 'system');
-
-    if (dto.equipmentIds?.length) {
-      const equipmentIds = await this.resolveEquipmentIds(
-        companyId,
-        dto.equipmentIds,
-      );
-      await this.syncEquipment(trip.id, equipmentIds);
-    }
-
-    const tripForFleetSync = await this.getTripEntity(companyId, trip.id);
-    await this.fleetStatusSync.syncForTrip(tripForFleetSync);
+    const equipmentIds = dto.equipmentIds?.length
+      ? await this.resolveEquipmentIds(companyId, dto.equipmentIds)
+      : [];
 
     const company = await this.companiesRepo.findOne({
       where: { id: companyId },
@@ -572,46 +565,60 @@ export class TripsService {
         'tripAutoControlPaymentMethod',
       ],
     });
-    if (company?.operationalAnalysisEnabled !== false) {
-      const rawPercent = company?.tripAutoMaintenanceProvisionPercent;
-      const provisionPercent =
-        rawPercent != null && rawPercent !== ''
-          ? Number(rawPercent)
-          : 5;
-      const safePercent =
-        Number.isFinite(provisionPercent) && provisionPercent >= 0
-          ? provisionPercent
-          : 5;
-      try {
-        await this.expensesService.createAutoExpensesForTrip(
-          companyId,
-          trip,
-          {
-            maintenanceProvisionPercent: safePercent,
-            fuelPaymentMethod: company?.tripAutoFuelPaymentMethod,
-            tollsPaymentMethod: company?.tripAutoTollsPaymentMethod,
-            perDiemPaymentMethod: company?.tripAutoPerDiemPaymentMethod,
-            controlPaymentMethod: company?.tripAutoControlPaymentMethod,
-          },
-        );
-      } catch (err) {
-        this.logger.error(
-          `Auto expenses failed for trip ${trip.id} (company ${companyId})`,
-          err instanceof Error ? err.stack : String(err),
-        );
-        const tripForRollback = await this.getTripEntity(companyId, trip.id);
-        await this.rollbackCreatedTrip(companyId, trip.id, {
-          unitId: tripForRollback.unitId ?? null,
-          operatorId: tripForRollback.operatorId ?? null,
-          equipmentIds: (tripForRollback.tripEquipment ?? []).map(
-            (row) => row.equipmentId,
-          ),
-        });
-        throw new InternalServerErrorException(
-          'No se pudo crear la maniobra: falló el registro de gastos automáticos.',
-        );
+
+    // Maniobra + equipos enganchados + gastos automáticos en una sola
+    // transacción: o queda todo registrado o no queda nada (antes se
+    // compensaba a mano con un rollback manual que podía quedar a medias).
+    const trip = await this.tripsRepo.manager.transaction(async (em) => {
+      const saved = await em.getRepository(Trip).save(entity);
+
+      if (equipmentIds.length) {
+        await this.syncEquipment(saved.id, equipmentIds, em);
       }
-    }
+
+      if (company?.operationalAnalysisEnabled !== false) {
+        const rawPercent = company?.tripAutoMaintenanceProvisionPercent;
+        const provisionPercent =
+          rawPercent != null && rawPercent !== '' ? Number(rawPercent) : 5;
+        const safePercent =
+          Number.isFinite(provisionPercent) && provisionPercent >= 0
+            ? provisionPercent
+            : 5;
+        try {
+          await this.expensesService.createAutoExpensesForTrip(
+            companyId,
+            saved,
+            {
+              maintenanceProvisionPercent: safePercent,
+              fuelPaymentMethod: company?.tripAutoFuelPaymentMethod,
+              tollsPaymentMethod: company?.tripAutoTollsPaymentMethod,
+              perDiemPaymentMethod: company?.tripAutoPerDiemPaymentMethod,
+              controlPaymentMethod: company?.tripAutoControlPaymentMethod,
+            },
+            em,
+          );
+        } catch (err) {
+          this.logger.error(
+            `Auto expenses failed for trip ${saved.id} (company ${companyId})`,
+            err instanceof Error ? err.stack : String(err),
+          );
+          throw new InternalServerErrorException(
+            'No se pudo crear la maniobra: falló el registro de gastos automáticos.',
+          );
+        }
+      }
+
+      return saved;
+    });
+
+    await this.tripLifecycle.applyLifecycleChainForTrip(
+      trip,
+      new Date(),
+      'system',
+    );
+
+    const tripForFleetSync = await this.getTripEntity(companyId, trip.id);
+    await this.fleetStatusSync.syncForTrip(tripForFleetSync);
 
     return this.findOne(companyId, trip.id);
   }
@@ -716,14 +723,18 @@ export class TripsService {
         ...(plannedPatch.plannedCompletionAt && {
           plannedCompletionAt: plannedPatch.plannedCompletionAt,
         }),
-        ...(isRoundTrip !== undefined && { isRoundTrip: isRoundTrip !== false }),
+        ...(isRoundTrip !== undefined && {
+          isRoundTrip: isRoundTrip !== false,
+        }),
         ...(clientId !== undefined && {
           clientId: clientId
             ? await this.resolveClientId(companyId, clientId)
             : undefined,
         }),
         ...(unitId !== undefined && { unitId: resolvedUnitIdForPatch }),
-        ...(operatorId !== undefined && { operatorId: resolvedOperatorIdForPatch }),
+        ...(operatorId !== undefined && {
+          operatorId: resolvedOperatorIdForPatch,
+        }),
         ...(unitId !== undefined && {
           unitOperationalCodeSnapshot:
             assignmentSnapshotPatch.unitOperationalCodeSnapshot,
@@ -808,8 +819,7 @@ export class TripsService {
       kind: COMPANY_ACTIVITY_KIND.TRIP_UPDATED,
       entityType: 'trip',
       entityId: tripId,
-      subjectLabel:
-        updatedTripEntity.maneuverCode?.trim() || `M-${tripId}`,
+      subjectLabel: updatedTripEntity.maneuverCode?.trim() || `M-${tripId}`,
       title: 'Maniobra modificada',
       actor,
     });
@@ -969,8 +979,9 @@ export class TripsService {
       plannedCompletionAt: trip.plannedCompletionAt,
     });
 
-    const patch: Partial<Pick<typeof trip, 'departureAt' | 'arrivedAt' | 'returnAt'>> =
-      {};
+    const patch: Partial<
+      Pick<typeof trip, 'departureAt' | 'arrivedAt' | 'returnAt'>
+    > = {};
     for (const delta of deltas) {
       patch[delta.field] = delta.next;
     }
@@ -978,7 +989,8 @@ export class TripsService {
     await this.tripsRepo.update({ id: trip.id, companyId }, patch);
 
     const openedAt = new Date();
-    const authorDisplayName = user.name?.trim() || user.username?.trim() || 'Usuario';
+    const authorDisplayName =
+      user.name?.trim() || user.username?.trim() || 'Usuario';
     await this.incidentsRepo.save(
       this.incidentsRepo.create({
         tripId: trip.id,
@@ -1018,6 +1030,7 @@ export class TripsService {
     companyId: number,
     tripId: number,
     collected: boolean,
+    actor?: AuthUser,
   ) {
     const trip = await this.getTripEntity(companyId, tripId);
     if (trip.hasClientBilling === false) {
@@ -1030,12 +1043,36 @@ export class TripsService {
         'Solo maniobras completadas o canceladas pueden marcarse como cobradas.',
       );
     }
+    if ((trip.clientCollectedAt != null) === collected) {
+      return this.findOne(companyId, tripId);
+    }
     await this.tripsRepo.update(
       { id: trip.id, companyId },
       {
         clientCollectedAt: collected ? new Date() : null,
       },
     );
+    const maneuverRef = trip.maneuverCode?.trim() || `#${trip.id}`;
+    const clientLabel = trip.clientName?.trim() || 'Cliente';
+    await this.activityEvents.record({
+      companyId,
+      kind: collected
+        ? COMPANY_ACTIVITY_KIND.PAYMENT_CONFIRMED
+        : COMPANY_ACTIVITY_KIND.PAYMENT_REVERTED,
+      entityType: 'trip',
+      entityId: trip.id,
+      subjectLabel: `${clientLabel} · maniobra ${maneuverRef}`,
+      title: collected
+        ? 'Cobro a cliente confirmado'
+        : 'Confirmación de cobro a cliente removida',
+      actor,
+      metadata: {
+        tripId: trip.id,
+        clientId: trip.clientId,
+        amount: Number(trip.clientCharge ?? 0),
+        collected,
+      },
+    });
     return this.findOne(companyId, tripId);
   }
 
@@ -1048,19 +1085,12 @@ export class TripsService {
       throw new BadRequestException('La maniobra ya fue eliminada.');
     }
 
-    const equipmentIds = (trip.tripEquipment ?? []).map((row) => row.equipmentId);
+    const equipmentIds = (trip.tripEquipment ?? []).map(
+      (row) => row.equipmentId,
+    );
     const activeFleetStatuses = new Set(['scheduled', 'in_transit']);
     const releasesFleet = activeFleetStatuses.has(trip.status);
     const wasCompleted = trip.status === 'completed';
-
-    const discardedExpenses = await this.expensesService.discardByTripId(
-      companyId,
-      trip.id,
-    );
-
-    if (wasCompleted) {
-      await this.unitTripOdometer.reverseCreditForTrip(trip);
-    }
 
     const deletedAt = new Date();
     const deletedBy =
@@ -1069,12 +1099,32 @@ export class TripsService {
       actor.role?.trim() ||
       'admin';
 
-    await this.tripsRepo.update(
-      { id: trip.id, companyId },
-      {
-        deletedAt,
-        deletedBy,
-        ...(releasesFleet ? { status: 'cancelled' } : {}),
+    // Descartar gastos, revertir odómetro y marcar la eliminación son un
+    // todo-o-nada: sin transacción un fallo intermedio dejaría cabos sueltos.
+    const discardedExpenses = await this.tripsRepo.manager.transaction(
+      async (em) => {
+        const discarded = await this.expensesService.discardByTripId(
+          companyId,
+          trip.id,
+          em,
+        );
+
+        if (wasCompleted) {
+          await this.unitTripOdometer.reverseCreditForTrip(trip, em);
+        }
+
+        // Sin rastro en el feed de notificaciones/actividad.
+        await this.activityEvents.purgeForTrip(companyId, trip.id, em);
+
+        await em.getRepository(Trip).update(
+          { id: trip.id, companyId },
+          {
+            deletedAt,
+            deletedBy,
+            ...(releasesFleet ? { status: 'cancelled' } : {}),
+          },
+        );
+        return discarded;
       },
     );
 
@@ -1102,10 +1152,7 @@ export class TripsService {
     };
   }
 
-  private logInvalidCreateAttempt(
-    companyId: number,
-    dto: CreateTripDto,
-  ): void {
+  private logInvalidCreateAttempt(companyId: number, dto: CreateTripDto): void {
     this.logger.warn({
       event_type: 'trip.invalid_create_attempt',
       reason: MISSING_PLANNED_FIELDS_REASON,
@@ -1145,7 +1192,9 @@ export class TripsService {
     return trip;
   }
 
-  private async loadAuthorLookup(companyId: number): Promise<IncidentAuthorLookup> {
+  private async loadAuthorLookup(
+    companyId: number,
+  ): Promise<IncidentAuthorLookup> {
     const [users, operators] = await Promise.all([
       this.usersRepo.find({
         where: { companyId },
@@ -1160,8 +1209,9 @@ export class TripsService {
   }
 
   private async nextManeuverSequence(companyId: number): Promise<number> {
+    // Solo maniobras vivas: el folio de una eliminada queda liberado.
     const rows = await this.tripsRepo.find({
-      where: { companyId },
+      where: { companyId, deletedAt: IsNull() },
       select: ['maneuverCode'],
     });
     let max = 0;
@@ -1174,40 +1224,29 @@ export class TripsService {
     return max + 1;
   }
 
-  private async syncEquipment(tripId: number, equipmentIds: number[]) {
-    await this.tripEquipmentRepo.delete({ tripId });
+  private async syncEquipment(
+    tripId: number,
+    equipmentIds: number[],
+    manager?: EntityManager,
+  ) {
+    const repo = manager
+      ? manager.getRepository(TripEquipment)
+      : this.tripEquipmentRepo;
+    await repo.delete({ tripId });
     const rows = equipmentIds.slice(0, 2).map((equipmentId, index) =>
-      this.tripEquipmentRepo.create({
+      repo.create({
         tripId,
         equipmentId,
         position: index + 1,
       }),
     );
     if (rows.length) {
-      await this.tripEquipmentRepo.save(rows);
+      await repo.save(rows);
     }
   }
 
   private normalizeCargoDescription(value: string): string {
     return value.trim().replace(/\s+/g, ' ');
-  }
-
-  private async rollbackCreatedTrip(
-    companyId: number,
-    tripId: number,
-    resources: {
-      unitId: number | null;
-      operatorId: number | null;
-      equipmentIds: number[];
-    },
-  ): Promise<void> {
-    await this.tripEquipmentRepo.delete({ tripId });
-    await this.tripsRepo.delete({ id: tripId, companyId });
-    await this.fleetStatusSync.reconcileReleasedFleetResources(companyId, {
-      unitIds: resources.unitId != null ? [resources.unitId] : [],
-      operatorIds: resources.operatorId != null ? [resources.operatorId] : [],
-      equipmentIds: resources.equipmentIds,
-    });
   }
 
   private async resolveClientId(
@@ -1296,7 +1335,8 @@ export class TripsService {
     versionSnapshot: number;
     maxEquipmentCountSnapshot: number;
   }> {
-    const code = normalizeOperationConfigCode(rawCode) || rawCode.trim().toLowerCase();
+    const code =
+      normalizeOperationConfigCode(rawCode) || rawCode.trim().toLowerCase();
     if (!code) {
       return {
         code: '',
@@ -1305,7 +1345,10 @@ export class TripsService {
         maxEquipmentCountSnapshot: 1,
       };
     }
-    const config = await this.operationConfigurations.findByCode(companyId, code);
+    const config = await this.operationConfigurations.findByCode(
+      companyId,
+      code,
+    );
     if (config) {
       return {
         code: config.code,
@@ -1368,7 +1411,10 @@ export class TripsService {
     if (routeDistanceKm === undefined || routeDistanceKm === null) {
       return undefined;
     }
-    const breakdown = resolveTripOperationalDistance(routeDistanceKm, isRoundTrip);
+    const breakdown = resolveTripOperationalDistance(
+      routeDistanceKm,
+      isRoundTrip,
+    );
     return {
       routeDistanceKm: String(breakdown.routeDistanceKm),
       operationalDistanceKm: String(breakdown.operationalDistanceKm),

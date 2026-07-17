@@ -1,7 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
-import { formatCompactRouteEndpoint, formatCompactTripRouteLabel } from 'src/common/utils/trip-route-label.util';
+import { In, IsNull, Repository } from 'typeorm';
+import {
+  formatCompactRouteEndpoint,
+  formatCompactTripRouteLabel,
+} from 'src/common/utils/trip-route-label.util';
 import { buildUnitOperationalId } from 'src/common/utils/unit-operational-id.util';
 import { toIsoString } from 'src/common/utils/iso-date.util';
 import { Equipment } from 'src/equipment/entities/equipment.entity';
@@ -26,10 +29,7 @@ import {
   type FleetMetaLike,
 } from './fleet-overview-maintenance.util';
 import { companyMaintenancePolicyContext } from 'src/units/company-maintenance-policy.util';
-import {
-  daysWithoutManeuverSince,
-  resolveTripEndedAt,
-} from './fleet-overview-idle.util';
+import { daysWithoutManeuverSince } from './fleet-overview-idle.util';
 
 function metaString(
   meta: Record<string, unknown> | undefined,
@@ -45,9 +45,8 @@ function toFleetMetaLike(
   if (!meta) {
     return undefined;
   }
-  return meta as FleetMetaLike;
+  return meta;
 }
-
 
 function convoyTypeFromCount(count: number): FleetOverviewEquipmentConvoyType {
   if (count <= 0) {
@@ -82,7 +81,6 @@ function buildEquipmentOperationalCode(eq: Equipment): string {
   }
   return String(eq.id);
 }
-
 
 function parseOperationalKm(
   raw: string | number | null | undefined,
@@ -150,8 +148,7 @@ function pickActiveTripForUnit(
     .filter((t) => t.status === 'scheduled')
     .slice()
     .sort(
-      (a, b) =>
-        a.plannedDepartureAt.getTime() - b.plannedDepartureAt.getTime(),
+      (a, b) => a.plannedDepartureAt.getTime() - b.plannedDepartureAt.getTime(),
     );
   return scheduled[0] ?? null;
 }
@@ -189,8 +186,17 @@ export class FleetOverviewService {
       tripIdFilter == null ? null : new Set<number>(tripIdFilter);
 
     const tripWhere = allowedTripIds
-      ? { companyId, status: In([...TRIP_FLEET_ACTIVE_STATUSES]), id: In([...allowedTripIds]) }
-      : { companyId, status: In([...TRIP_FLEET_ACTIVE_STATUSES]) };
+      ? {
+          companyId,
+          status: In([...TRIP_FLEET_ACTIVE_STATUSES]),
+          id: In([...allowedTripIds]),
+          deletedAt: IsNull(),
+        }
+      : {
+          companyId,
+          status: In([...TRIP_FLEET_ACTIVE_STATUSES]),
+          deletedAt: IsNull(),
+        };
 
     const trips = await this.tripsRepo.find({
       where: tripWhere,
@@ -203,80 +209,77 @@ export class FleetOverviewService {
     }
 
     const unitIds = allowedTripIds
-      ? [...new Set(trips.map((trip) => trip.unitId).filter((id): id is number => id != null))]
+      ? [
+          ...new Set(
+            trips
+              .map((trip) => trip.unitId)
+              .filter((id): id is number => id != null),
+          ),
+        ]
       : null;
 
     if (allowedTripIds && (unitIds == null || unitIds.length === 0)) {
       return { items: [], equipment: [] };
     }
 
-    const [units, equipment, configs, endedTrips, company] = await Promise.all([
-      unitIds
-        ? this.unitsRepo.find({
-            where: { companyId, id: In(unitIds) },
-            relations: ['fleetProfile', 'maintenanceEntries', 'fleetDocuments', 'equipment'],
-            order: { plate: 'ASC' },
-          })
-        : this.unitsRepo.find({
-            where: { companyId },
-            relations: ['fleetProfile', 'maintenanceEntries', 'fleetDocuments', 'equipment'],
-            order: { plate: 'ASC' },
-          }),
-      unitIds
-        ? this.equipmentRepo.find({
-            where: { companyId, unitId: In(unitIds) },
-            relations: ['fleetProfile', 'maintenanceEntries', 'fleetDocuments'],
-            order: { name: 'ASC' },
-          })
-        : this.equipmentRepo.find({
-            where: { companyId },
-            relations: ['fleetProfile', 'maintenanceEntries', 'fleetDocuments'],
-            order: { name: 'ASC' },
-          }),
-      this.configsRepo.find({
-        where: { companyId, active: true },
-        order: { name: 'ASC' },
-      }),
-      unitIds
-        ? this.tripsRepo.find({
-            where: {
-              companyId,
-              status: In(['completed', 'cancelled']),
-              unitId: In(unitIds),
-            },
-            select: [
-              'id',
-              'unitId',
-              'completedAt',
-              'returnAt',
-              'plannedCompletionAt',
-              'statusChangedAt',
-              'updatedAt',
-            ],
-          })
-        : this.tripsRepo.find({
-            where: { companyId, status: In(['completed', 'cancelled']) },
-            select: [
-              'id',
-              'unitId',
-              'completedAt',
-              'returnAt',
-              'plannedCompletionAt',
-              'statusChangedAt',
-              'updatedAt',
-            ],
-          }),
-      this.companiesRepo.findOne({
-        where: { id: companyId },
-        select: [
-          'id',
-          'maintenanceKmControlEnabled',
-          'maintenanceKmIntervalDefault',
-          'maintenanceDateControlEnabled',
-          'maintenanceDatePeriodDefault',
-        ],
-      }),
-    ]);
+    const [units, equipment, configs, lastEndedAtByUnitId, company] =
+      await Promise.all([
+        unitIds
+          ? this.unitsRepo.find({
+              where: { companyId, id: In(unitIds) },
+              relations: [
+                'fleetProfile',
+                'maintenanceEntries',
+                'fleetDocuments',
+                'equipment',
+              ],
+              order: { plate: 'ASC' },
+            })
+          : this.unitsRepo.find({
+              where: { companyId },
+              relations: [
+                'fleetProfile',
+                'maintenanceEntries',
+                'fleetDocuments',
+                'equipment',
+              ],
+              order: { plate: 'ASC' },
+            }),
+        unitIds
+          ? this.equipmentRepo.find({
+              where: { companyId, unitId: In(unitIds) },
+              relations: [
+                'fleetProfile',
+                'maintenanceEntries',
+                'fleetDocuments',
+              ],
+              order: { name: 'ASC' },
+            })
+          : this.equipmentRepo.find({
+              where: { companyId },
+              relations: [
+                'fleetProfile',
+                'maintenanceEntries',
+                'fleetDocuments',
+              ],
+              order: { name: 'ASC' },
+            }),
+        this.configsRepo.find({
+          where: { companyId, active: true },
+          order: { name: 'ASC' },
+        }),
+        this.queryLastEndedAtByUnit(companyId, unitIds),
+        this.companiesRepo.findOne({
+          where: { id: companyId },
+          select: [
+            'id',
+            'maintenanceKmControlEnabled',
+            'maintenanceKmIntervalDefault',
+            'maintenanceDateControlEnabled',
+            'maintenanceDatePeriodDefault',
+          ],
+        }),
+      ]);
 
     const maintenancePolicy = companyMaintenancePolicyContext(company);
 
@@ -292,21 +295,6 @@ export class FleetOverviewService {
       const list = equipmentByUnitId.get(eq.unitId) ?? [];
       list.push(eq);
       equipmentByUnitId.set(eq.unitId, list);
-    }
-
-    const lastEndedAtByUnitId = new Map<number, Date>();
-    for (const trip of endedTrips) {
-      if (trip.unitId == null) {
-        continue;
-      }
-      const endedAt = resolveTripEndedAt(trip);
-      if (!endedAt) {
-        continue;
-      }
-      const prev = lastEndedAtByUnitId.get(trip.unitId);
-      if (!prev || endedAt.getTime() > prev.getTime()) {
-        lastEndedAtByUnitId.set(trip.unitId, endedAt);
-      }
     }
 
     const tripsByUnitId = new Map<number, Trip[]>();
@@ -331,14 +319,16 @@ export class FleetOverviewService {
         tripsByUnitId,
         allowedTripIds ?? undefined,
       );
-      const operationalStatus = this.fleetStatusResolver.resolveOverviewOperationalStatus({
-        persistedStatus: unit.status,
-        activeTripStatus:
-          activeTrip?.status === 'in_transit' || activeTrip?.status === 'scheduled'
-            ? activeTrip.status
-            : undefined,
-        isActive: unit.isActive !== false,
-      });
+      const operationalStatus =
+        this.fleetStatusResolver.resolveOverviewOperationalStatus({
+          persistedStatus: unit.status,
+          activeTripStatus:
+            activeTrip?.status === 'in_transit' ||
+            activeTrip?.status === 'scheduled'
+              ? activeTrip.status
+              : undefined,
+          isActive: unit.isActive !== false,
+        });
       const unitMetaRaw = profileToFleetMeta(
         unit.fleetProfile,
         unit.maintenanceEntries,
@@ -388,13 +378,18 @@ export class FleetOverviewService {
           origin: routeLabel,
           destination: formatCompactRouteEndpoint(activeTrip.destination),
           status: tripStatus(activeTrip.status),
-          plannedDepartureAt: toIsoString(activeTrip.plannedDepartureAt) ?? undefined,
-          plannedArrivalAt: toIsoString(activeTrip.plannedArrivalAt) ?? undefined,
-          plannedCompletionAt: toIsoString(activeTrip.plannedCompletionAt) ?? undefined,
+          plannedDepartureAt:
+            toIsoString(activeTrip.plannedDepartureAt) ?? undefined,
+          plannedArrivalAt:
+            toIsoString(activeTrip.plannedArrivalAt) ?? undefined,
+          plannedCompletionAt:
+            toIsoString(activeTrip.plannedCompletionAt) ?? undefined,
           departureAt: toIsoString(exposedActual.departureAt) ?? undefined,
           arrivedAt: toIsoString(exposedActual.arrivedAt) ?? undefined,
           returnAt: toIsoString(exposedActual.returnAt) ?? undefined,
-          operationalDistanceKm: parseOperationalKm(activeTrip.operationalDistanceKm),
+          operationalDistanceKm: parseOperationalKm(
+            activeTrip.operationalDistanceKm,
+          ),
           operatorName: resolveOperatorDisplayName(activeTrip),
         };
       } else {
@@ -435,66 +430,74 @@ export class FleetOverviewService {
       return item;
     });
 
-    const equipmentRows: FleetOverviewEquipmentRowDto[] = activeEquipment.map((eq) => {
-      const unit = activeUnits.find((u) => u.id === eq.unitId);
-      const activeTrip =
-        (eq.unitId != null
-          ? pickActiveTripForUnit(
-              eq.unitId,
-              tripsByUnitId,
-              allowedTripIds ?? undefined,
-            )
-          : null) ?? tripByEquipmentId.get(eq.id) ?? null;
-      const metaRaw = equipmentProfileToFleetMeta(
-        eq.fleetProfile,
-        eq.maintenanceEntries,
-        eq.fleetDocuments,
-      );
-      const meta = toFleetMetaLike(metaRaw);
-      const brand =
-        metaString(metaRaw, 'trailerBrandName')?.trim() ||
-        eq.trailerBrandAbbr?.trim() ||
-        '—';
-      const modelParts = [
-        eq.trailerYear?.trim(),
-        metaString(metaRaw, 'trailerVersion')?.trim(),
-      ].filter(Boolean);
-      const maint =
-        activeTrip == null ? buildMaintenanceSummary(meta, maintenancePolicy) : undefined;
+    const equipmentRows: FleetOverviewEquipmentRowDto[] = activeEquipment.map(
+      (eq) => {
+        const unit = activeUnits.find((u) => u.id === eq.unitId);
+        const activeTrip =
+          (eq.unitId != null
+            ? pickActiveTripForUnit(
+                eq.unitId,
+                tripsByUnitId,
+                allowedTripIds ?? undefined,
+              )
+            : null) ??
+          tripByEquipmentId.get(eq.id) ??
+          null;
+        const metaRaw = equipmentProfileToFleetMeta(
+          eq.fleetProfile,
+          eq.maintenanceEntries,
+          eq.fleetDocuments,
+        );
+        const meta = toFleetMetaLike(metaRaw);
+        const brand =
+          metaString(metaRaw, 'trailerBrandName')?.trim() ||
+          eq.trailerBrandAbbr?.trim() ||
+          '—';
+        const modelParts = [
+          eq.trailerYear?.trim(),
+          metaString(metaRaw, 'trailerVersion')?.trim(),
+        ].filter(Boolean);
+        const maint =
+          activeTrip == null
+            ? buildMaintenanceSummary(meta, maintenancePolicy)
+            : undefined;
 
-      return {
-        equipmentId: eq.id,
-        unitId: eq.unitId ?? null,
-        unitName: unit ? buildUnitOperationalId(unit) : null,
-        operationalCode: buildEquipmentOperationalCode(eq),
-        alias: eq.name?.trim() || undefined,
-        brand,
-        model: modelParts.length ? modelParts.join(' · ') : '—',
-        plate: eq.plate?.trim() || '—',
-        equipmentType: (eq.type ?? '').trim() || '—',
-        operationalStatus: this.fleetStatusResolver.resolveOverviewOperationalStatus({
-          persistedStatus: eq.status,
-          activeTripStatus:
-            activeTrip?.status === 'in_transit' || activeTrip?.status === 'scheduled'
-              ? activeTrip.status
-              : undefined,
-          isActive: eq.isActive !== false,
-        }),
-        maintenance: maint
-          ? {
-              lastMaintenanceDate: maint.lastMaintenanceDate,
-              nextMaintenanceDate: maint.nextMaintenanceDate,
-              kmSinceLastMaintenance: maint.kmSinceLastMaintenance,
-              tireStatus: maint.tireStatus,
-              insuranceStatus: maint.insuranceStatus,
-              inspectionStatus: maint.inspectionStatus,
-              maintenanceRenewal: maint.maintenanceRenewal,
-              insuranceRenewal: maint.insuranceRenewal,
-              inspectionRenewal: maint.inspectionRenewal,
-            }
-          : undefined,
-      };
-    });
+        return {
+          equipmentId: eq.id,
+          unitId: eq.unitId ?? null,
+          unitName: unit ? buildUnitOperationalId(unit) : null,
+          operationalCode: buildEquipmentOperationalCode(eq),
+          alias: eq.name?.trim() || undefined,
+          brand,
+          model: modelParts.length ? modelParts.join(' · ') : '—',
+          plate: eq.plate?.trim() || '—',
+          equipmentType: (eq.type ?? '').trim() || '—',
+          operationalStatus:
+            this.fleetStatusResolver.resolveOverviewOperationalStatus({
+              persistedStatus: eq.status,
+              activeTripStatus:
+                activeTrip?.status === 'in_transit' ||
+                activeTrip?.status === 'scheduled'
+                  ? activeTrip.status
+                  : undefined,
+              isActive: eq.isActive !== false,
+            }),
+          maintenance: maint
+            ? {
+                lastMaintenanceDate: maint.lastMaintenanceDate,
+                nextMaintenanceDate: maint.nextMaintenanceDate,
+                kmSinceLastMaintenance: maint.kmSinceLastMaintenance,
+                tireStatus: maint.tireStatus,
+                insuranceStatus: maint.insuranceStatus,
+                inspectionStatus: maint.inspectionStatus,
+                maintenanceRenewal: maint.maintenanceRenewal,
+                insuranceRenewal: maint.insuranceRenewal,
+                inspectionRenewal: maint.inspectionRenewal,
+              }
+            : undefined,
+        };
+      },
+    );
 
     const filteredItems = allowedTripIds
       ? items.filter(
@@ -521,5 +524,65 @@ export class FleetOverviewService {
     });
 
     return { items: filteredItems, equipment: filteredEquipmentRows };
+  }
+
+  /**
+   * Última fecha de fin de maniobra por unidad (para «días sin maniobra»),
+   * agregada en SQL: antes se cargaba el historial completo de terminadas
+   * solo para calcular este máximo en JS.
+   */
+  private async queryLastEndedAtByUnit(
+    companyId: number,
+    unitIds: readonly number[] | null,
+  ): Promise<Map<number, Date>> {
+    const schema = this.tripsRepo.metadata.schema;
+    const params: unknown[] = [companyId];
+    let unitFilter = '';
+    if (unitIds != null) {
+      if (unitIds.length === 0) {
+        return new Map();
+      }
+      params.push(unitIds);
+      unitFilter = 'AND trip.unit_id = ANY($2::int[])';
+    }
+    const rows: Array<{
+      unit_id: number;
+      last_ended_at: Date | string | null;
+    }> = await this.tripsRepo.query(
+      `
+      SELECT
+        trip.unit_id AS unit_id,
+        MAX(COALESCE(
+          trip.completed_at,
+          trip.return_at,
+          trip.planned_completion_at,
+          trip.status_changed_at,
+          trip.updated_at
+        )) AS last_ended_at
+      FROM ${schema}.trips trip
+      WHERE trip.company_id = $1
+        AND trip.deleted_at IS NULL
+        AND trip.status IN ('completed', 'cancelled')
+        AND trip.unit_id IS NOT NULL
+        ${unitFilter}
+      GROUP BY trip.unit_id
+      `,
+      params,
+    );
+
+    const map = new Map<number, Date>();
+    for (const row of rows) {
+      if (row.last_ended_at == null) {
+        continue;
+      }
+      const d =
+        row.last_ended_at instanceof Date
+          ? row.last_ended_at
+          : new Date(row.last_ended_at);
+      if (!Number.isNaN(d.getTime())) {
+        map.set(Number(row.unit_id), d);
+      }
+    }
+    return map;
   }
 }

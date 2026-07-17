@@ -38,7 +38,9 @@ function policyYearStart(contractDate: Date, referenceDate: Date): Date {
   return addMonths(contractDate, yearIndex * 12);
 }
 
-function parsePositiveCost(raw: string | number | null | undefined): number | null {
+function parsePositiveCost(
+  raw: string | number | null | undefined,
+): number | null {
   if (raw == null || raw === '') return null;
   const amount = Number(raw);
   return Number.isFinite(amount) && amount > 0 ? amount : null;
@@ -63,53 +65,63 @@ export class FleetGpsExpenseSyncService {
     const cost = parsePositiveCost(profile.gpsPrice);
     if (cost == null) return;
 
-    const existing = await this.expensesService.findScheduledExpenses(
-      companyId,
-      'gps',
-      { relatedUnitId },
-    );
+    // Descartar y regenerar el calendario de GPS de forma atómica.
+    await this.expensesService.runInTransaction(async (manager) => {
+      const existing = await this.expensesService.findScheduledExpenses(
+        companyId,
+        'gps',
+        { relatedUnitId },
+        manager,
+      );
 
-    const paidByDate = new Map<string, true>();
-    for (const e of existing) {
-      if (e.paidAt != null) {
-        paidByDate.set(formatOperationalIncurredDateYmd(e.incurredAt), true);
+      const paidByDate = new Map<string, true>();
+      for (const e of existing) {
+        if (e.paidAt != null) {
+          paidByDate.set(formatOperationalIncurredDateYmd(e.incurredAt), true);
+        }
       }
-    }
 
-    await this.expensesService.discardUnpaidScheduledExpenses(
-      companyId,
-      'gps',
-      { relatedUnitId },
-    );
+      await this.expensesService.discardUnpaidScheduledExpenses(
+        companyId,
+        'gps',
+        { relatedUnitId },
+        manager,
+      );
 
-    const cadence = (profile.gpsPaymentCadence ?? '').trim();
-    const provider = (profile.gpsProviderBrand ?? '').trim() || undefined;
-    const paymentMethod = (profile.gpsPaymentMethod ?? '').trim() || undefined;
-    const invoiceRequired = profile.gpsInvoiceRequired === true;
-    const category = gpsServiceConceptLabel(cadence);
+      const cadence = (profile.gpsPaymentCadence ?? '').trim();
+      const provider = (profile.gpsProviderBrand ?? '').trim() || undefined;
+      const paymentMethod =
+        (profile.gpsPaymentMethod ?? '').trim() || undefined;
+      const invoiceRequired = profile.gpsInvoiceRequired === true;
+      const category = gpsServiceConceptLabel(cadence);
 
-    const drafts: Array<CreateExpenseDto & { paidAt?: string | null }> = [];
+      const drafts: Array<CreateExpenseDto & { paidAt?: string | null }> = [];
 
-    for (const dueDate of dueDates) {
-      if (paidByDate.has(dueDate)) continue;
+      for (const dueDate of dueDates) {
+        if (paidByDate.has(dueDate)) continue;
 
-      const description = buildGpsPaymentExpenseDescription(profile, dueDate);
+        const description = buildGpsPaymentExpenseDescription(profile, dueDate);
 
-      drafts.push({
-        category,
-        amount: cost,
-        incurredAt: dueDate,
-        kind: 'gps',
-        relatedUnitId: String(relatedUnitId),
-        description,
-        vendor: provider,
-        paymentMethod,
-        invoiceRequired,
-        paidAt: null,
-      });
-    }
+        drafts.push({
+          category,
+          amount: cost,
+          incurredAt: dueDate,
+          kind: 'gps',
+          relatedUnitId: String(relatedUnitId),
+          description,
+          vendor: provider,
+          paymentMethod,
+          invoiceRequired,
+          paidAt: null,
+        });
+      }
 
-    await this.expensesService.bulkCreateScheduledExpenses(companyId, drafts);
+      await this.expensesService.bulkCreateScheduledExpenses(
+        companyId,
+        drafts,
+        manager,
+      );
+    });
   }
 
   private buildFullScheduleDueDates(profile: GpsProfileLike): string[] {

@@ -39,7 +39,9 @@ function policyYearStart(contractDate: Date, referenceDate: Date): Date {
   return addMonths(contractDate, yearIndex * 12);
 }
 
-function parsePositiveCost(raw: string | number | null | undefined): number | null {
+function parsePositiveCost(
+  raw: string | number | null | undefined,
+): number | null {
   if (raw == null || raw === '') return null;
   const amount = Number(raw);
   return Number.isFinite(amount) && amount > 0 ? amount : null;
@@ -56,7 +58,13 @@ export class FleetInsuranceExpenseSyncService {
     relatedEquipmentId?: number;
     profile: InsuranceProfileLike;
   }): Promise<void> {
-    const { companyId, insuranceTarget, relatedUnitId, relatedEquipmentId, profile } = params;
+    const {
+      companyId,
+      insuranceTarget,
+      relatedUnitId,
+      relatedEquipmentId,
+      profile,
+    } = params;
 
     const dueDates = this.buildFullScheduleDueDates(profile);
     if (dueDates.length === 0) return;
@@ -64,55 +72,70 @@ export class FleetInsuranceExpenseSyncService {
     const cost = parsePositiveCost(profile.insuranceCost);
     if (cost == null) return;
 
-    const existing = await this.expensesService.findScheduledExpenses(
-      companyId,
-      'insurance',
-      { relatedUnitId, relatedEquipmentId, insuranceTarget },
-    );
+    // Descartar y regenerar el calendario de pólizas de forma atómica.
+    await this.expensesService.runInTransaction(async (manager) => {
+      const existing = await this.expensesService.findScheduledExpenses(
+        companyId,
+        'insurance',
+        { relatedUnitId, relatedEquipmentId, insuranceTarget },
+        manager,
+      );
 
-    const paidByDate = new Map<string, true>();
-    for (const e of existing) {
-      if (e.paidAt != null) {
-        paidByDate.set(formatOperationalIncurredDateYmd(e.incurredAt), true);
+      const paidByDate = new Map<string, true>();
+      for (const e of existing) {
+        if (e.paidAt != null) {
+          paidByDate.set(formatOperationalIncurredDateYmd(e.incurredAt), true);
+        }
       }
-    }
 
-    await this.expensesService.discardUnpaidScheduledExpenses(
-      companyId,
-      'insurance',
-      { relatedUnitId, relatedEquipmentId, insuranceTarget },
-    );
+      await this.expensesService.discardUnpaidScheduledExpenses(
+        companyId,
+        'insurance',
+        { relatedUnitId, relatedEquipmentId, insuranceTarget },
+        manager,
+      );
 
-    const cadence = (profile.insurancePaymentCadence ?? '').trim();
-    const carrier = (profile.insuranceCarrierName ?? '').trim() || undefined;
-    const paymentMethod = (profile.insurancePaymentMethod ?? '').trim() || undefined;
-    const invoiceRequired = profile.insuranceInvoiceRequired === true;
-    const category = insurancePolicyConceptLabel(cadence);
+      const cadence = (profile.insurancePaymentCadence ?? '').trim();
+      const carrier = (profile.insuranceCarrierName ?? '').trim() || undefined;
+      const paymentMethod =
+        (profile.insurancePaymentMethod ?? '').trim() || undefined;
+      const invoiceRequired = profile.insuranceInvoiceRequired === true;
+      const category = insurancePolicyConceptLabel(cadence);
 
-    const drafts: Array<CreateExpenseDto & { paidAt?: string | null }> = [];
+      const drafts: Array<CreateExpenseDto & { paidAt?: string | null }> = [];
 
-    for (const dueDate of dueDates) {
-      if (paidByDate.has(dueDate)) continue;
+      for (const dueDate of dueDates) {
+        if (paidByDate.has(dueDate)) continue;
 
-      const description = buildInsurancePaymentExpenseDescription(profile, dueDate);
+        const description = buildInsurancePaymentExpenseDescription(
+          profile,
+          dueDate,
+        );
 
-      drafts.push({
-        category,
-        amount: cost,
-        incurredAt: dueDate,
-        kind: 'insurance',
-        insuranceTarget,
-        relatedUnitId: relatedUnitId != null ? String(relatedUnitId) : undefined,
-        relatedEquipmentId: relatedEquipmentId != null ? String(relatedEquipmentId) : undefined,
-        description,
-        vendor: carrier,
-        paymentMethod,
-        invoiceRequired,
-        paidAt: null,
-      });
-    }
+        drafts.push({
+          category,
+          amount: cost,
+          incurredAt: dueDate,
+          kind: 'insurance',
+          insuranceTarget,
+          relatedUnitId:
+            relatedUnitId != null ? String(relatedUnitId) : undefined,
+          relatedEquipmentId:
+            relatedEquipmentId != null ? String(relatedEquipmentId) : undefined,
+          description,
+          vendor: carrier,
+          paymentMethod,
+          invoiceRequired,
+          paidAt: null,
+        });
+      }
 
-    await this.expensesService.bulkCreateScheduledExpenses(companyId, drafts);
+      await this.expensesService.bulkCreateScheduledExpenses(
+        companyId,
+        drafts,
+        manager,
+      );
+    });
   }
 
   private buildFullScheduleDueDates(profile: InsuranceProfileLike): string[] {
@@ -177,7 +200,10 @@ export class FleetInsuranceExpenseSyncService {
     previous: InsuranceProfileLike | null | undefined;
     incoming?: InsuranceProfileLike;
   }): Promise<boolean> {
-    const merged = mergeInsuranceProfile(params.previous, params.incoming ?? {});
+    const merged = mergeInsuranceProfile(
+      params.previous,
+      params.incoming ?? {},
+    );
     await this.ensureAllInsuranceInstallments({
       companyId: params.companyId,
       insuranceTarget: params.insuranceTarget,

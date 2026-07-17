@@ -28,15 +28,15 @@ export class ListExpensesQueryDto {
   page?: number;
 
   @ApiPropertyOptional({
-    description: 'Filas por página. Omitir o 0 para devolver todo el rango.',
+    description: 'Filas por página (máximo 100).',
     default: 15,
-    minimum: 0,
+    minimum: 1,
     maximum: 100,
   })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
-  @Min(0)
+  @Min(1)
   @Max(100)
   limit?: number;
 

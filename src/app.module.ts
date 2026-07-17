@@ -40,7 +40,10 @@ import EnvConfig from './types/env-config.type';
         migrations: typeOrmMigrationGlobsFromDir(__dirname),
         migrationsTableName: 'migrations_list',
         migrationsTransactionMode: 'each',
-        migrationsRun: true,
+        // Las migraciones corren UNA sola vez en el paso previo al arranque
+        // (`migration:run:server` → migrate.ts, con advisory lock). Correrlas
+        // también aquí las duplicaría en cada instancia/réplica del deploy.
+        migrationsRun: false,
         autoLoadEntities: true,
         ssl: false,
         synchronize: false,

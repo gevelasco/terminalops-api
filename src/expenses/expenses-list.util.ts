@@ -15,8 +15,8 @@ export const EXPENSE_LIST_DEFAULT_LIMIT = 15;
 export const EXPENSE_LIST_ALLOWED_LIMITS = [10, 15, 25, 50, 100] as const;
 
 export function normalizeExpenseListLimit(limit?: number): number {
-  if (limit == null || limit === 0) {
-    return 0;
+  if (limit == null) {
+    return EXPENSE_LIST_DEFAULT_LIMIT;
   }
   if ((EXPENSE_LIST_ALLOWED_LIMITS as readonly number[]).includes(limit)) {
     return limit;

@@ -6,6 +6,8 @@ export const COMPANY_ACTIVITY_KIND = {
   EQUIPMENT_CREATED: 'equipment.created',
   CLIENT_CREATED: 'client.created',
   COVERAGE_PAYMENT_CONFIRMED: 'coverage.payment_confirmed',
+  PAYMENT_CONFIRMED: 'payment.confirmed',
+  PAYMENT_REVERTED: 'payment.reverted',
   EXPENSE_MANUAL_CREATED: 'expense.manual_created',
   EXPENSE_UPDATED: 'expense.updated',
   CLIENT_UPDATED: 'client.updated',

@@ -50,6 +50,7 @@ import { ExpensesCalendarQueryDto } from '../expenses/dto/expenses-calendar-quer
 import { DestinationRatesService } from '../destination-rates/destination-rates.service';
 import { CreateDestinationRateDto } from '../destination-rates/dto/create-destination-rate.dto';
 import { CheckDestinationRateRouteQueryDto } from '../destination-rates/dto/check-destination-rate-route.dto';
+import { MatchDestinationRateQueryDto } from '../destination-rates/dto/match-destination-rate-query.dto';
 import { OperationConfigurationsService } from '../operation-configurations/operation-configurations.service';
 import { CreateOperationConfigurationDto } from '../operation-configurations/dto/create-operation-configuration.dto';
 import { OperationalCentersService } from '../operational-centers/operational-centers.service';
@@ -529,6 +530,22 @@ export class CompaniesController {
       companyId,
     );
     return this.destinationRatesService.checkRouteExists(tenantId, query);
+  }
+
+  @Get(':companyId/destination-rates/match')
+  @ApiOperation({
+    summary: 'Match de tarifa aplicable a una maniobra (origen + CP + localidad)',
+  })
+  async matchDestinationRate(
+    @Param('companyId', ParseIntPipe) companyId: number,
+    @Query() query: MatchDestinationRateQueryDto,
+    @LoggedUser() user: AuthUser,
+  ) {
+    const tenantId = await this.companiesService.assertAccessAndResolve(
+      user,
+      companyId,
+    );
+    return this.destinationRatesService.matchManeuverRate(tenantId, query);
   }
 
   @Get(':companyId/destination-rates')

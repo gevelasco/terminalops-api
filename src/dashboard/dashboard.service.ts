@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { IsNull, Repository } from 'typeorm';
 import { Company } from 'src/companies/entities/company.entity';
 import {
   operationalDateKey,
@@ -114,12 +114,13 @@ export class DashboardService {
       company,
     ] = await Promise.all([
       this.tripsRepo.count({
-        where: { companyId, status: 'in_transit' },
+        where: { companyId, status: 'in_transit', deletedAt: IsNull() },
       }),
       this.tripsRepo
         .createQueryBuilder('trip')
         .select(`COUNT(DISTINCT ${destinationKeySql})`, 'count')
         .where('trip.companyId = :companyId', { companyId })
+        .andWhere('trip.deleted_at IS NULL')
         .andWhere('trip.status = :status', { status: 'in_transit' })
         .getRawOne<{ count: string }>(),
       this.unitsRepo.count({
@@ -129,17 +130,19 @@ export class DashboardService {
         where: { companyId, isActive: true, status: 'available' },
       }),
       this.tripsRepo.count({
-        where: { companyId, status: 'scheduled' },
+        where: { companyId, status: 'scheduled', deletedAt: IsNull() },
       }),
       this.tripsRepo
         .createQueryBuilder('trip')
         .where('trip.companyId = :companyId', { companyId })
+        .andWhere('trip.deleted_at IS NULL')
         .andWhere('trip.status != :cancelled', { cancelled: 'cancelled' })
         .andWhere(sqlOperationalCalendarWeekRange('trip.planned_departure_at', 0))
         .getCount(),
       this.tripsRepo
         .createQueryBuilder('trip')
         .where('trip.companyId = :companyId', { companyId })
+        .andWhere('trip.deleted_at IS NULL')
         .andWhere('trip.status != :cancelled', { cancelled: 'cancelled' })
         .andWhere(sqlOperationalCalendarWeekRange('trip.planned_departure_at', -1))
         .getCount(),
@@ -147,6 +150,7 @@ export class DashboardService {
         .createQueryBuilder('trip')
         .select('MIN(trip.planned_departure_at)', 'nextAt')
         .where('trip.companyId = :companyId', { companyId })
+        .andWhere('trip.deleted_at IS NULL')
         .andWhere('trip.status = :status', { status: 'scheduled' })
         .andWhere('trip.planned_departure_at >= NOW()')
         .getRawOne<{ nextAt: Date | null }>(),
@@ -161,6 +165,7 @@ export class DashboardService {
           'receivable',
         )
         .where('trip.companyId = :companyId', { companyId })
+        .andWhere('trip.deleted_at IS NULL')
         .andWhere('trip.status = :status', { status: 'completed' })
         .andWhere('trip.completed_at IS NOT NULL')
         .andWhere(todaySql('trip.completed_at'))
@@ -168,6 +173,7 @@ export class DashboardService {
       this.tripsRepo
         .createQueryBuilder('trip')
         .where('trip.companyId = :companyId', { companyId })
+        .andWhere('trip.deleted_at IS NULL')
         .andWhere('trip.status = :status', { status: 'completed' })
         .andWhere('trip.completed_at IS NOT NULL')
         .andWhere(todaySql('trip.completed_at'))
@@ -176,11 +182,13 @@ export class DashboardService {
         .createQueryBuilder('e')
         .select('COALESCE(SUM(e.amount), 0)', 'sum')
         .where('e.companyId = :companyId', { companyId })
+        .andWhere('e.discarded_at IS NULL')
         .andWhere(todaySql('e.incurred_at'))
         .getRawOne<{ sum: string }>(),
       this.expensesRepo
         .createQueryBuilder('e')
         .where('e.companyId = :companyId', { companyId })
+        .andWhere('e.discarded_at IS NULL')
         .andWhere(todaySql('e.incurred_at'))
         .getCount(),
       this.queryTodayExpensesByKind(companyId, todaySql),
@@ -279,6 +287,7 @@ export class DashboardService {
             COUNT(*)::int AS cnt
           FROM ${this.tripsRepo.metadata.schema}.trips trip
           WHERE trip.company_id = $1
+            AND trip.deleted_at IS NULL
             AND trip.status = 'completed'
             AND trip.completed_at IS NOT NULL
             AND (trip.completed_at AT TIME ZONE '${OPERATIONAL_TZ}')::date >= ${flowStartSql}
@@ -290,6 +299,7 @@ export class DashboardService {
             COALESCE(SUM(e.amount), 0)::float AS total
           FROM ${this.expensesRepo.metadata.schema}.expenses e
           WHERE e.company_id = $1
+            AND e.discarded_at IS NULL
             AND (e.incurred_at AT TIME ZONE '${OPERATIONAL_TZ}')::date >= ${flowStartSql}
           GROUP BY 1
         ),
@@ -299,6 +309,7 @@ export class DashboardService {
             COALESCE(SUM(trip.client_charge), 0)::float AS total
           FROM ${this.tripsRepo.metadata.schema}.trips trip
           WHERE trip.company_id = $1
+            AND trip.deleted_at IS NULL
             AND trip.status = 'completed'
             AND trip.completed_at IS NOT NULL
             AND (trip.completed_at AT TIME ZONE '${OPERATIONAL_TZ}')::date >= ${flowStartSql}
@@ -332,6 +343,7 @@ export class DashboardService {
             COUNT(*)::int AS cnt
           FROM ${this.tripsRepo.metadata.schema}.trips trip
           WHERE trip.company_id = $1
+            AND trip.deleted_at IS NULL
             AND trip.status = 'completed'
             AND trip.completed_at IS NOT NULL
             AND (trip.completed_at AT TIME ZONE '${OPERATIONAL_TZ}')::date >= ${flowStartSql}
@@ -343,6 +355,7 @@ export class DashboardService {
             COUNT(*)::int AS cnt
           FROM ${this.tripsRepo.metadata.schema}.trips trip
           WHERE trip.company_id = $1
+            AND trip.deleted_at IS NULL
             AND trip.status = 'in_transit'
             AND (COALESCE(trip.departure_at, trip.planned_departure_at) AT TIME ZONE '${OPERATIONAL_TZ}')::date >= ${flowStartSql}
           GROUP BY 1
@@ -353,6 +366,7 @@ export class DashboardService {
             COUNT(*)::int AS cnt
           FROM ${this.tripsRepo.metadata.schema}.trips trip
           WHERE trip.company_id = $1
+            AND trip.deleted_at IS NULL
             AND trip.status = 'scheduled'
             AND (trip.planned_departure_at AT TIME ZONE '${OPERATIONAL_TZ}')::date >= ${flowStartSql}
           GROUP BY 1
@@ -375,6 +389,7 @@ export class DashboardService {
         .select(DESTINATION_DISPLAY_LABEL_SQL, 'destination')
         .addSelect('COUNT(*)', 'trip_count')
         .where('trip.companyId = :companyId', { companyId })
+        .andWhere('trip.deleted_at IS NULL')
         .andWhere('trip.status != :cancelled', { cancelled: 'cancelled' })
         .andWhere(
           `(trip.created_at AT TIME ZONE '${OPERATIONAL_TZ}')::date >= ${flowStartSql}`,
@@ -399,6 +414,7 @@ export class DashboardService {
         .addSelect('trip.destination', 'destination')
         .addSelect('trip.clientCharge', 'clientCharge')
         .where('trip.companyId = :companyId', { companyId })
+        .andWhere('trip.deleted_at IS NULL')
         .orderBy('COALESCE(trip.plannedDepartureAt, trip.createdAt)', 'DESC')
         .limit(6)
         .getRawMany<{
@@ -415,6 +431,7 @@ export class DashboardService {
         .addSelect('trip.operationConfigurationNameSnapshot', 'nameSnapshot')
         .addSelect('COUNT(*)', 'count')
         .where('trip.companyId = :companyId', { companyId })
+        .andWhere('trip.deleted_at IS NULL')
         .andWhere('trip.status != :cancelled', { cancelled: 'cancelled' })
         .andWhere(
           `(trip.created_at AT TIME ZONE '${OPERATIONAL_TZ}')::date >= ${flowStartSql}`,
@@ -497,6 +514,7 @@ export class DashboardService {
       .addSelect('COALESCE(SUM(e.amount), 0)', 'sum')
       .addSelect('COUNT(*)', 'count')
       .where('e.companyId = :companyId', { companyId })
+      .andWhere('e.discarded_at IS NULL')
       .andWhere('e.isOperationalProvision = false')
       .andWhere(todaySql('e.incurred_at'))
       .groupBy('e.kind')

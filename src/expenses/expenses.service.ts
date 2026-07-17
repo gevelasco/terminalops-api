@@ -1,6 +1,10 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, IsNull, In } from 'typeorm';
+import { Repository, IsNull, In, type EntityManager } from 'typeorm';
 import { isAdminRole } from 'src/common/constants/app-modules';
 import { serializeExpense } from 'src/common/serializers/expense.serializer';
 import { parseOptionalNumericId } from 'src/common/utils/tenant.util';
@@ -131,7 +135,11 @@ export class ExpensesService {
         verificationScope: relationFields.verificationScope,
         invoiceRequired: dto.invoiceRequired ?? false,
         isOperationalProvision: dto.isOperationalProvision ?? false,
-        paidAt: dto.paidAt ? parseOperationalIncurredAt(dto.paidAt) : (dto.paidAt === null ? null : undefined),
+        paidAt: dto.paidAt
+          ? parseOperationalIncurredAt(dto.paidAt)
+          : dto.paidAt === null
+            ? null
+            : undefined,
       }),
     );
     const activity = expenseActivityOnCreate(saved);
@@ -160,15 +168,17 @@ export class ExpensesService {
       perDiemPaymentMethod?: string;
       controlPaymentMethod?: string;
     } = {},
+    manager?: EntityManager,
   ): Promise<void> {
     const drafts = buildTripAutoExpenses(trip, options);
     if (drafts.length === 0) {
       return;
     }
 
-    await this.repo.save(
+    const repo = manager ? manager.getRepository(Expense) : this.repo;
+    await repo.save(
       drafts.map((draft) =>
-        this.repo.create({
+        repo.create({
           companyId,
           tripId: trip.id,
           category: draft.category,
@@ -186,10 +196,20 @@ export class ExpensesService {
     );
   }
 
-  async findAll(companyId: number, query?: ListExpensesQueryDto): Promise<ExpensesListResult> {
-    const limit = normalizeExpenseListLimit(query?.limit);
+  async findAll(
+    companyId: number,
+    query?: ListExpensesQueryDto,
+    options: { allowUnlimited?: boolean } = {},
+  ): Promise<ExpensesListResult> {
+    const limit =
+      options.allowUnlimited === true && query?.limit === 0
+        ? 0
+        : normalizeExpenseListLimit(query?.limit);
     const page = Math.max(1, query?.page ?? 1);
-    const tripFilter = await this.resolveExpenseListTripFilter(companyId, query);
+    const tripFilter = await this.resolveExpenseListTripFilter(
+      companyId,
+      query,
+    );
 
     const baseQb = this.repo.createQueryBuilder('e');
     applyExpenseListFilters(baseQb, companyId, query, tripFilter);
@@ -235,24 +255,40 @@ export class ExpensesService {
     const limit = normalizeExpenseListLimit(query.limit);
     const page = Math.max(1, query.page ?? 1);
 
-    const projectionKinds = [
-      'fuel',
-      'tolls',
-      'per_diem',
-      'operator_payment',
-      'operator_commission',
-      'verification',
-    ] as const;
+    // La proyección solo necesita:
+    // - maniobras activas (programadas/en curso): compromisos de diésel/casetas/viáticos/cuota;
+    // - completadas CON saldo pendiente al operador (las pagadas no proyectan nada aquí).
+    // Cargar el historial completo escalaba con años de datos, no con el periodo.
+    const tripsQb = this.tripsRepo
+      .createQueryBuilder('trip')
+      .where('trip.companyId = :companyId', { companyId })
+      .andWhere('trip.deleted_at IS NULL')
+      .andWhere(
+        `(
+          trip.status IN ('scheduled', 'in_transit')
+          OR (
+            trip.status = 'completed'
+            AND COALESCE(trip.operator_quota, 0) > 0
+            AND COALESCE(trip.operator_quota, 0) > (
+              SELECT COALESCE(SUM(pe.amount), 0)
+              FROM ${this.repo.metadata.schema}.expenses pe
+              WHERE pe.company_id = trip.company_id
+                AND pe.trip_id = trip.id
+                AND pe.discarded_at IS NULL
+                AND pe.kind IN ('operator_payment', 'operator_commission')
+            )
+          )
+        )`,
+      );
 
-    const [actualResult, trips, units, equipment, operators, dedupExpenses] =
+    const [actualResult, trips, units, equipment, operators] =
       await Promise.all([
-        this.findAll(companyId, { from, to, limit: 0 }),
-        this.tripsRepo.find({
-          where: {
-            companyId,
-            status: In(['scheduled', 'in_transit', 'completed']),
-          },
-        }),
+        this.findAll(
+          companyId,
+          { from, to, limit: 0 },
+          { allowUnlimited: true },
+        ),
+        tripsQb.getMany(),
         this.unitsRepo.find({
           where: { companyId },
           relations: ['fleetProfile'],
@@ -262,14 +298,40 @@ export class ExpensesService {
           relations: ['fleetProfile'],
         }),
         this.operatorsRepo.find({ where: { companyId } }),
-        this.repo.find({
-          where: {
-            companyId,
-            discardedAt: IsNull(),
-            kind: In([...projectionKinds]),
-          },
-        }),
       ]);
+
+    // Gastos de dedup acotados a lo que la proyección compara:
+    // los ligados a las maniobras cargadas + verificaciones con vencimiento en el rango.
+    const tripIds = trips.map((t) => t.id);
+    const [tripDedupExpenses, verificationDedupExpenses] = await Promise.all([
+      tripIds.length > 0
+        ? this.repo.find({
+            where: {
+              companyId,
+              discardedAt: IsNull(),
+              tripId: In(tripIds),
+              kind: In([
+                'fuel',
+                'tolls',
+                'per_diem',
+                'operator_payment',
+                'operator_commission',
+              ]),
+            },
+          })
+        : Promise.resolve([] as Expense[]),
+      this.repo
+        .createQueryBuilder('e')
+        .where('e.companyId = :companyId', { companyId })
+        .andWhere('e.discarded_at IS NULL')
+        .andWhere(`e.kind = 'verification'`)
+        .andWhere(
+          `(e.incurred_at AT TIME ZONE 'America/Mexico_City')::date BETWEEN :from::date AND :to::date`,
+          { from, to },
+        )
+        .getMany(),
+    ]);
+    const dedupExpenses = [...tripDedupExpenses, ...verificationDedupExpenses];
 
     const projection = buildExpenseCalendarProjection({
       from,
@@ -283,7 +345,11 @@ export class ExpensesService {
       actualItems: actualResult.items,
     });
 
-    const paginated = paginateExpenseCalendarEntries(projection.entries, page, limit);
+    const paginated = paginateExpenseCalendarEntries(
+      projection.entries,
+      page,
+      limit,
+    );
     const expenseById = new Map(
       actualResult.items.map((item) => [Number(item['id']), item]),
     );
@@ -310,7 +376,9 @@ export class ExpensesService {
         actualCount: projection.summary.actualCount,
         actualTotalAmount: formatTotal(projection.summary.actualTotalAmount),
         projectedCount: projection.summary.projectedCount,
-        projectedTotalAmount: formatTotal(projection.summary.projectedTotalAmount),
+        projectedTotalAmount: formatTotal(
+          projection.summary.projectedTotalAmount,
+        ),
         grandCount: projection.summary.grandCount,
         grandTotalAmount: formatTotal(projection.summary.grandTotalAmount),
       },
@@ -473,6 +541,11 @@ export class ExpensesService {
     return (await qb.getCount()) > 0;
   }
 
+  /** Transacción sobre la conexión de gastos (para discard+recreate atómico). */
+  runInTransaction<T>(fn: (manager: EntityManager) => Promise<T>): Promise<T> {
+    return this.repo.manager.transaction(fn);
+  }
+
   async findScheduledExpenses(
     companyId: number,
     kind: string,
@@ -481,8 +554,10 @@ export class ExpensesService {
       relatedEquipmentId?: number;
       insuranceTarget?: 'unit' | 'equipment';
     },
+    manager?: EntityManager,
   ): Promise<Expense[]> {
-    const qb = this.repo
+    const repo = manager ? manager.getRepository(Expense) : this.repo;
+    const qb = repo
       .createQueryBuilder('e')
       .where('e.companyId = :companyId', { companyId })
       .andWhere('e.kind = :kind', { kind })
@@ -490,15 +565,22 @@ export class ExpensesService {
     if (params.insuranceTarget === 'unit' && params.relatedUnitId != null) {
       qb.andWhere('e.insuranceTarget = :it', { it: 'unit' });
       qb.andWhere('e.relatedUnitId = :uid', { uid: params.relatedUnitId });
-    } else if (params.insuranceTarget === 'equipment' && params.relatedEquipmentId != null) {
+    } else if (
+      params.insuranceTarget === 'equipment' &&
+      params.relatedEquipmentId != null
+    ) {
       qb.andWhere('e.insuranceTarget = :it', { it: 'equipment' });
-      qb.andWhere('e.relatedEquipmentId = :eid', { eid: params.relatedEquipmentId });
+      qb.andWhere('e.relatedEquipmentId = :eid', {
+        eid: params.relatedEquipmentId,
+      });
     } else {
       if (params.relatedUnitId != null) {
         qb.andWhere('e.relatedUnitId = :uid', { uid: params.relatedUnitId });
       }
       if (params.relatedEquipmentId != null) {
-        qb.andWhere('e.relatedEquipmentId = :eid', { eid: params.relatedEquipmentId });
+        qb.andWhere('e.relatedEquipmentId = :eid', {
+          eid: params.relatedEquipmentId,
+        });
       }
     }
     return qb.orderBy('e.incurredAt', 'ASC').getMany();
@@ -512,13 +594,18 @@ export class ExpensesService {
       relatedEquipmentId?: number;
       insuranceTarget?: 'unit' | 'equipment';
     },
+    manager?: EntityManager,
   ): Promise<number> {
-    const existing = await this.findScheduledExpenses(companyId, kind, params);
-    const unpaidIds = existing
-      .filter((e) => e.paidAt == null)
-      .map((e) => e.id);
+    const repo = manager ? manager.getRepository(Expense) : this.repo;
+    const existing = await this.findScheduledExpenses(
+      companyId,
+      kind,
+      params,
+      manager,
+    );
+    const unpaidIds = existing.filter((e) => e.paidAt == null).map((e) => e.id);
     if (unpaidIds.length === 0) return 0;
-    const result = await this.repo
+    const result = await repo
       .createQueryBuilder()
       .update(Expense)
       .set({ discardedAt: new Date() })
@@ -530,8 +617,10 @@ export class ExpensesService {
   async bulkCreateScheduledExpenses(
     companyId: number,
     drafts: Array<CreateExpenseDto & { paidAt?: string | null }>,
+    manager?: EntityManager,
   ): Promise<void> {
     if (drafts.length === 0) return;
+    const repo = manager ? manager.getRepository(Expense) : this.repo;
     const entities = await Promise.all(
       drafts.map(async (dto) => {
         const relatedUnitId = dto.relatedUnitId
@@ -548,7 +637,7 @@ export class ExpensesService {
           relatedUnitId: relatedUnitId ?? null,
           relatedEquipmentId: relatedEquipmentId ?? null,
         });
-        return this.repo.create({
+        return repo.create({
           companyId,
           category: dto.category,
           amount: String(dto.amount),
@@ -569,12 +658,20 @@ export class ExpensesService {
         });
       }),
     );
-    await this.repo.save(entities);
+    await repo.save(entities);
   }
 
-  /** Descarta gastos vinculados a una maniobra eliminada (soft delete operativo). */
-  async discardByTripId(companyId: number, tripId: number): Promise<number> {
-    const result = await this.repo
+  /**
+   * Descarta gastos vinculados a una maniobra eliminada (soft delete operativo).
+   * Acepta un EntityManager para participar en la transacción de la eliminación.
+   */
+  async discardByTripId(
+    companyId: number,
+    tripId: number,
+    manager?: EntityManager,
+  ): Promise<number> {
+    const repo = manager ? manager.getRepository(Expense) : this.repo;
+    const result = await repo
       .createQueryBuilder()
       .update(Expense)
       .set({ discardedAt: new Date() })
@@ -662,44 +759,44 @@ export class ExpensesService {
     );
 
     await this.repo.update({ id: expenseId, companyId }, {
-        ...rest,
-        ...clears,
-        ...(kind !== undefined && { kind }),
-        ...(amount !== undefined && { amount: String(amount) }),
-        ...(incurredAt && { incurredAt: parseOperationalIncurredAt(incurredAt) }),
-        ...(tripId
-          ? { tripId: await this.resolveTripId(companyId, tripId) }
-          : {}),
-        ...(resolvedRelatedUnitId !== undefined && relatedUnitId
-          ? { relatedUnitId: resolvedRelatedUnitId }
-          : {}),
-        ...(resolvedRelatedEquipmentId !== undefined && relatedEquipmentId
-          ? { relatedEquipmentId: resolvedRelatedEquipmentId }
-          : {}),
-        ...(relatedOperatorId
-          ? {
-              relatedOperatorId: await this.resolveOperatorId(
-                companyId,
-                relatedOperatorId,
-              ),
-            }
-          : {}),
-        ...(vendor !== undefined && { vendor: expenseTextColumn(vendor) }),
-        ...(paymentMethod !== undefined && {
-          paymentMethod: expenseTextColumn(paymentMethod),
-        }),
-        maintenanceTarget: relationFields.maintenanceTarget,
-        insuranceTarget: relationFields.insuranceTarget,
-        verificationScope: relationFields.verificationScope,
-        ...(paidAt !== undefined && {
-          paidAt: paidAt ? parseOperationalIncurredAt(paidAt) : null,
-        }),
-      } as Parameters<Repository<Expense>['update']>[1]);
+      ...rest,
+      ...clears,
+      ...(kind !== undefined && { kind }),
+      ...(amount !== undefined && { amount: String(amount) }),
+      ...(incurredAt && { incurredAt: parseOperationalIncurredAt(incurredAt) }),
+      ...(tripId
+        ? { tripId: await this.resolveTripId(companyId, tripId) }
+        : {}),
+      ...(resolvedRelatedUnitId !== undefined && relatedUnitId
+        ? { relatedUnitId: resolvedRelatedUnitId }
+        : {}),
+      ...(resolvedRelatedEquipmentId !== undefined && relatedEquipmentId
+        ? { relatedEquipmentId: resolvedRelatedEquipmentId }
+        : {}),
+      ...(relatedOperatorId
+        ? {
+            relatedOperatorId: await this.resolveOperatorId(
+              companyId,
+              relatedOperatorId,
+            ),
+          }
+        : {}),
+      ...(vendor !== undefined && { vendor: expenseTextColumn(vendor) }),
+      ...(paymentMethod !== undefined && {
+        paymentMethod: expenseTextColumn(paymentMethod),
+      }),
+      maintenanceTarget: relationFields.maintenanceTarget,
+      insuranceTarget: relationFields.insuranceTarget,
+      verificationScope: relationFields.verificationScope,
+      ...(paidAt !== undefined && {
+        paidAt: paidAt ? parseOperationalIncurredAt(paidAt) : null,
+      }),
+    } as Parameters<Repository<Expense>['update']>[1]);
     const updated = await this.repo.findOne({
       where: { companyId, id: expenseId },
     });
     if (updated) {
-      const activity = expenseActivityOnUpdate(updated);
+      const activity = expenseActivityOnUpdate(updated, existing);
       if (activity) {
         await this.activityEvents.record({
           companyId,
@@ -709,6 +806,11 @@ export class ExpensesService {
           subjectLabel: expenseActivitySubjectLabel(updated),
           title: activity.title,
           actor,
+          metadata: {
+            expenseKind: updated.kind,
+            amount: Number(updated.amount ?? 0),
+            paidAt: updated.paidAt?.toISOString() ?? null,
+          },
         });
       }
     }
@@ -717,7 +819,9 @@ export class ExpensesService {
 
   async remove(companyId: number, expenseId: number, actor: AuthUser) {
     if (!isAdminRole(actor.role)) {
-      throw new ForbiddenException('Solo administradores pueden eliminar gastos.');
+      throw new ForbiddenException(
+        'Solo administradores pueden eliminar gastos.',
+      );
     }
     const existing = await this.repo.findOne({
       where: { companyId, id: expenseId, discardedAt: IsNull() },
@@ -735,7 +839,9 @@ export class ExpensesService {
     await this.maintenanceFleetReconcile.reconcileAfterMaintenanceExpenseDiscard(
       existing,
     );
-    await this.insuranceFleetReconcile.reconcileAfterGpsExpenseDiscard(existing);
+    await this.insuranceFleetReconcile.reconcileAfterGpsExpenseDiscard(
+      existing,
+    );
     await this.verificationFleetReconcile.reconcileAfterVerificationExpenseDiscard(
       existing,
     );
@@ -774,7 +880,7 @@ export class ExpensesService {
   private async resolveTripId(companyId: number, ref: string): Promise<number> {
     const tripId = parseOptionalNumericId(ref, 'Trip')!;
     const row = await this.tripsRepo.findOne({
-      where: { companyId, id: tripId },
+      where: { companyId, id: tripId, deletedAt: IsNull() },
       select: ['id'],
     });
     if (!row) {
