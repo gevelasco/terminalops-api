@@ -15,6 +15,8 @@ import { FleetMaintenanceExpenseSyncService } from 'src/fleet/fleet-maintenance-
 import { FleetVerificationExpenseSyncService } from 'src/fleet/fleet-verification-expense-sync.service';
 import { FleetInsuranceExpenseSyncService } from 'src/fleet/fleet-insurance-expense-sync.service';
 import { FleetGpsExpenseSyncService } from 'src/fleet/fleet-gps-expense-sync.service';
+import { FleetTenureExpenseSyncService } from 'src/fleet/fleet-tenure-expense-sync.service';
+import { ActivityEventsService } from 'src/activity-events/activity-events.service';
 
 describe('UnitsService (A6 fleet status lock)', () => {
   let service: UnitsService;
@@ -76,6 +78,12 @@ describe('UnitsService (A6 fleet status lock)', () => {
     syncForGpsPaymentSave: jest.fn(),
     ensureInitialGpsService: jest.fn(),
   };
+  const tenureExpenseSync = {
+    ensureAllTenureInstallments: jest.fn(),
+  };
+  const activityEvents = {
+    record: jest.fn(),
+  };
 
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -123,6 +131,14 @@ describe('UnitsService (A6 fleet status lock)', () => {
         {
           provide: FleetGpsExpenseSyncService,
           useValue: gpsExpenseSync,
+        },
+        {
+          provide: FleetTenureExpenseSyncService,
+          useValue: tenureExpenseSync,
+        },
+        {
+          provide: ActivityEventsService,
+          useValue: activityEvents,
         },
       ],
     }).compile();

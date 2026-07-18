@@ -26,7 +26,10 @@ import {
   fleetMetaDtoToMaintenanceEntries,
   fleetMetaDtoToProfile,
 } from './mappers/equipment-fleet-meta.mapper';
-import { assertEquipmentHitchAssignmentAllowed } from './equipment-hitch-validation.util';
+import {
+  assertEquipmentHitchAssignmentAllowed,
+  assertUnitCanHitchEquipment,
+} from './equipment-hitch-validation.util';
 import { FleetMaintenanceWorkflowService } from 'src/fleet/fleet-maintenance-workflow.service';
 import { FleetMaintenanceExpenseSyncService } from 'src/fleet/fleet-maintenance-expense-sync.service';
 import { FleetVerificationExpenseSyncService } from 'src/fleet/fleet-verification-expense-sync.service';
@@ -75,11 +78,7 @@ export class EquipmentService {
     const core = pickEquipmentUserMutableFields(
       rawCore as unknown as Record<string, unknown>,
     );
-    await this.ensureEquipmentBrand(
-      companyId,
-      fleetMeta,
-      core.trailerBrandAbbr as string | undefined,
-    );
+    await this.ensureEquipmentBrand(companyId, fleetMeta);
     const unitId = unitIdRef
       ? await this.resolveUnitId(companyId, unitIdRef)
       : undefined;
@@ -232,11 +231,7 @@ export class EquipmentService {
         equipmentId,
       );
     }
-    await this.ensureEquipmentBrand(
-      companyId,
-      fleetMeta,
-      typeof rest.trailerBrandAbbr === 'string' ? rest.trailerBrandAbbr : undefined,
-    );
+    await this.ensureEquipmentBrand(companyId, fleetMeta);
     if (Object.keys(corePatch).length > 0) {
       await this.repo.update({ id: equipmentId, companyId }, corePatch);
     }
@@ -317,12 +312,13 @@ export class EquipmentService {
     }
     const row = await this.unitsRepo.findOne({
       where: { companyId, id: unitId },
-      select: ['id', 'isActive'],
+      select: ['id', 'isActive', 'transportType'],
     });
     if (!row) {
       throw new NotFoundException(`Unit ${unitId} not found`);
     }
     assertFleetResourceActive(row.isActive, 'Unit');
+    assertUnitCanHitchEquipment(row.transportType);
     return row.id;
   }
 
@@ -439,9 +435,8 @@ export class EquipmentService {
   private async ensureEquipmentBrand(
     companyId: number,
     fleetMeta: CreateEquipmentDto['fleetMeta'] | UpdateEquipmentDto['fleetMeta'] | undefined,
-    trailerBrandAbbr?: string,
   ): Promise<void> {
-    const brandName = resolveFleetBrandNameFromPayload(fleetMeta, trailerBrandAbbr);
+    const brandName = resolveFleetBrandNameFromPayload(fleetMeta);
     if (!brandName) {
       return;
     }

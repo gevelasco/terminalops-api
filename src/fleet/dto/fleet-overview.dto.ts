@@ -80,6 +80,8 @@ export class FleetOverviewItemDto {
   /** Nombre o alias interno de la unidad (campo `name` en alta). */
   unitAlias?: string;
   unitPlate: string;
+  /** Tipo de transporte de la unidad (tractocamion, rabon_plataforma, …). */
+  unitTransportType?: string;
   equipment: FleetOverviewEquipmentDto;
   hitchedEquipment: FleetOverviewHitchedEquipmentDto[];
   operationalStatus: FleetOverviewOperationalStatus;

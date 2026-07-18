@@ -10,6 +10,12 @@ import { EquipmentFleetProfile } from './entities/equipment-fleet-profile.entity
 import { Equipment } from './entities/equipment.entity';
 import { UpdateEquipmentDto } from './dto/update-equipment.dto';
 import { EquipmentService } from './equipment.service';
+import { FleetMaintenanceWorkflowService } from 'src/fleet/fleet-maintenance-workflow.service';
+import { FleetMaintenanceExpenseSyncService } from 'src/fleet/fleet-maintenance-expense-sync.service';
+import { FleetVerificationExpenseSyncService } from 'src/fleet/fleet-verification-expense-sync.service';
+import { FleetInsuranceExpenseSyncService } from 'src/fleet/fleet-insurance-expense-sync.service';
+import { FleetTenureExpenseSyncService } from 'src/fleet/fleet-tenure-expense-sync.service';
+import { ActivityEventsService } from 'src/activity-events/activity-events.service';
 
 describe('EquipmentService (A6 fleet status lock)', () => {
   let service: EquipmentService;
@@ -42,6 +48,37 @@ describe('EquipmentService (A6 fleet status lock)', () => {
         {
           provide: FleetBrandsService,
           useValue: { findOrCreateBrand: jest.fn(), findOrCreateVersion: jest.fn() },
+        },
+        {
+          provide: FleetMaintenanceWorkflowService,
+          useValue: {
+            startEquipmentMaintenance: jest.fn(),
+            endEquipmentMaintenance: jest.fn(),
+          },
+        },
+        {
+          provide: FleetMaintenanceExpenseSyncService,
+          useValue: { syncForMaintenanceSave: jest.fn() },
+        },
+        {
+          provide: FleetVerificationExpenseSyncService,
+          useValue: { syncForUnitVerificationSave: jest.fn() },
+        },
+        {
+          provide: FleetInsuranceExpenseSyncService,
+          useValue: {
+            syncForInsurancePaymentSave: jest.fn(),
+            ensureInitialInsurancePremium: jest.fn(),
+            ensureAllInsuranceInstallments: jest.fn(),
+          },
+        },
+        {
+          provide: FleetTenureExpenseSyncService,
+          useValue: { ensureAllTenureInstallments: jest.fn() },
+        },
+        {
+          provide: ActivityEventsService,
+          useValue: { record: jest.fn() },
         },
       ],
     }).compile();

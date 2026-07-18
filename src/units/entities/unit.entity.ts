@@ -24,6 +24,9 @@ export class Unit {
   @Column()
   plate: string;
 
+  @Column({ name: 'transport_type', nullable: true })
+  transportType?: string;
+
   @Column({ name: 'capacity_kg', type: 'int' })
   capacityKg: number;
 

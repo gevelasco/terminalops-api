@@ -91,6 +91,16 @@ export class CreateTripDto {
   @IsString()
   approximateWeightTons?: string;
 
+  @ApiPropertyOptional({ description: 'Fecha y hora de carga (ISO 8601)' })
+  @IsOptional()
+  @IsDateString()
+  loadDate?: string;
+
+  @ApiPropertyOptional({ description: 'Lugar de carga (catálogo por empresa)' })
+  @IsOptional()
+  @IsString()
+  loadPlace?: string;
+
   @ApiPropertyOptional({ type: [String] })
   @IsOptional()
   @IsArray()

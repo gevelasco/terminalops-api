@@ -343,6 +343,7 @@ export class FleetOverviewService {
         unitName: buildUnitOperationalId(unit),
         unitAlias: unit.name?.trim() || undefined,
         unitPlate: unit.plate?.trim() || '',
+        unitTransportType: unit.transportType?.trim() || undefined,
         equipment: {
           equipmentId: primaryEq?.id ?? null,
           type: convoyType,

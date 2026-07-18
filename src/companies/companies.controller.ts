@@ -37,6 +37,7 @@ import { parseAvailableQuery } from '../fleet/fleet-available-list.util';
 import { rejectClientFleetStatusMutation } from '../fleet/fleet-status-lock.util';
 import { rejectClientTripStatusMutation } from '../trips/trip-status-lock.util';
 import { TripsService } from '../trips/trips.service';
+import { TripLoadPlacesService } from '../trips/trip-load-places.service';
 import { CreateTripDto } from '../trips/dto/create-trip.dto';
 import { ListTripLinkOptionsQueryDto } from '../trips/dto/list-trip-link-options-query.dto';
 import { ListResourceLinkOptionsQueryDto } from '../common/dto/list-resource-link-options-query.dto';
@@ -102,6 +103,7 @@ export class CompaniesController {
     private readonly unitsService: UnitsService,
     private readonly equipmentService: EquipmentService,
     private readonly tripsService: TripsService,
+    private readonly tripLoadPlacesService: TripLoadPlacesService,
     private readonly fuelEstimator: FuelEstimatorService,
     private readonly fuelPriceService: FuelPriceService,
     private readonly expensesService: ExpensesService,
@@ -206,6 +208,19 @@ export class CompaniesController {
       periodFrom,
       periodTo,
     );
+  }
+
+  @Get(':companyId/trips/load-places')
+  @ApiOperation({ summary: 'Lugares de carga capturados en maniobras (catálogo por empresa)' })
+  async listTripLoadPlaces(
+    @Param('companyId', ParseIntPipe) companyId: number,
+    @LoggedUser() user: AuthUser,
+  ) {
+    const tenantId = await this.companiesService.assertAccessAndResolve(
+      user,
+      companyId,
+    );
+    return this.tripLoadPlacesService.listNames(tenantId);
   }
 
   @Get(':companyId/clients/:clientId/cargo-history')

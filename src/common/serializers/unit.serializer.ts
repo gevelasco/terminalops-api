@@ -21,6 +21,7 @@ export function serializeUnit(
     id: unit.id,
     companyId: unit.companyId,
     plate: unit.plate,
+    transportType: unit.transportType ?? undefined,
     capacityKg: unit.capacityKg,
     status: unit.status,
     isActive: unit.isActive !== false,

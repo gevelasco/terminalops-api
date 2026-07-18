@@ -30,6 +30,7 @@ function pickDefinedKeys(
 /** Campos mutables vía API en `units` (excluye `status`). */
 export const UNIT_USER_MUTABLE_KEYS = [
   'plate',
+  'transportType',
   'capacityKg',
   'capacityTons',
   'isActive',

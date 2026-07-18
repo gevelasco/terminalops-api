@@ -84,6 +84,22 @@ export class Trip {
   @Column({ name: 'approximate_weight_tons', nullable: true })
   approximateWeightTons?: string;
 
+  /** Fecha y hora de carga. */
+  @Column({ name: 'load_date', type: 'timestamptz', nullable: true })
+  loadDate?: Date;
+
+  /** Lugar de carga (texto libre; alimenta catálogo por empresa). */
+  @Column({ name: 'load_place', nullable: true })
+  loadPlace?: string;
+
+  /** Entrega de vacío: fecha/hora (nunca antes del fin planeado o real). */
+  @Column({ name: 'empty_delivery_at', type: 'timestamptz', nullable: true })
+  emptyDeliveryAt?: Date;
+
+  /** Entrega de vacío: lugar (mismo catálogo de lugares por empresa). */
+  @Column({ name: 'empty_delivery_place', nullable: true })
+  emptyDeliveryPlace?: string;
+
   @Column({ name: 'departure_at', type: 'timestamptz', nullable: true })
   departureAt?: Date;
 

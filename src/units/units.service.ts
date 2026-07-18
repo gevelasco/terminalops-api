@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { serializeUnit } from 'src/common/serializers/unit.serializer';
@@ -88,7 +92,7 @@ export class UnitsService {
     const core = pickUnitUserMutableFields(
       rawCore as unknown as Record<string, unknown>,
     );
-    await this.ensureUnitBrand(companyId, fleetMeta, core.trailerBrandAbbr as string | undefined);
+    await this.ensureUnitBrand(companyId, fleetMeta);
     const saved = await this.repo.save(
       this.repo.create({
         ...core,
@@ -202,11 +206,12 @@ export class UnitsService {
     const core = pickUnitUserMutableFields(
       rawCore as unknown as Record<string, unknown>,
     );
-    await this.ensureUnitBrand(
+    await this.assertTransportTypeAllowsHitchedEquipment(
       companyId,
-      fleetMeta,
-      core.trailerBrandAbbr as string | undefined,
+      unitId,
+      core.transportType as string | undefined,
     );
+    await this.ensureUnitBrand(companyId, fleetMeta);
     if (Object.keys(core).length > 0) {
       await this.repo.update({ id: unitId, companyId }, core);
     }
@@ -226,6 +231,29 @@ export class UnitsService {
       });
     }
     return this.findOne(companyId, unitId);
+  }
+
+  /** Solo los tractocamiones llevan equipos: bloquea cambiar el tipo con enganches activos. */
+  private async assertTransportTypeAllowsHitchedEquipment(
+    companyId: number,
+    unitId: number,
+    transportType: string | undefined,
+  ): Promise<void> {
+    const t = transportType?.trim();
+    if (!t || t === 'tractocamion') {
+      return;
+    }
+    const row = await this.repo.findOne({
+      where: { companyId, id: unitId },
+      relations: ['equipment'],
+    });
+    const hitched = (row?.equipment ?? []).filter((e) => e.isActive !== false);
+    if (hitched.length > 0) {
+      throw new BadRequestException(
+        'Solo las unidades tipo tractocamión pueden llevar equipos enganchados. ' +
+          'Desenganche los equipos antes de cambiar el tipo de transporte.',
+      );
+    }
   }
 
   async remove(companyId: number, unitId: number) {
@@ -374,9 +402,8 @@ export class UnitsService {
   private async ensureUnitBrand(
     companyId: number,
     fleetMeta: CreateUnitDto['fleetMeta'] | UpdateUnitDto['fleetMeta'] | undefined,
-    trailerBrandAbbr?: string,
   ): Promise<void> {
-    const brandName = resolveFleetBrandNameFromPayload(fleetMeta, trailerBrandAbbr);
+    const brandName = resolveFleetBrandNameFromPayload(fleetMeta);
     if (!brandName) {
       return;
     }

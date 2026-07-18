@@ -18,7 +18,9 @@ import { FuelPriceService } from 'src/fuel/fuel-price.service';
 import { TripFleetStatusSyncService } from './lifecycle/trip-fleet-status-sync.service';
 import { TripLifecycleService } from './lifecycle/trip-lifecycle.service';
 import { UnitTripOdometerService } from 'src/units/unit-trip-odometer.service';
+import { ActivityEventsService } from 'src/activity-events/activity-events.service';
 import { TRIP_SNAPSHOT_IMMUTABLE_MESSAGE } from './trip-snapshot-immutability.util';
+import { TripLoadPlacesService } from './trip-load-places.service';
 import { TripsService } from './trips.service';
 
 const TRIP_STATUS_LOCK_MESSAGE = 'Trip status is system-owned';
@@ -69,6 +71,8 @@ describe('TripsService.update (A4 snapshot immutability)', () => {
         { provide: TripFleetStatusSyncService, useValue: { syncForTrip: jest.fn(), syncForTripAfterUpdate: jest.fn(), reconcileReleasedFleetResources: jest.fn() } },
         { provide: UnitTripOdometerService, useValue: { reverseCreditForTrip: jest.fn(), creditUnitForCompletedTrip: jest.fn() } },
         { provide: ExpensesService, useValue: {} },
+        { provide: ActivityEventsService, useValue: { record: jest.fn() } },
+        { provide: TripLoadPlacesService, useValue: { findOrCreate: jest.fn() } },
       ],
     }).compile();
 

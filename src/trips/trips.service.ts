@@ -76,6 +76,7 @@ import type { ActualScheduleFieldKey } from './actual-schedule/actual-schedule.c
 import { buildConsolidatedScheduleUpdateIncidentDescription } from './actual-schedule/actual-schedule-incident.util';
 import { syncTripIncidentMarkers } from './trip-incident-markers.util';
 import { ActivityEventsService } from 'src/activity-events/activity-events.service';
+import { TripLoadPlacesService } from 'src/trips/trip-load-places.service';
 import { COMPANY_ACTIVITY_KIND } from 'src/activity-events/company-activity-event.kinds';
 import {
   applyActualScheduleDeltas,
@@ -130,6 +131,7 @@ export class TripsService {
     private readonly unitTripOdometer: UnitTripOdometerService,
     private readonly expensesService: ExpensesService,
     private readonly activityEvents: ActivityEventsService,
+    private readonly tripLoadPlaces: TripLoadPlacesService,
   ) {}
 
   private tripRelations = [
@@ -478,6 +480,8 @@ export class TripsService {
       ? await this.resolveOperatorId(companyId, dto.operatorId)
       : undefined;
 
+    await this.tripLoadPlaces.findOrCreate(companyId, dto.loadPlace);
+
     const [unitRow, operatorRow] = await Promise.all([
       resolvedUnitId
         ? this.unitsRepo.findOne({ where: { id: resolvedUnitId, companyId } })
@@ -519,6 +523,8 @@ export class TripsService {
       containerType: dto.containerType,
       cargoDescription: dto.cargoDescription,
       approximateWeightTons: dto.approximateWeightTons,
+      loadDate: dto.loadDate ? new Date(dto.loadDate) : undefined,
+      loadPlace: dto.loadPlace?.trim() || undefined,
       creditDays: dto.creditDays ?? 0,
       routeDistanceKm: distanceFields?.routeDistanceKm,
       operationalDistanceKm: distanceFields?.operationalDistanceKm,
@@ -656,8 +662,38 @@ export class TripsService {
       returnAt: _ignoredReturnAt,
       dieselPricePerLiterAtCreation: _immutablePrice,
       tollCalculationMode: _immutableTollMode,
+      loadDate,
+      loadPlace,
+      emptyDeliveryAt,
+      emptyDeliveryPlace,
+      emptyDeliveryJustification,
+      plannedDatesJustification,
       ...rest
     } = dto;
+    const hasPlannedDatesPatch = [
+      plannedDepartureAt,
+      plannedArrivalAt,
+      plannedCompletionAt,
+      loadDate,
+      loadPlace,
+    ].some((value) => value !== undefined);
+    this.assertScheduledDatesAreEditable(
+      trip,
+      {
+        plannedDepartureAt,
+        plannedArrivalAt,
+        plannedCompletionAt,
+        loadDate,
+        loadPlace,
+      },
+      plannedDatesJustification,
+    );
+    this.assertEmptyDeliveryAllowed(
+      trip,
+      emptyDeliveryAt,
+      emptyDeliveryPlace,
+      emptyDeliveryJustification,
+    );
     const plannedPatch = validatePlannedScheduleUpdate(trip, {
       plannedDepartureAt,
       plannedArrivalAt,
@@ -702,10 +738,31 @@ export class TripsService {
         operatorRow?.name?.trim() || undefined;
     }
 
+    const emptyDeliveryAtDate = this.validateEmptyDeliveryAt(
+      trip,
+      plannedPatch.plannedCompletionAt,
+      emptyDeliveryAt,
+    );
+
+    await this.tripLoadPlaces.findOrCreate(companyId, loadPlace);
+    await this.tripLoadPlaces.findOrCreate(companyId, emptyDeliveryPlace);
+
     await this.tripsRepo.update(
       { id: tripId, companyId },
       {
         ...rest,
+        ...(loadDate !== undefined
+          ? { loadDate: loadDate ? new Date(loadDate) : undefined }
+          : {}),
+        ...(loadPlace !== undefined
+          ? { loadPlace: loadPlace?.trim() || undefined }
+          : {}),
+        ...(emptyDeliveryAt !== undefined
+          ? { emptyDeliveryAt: emptyDeliveryAtDate }
+          : {}),
+        ...(emptyDeliveryPlace !== undefined
+          ? { emptyDeliveryPlace: emptyDeliveryPlace?.trim() || undefined }
+          : {}),
         ...(operationPatch && {
           operationType: operationPatch.code,
           operationConfigurationId: operationPatch.id,
@@ -814,6 +871,58 @@ export class TripsService {
     }
 
     const updatedTripEntity = await this.getTripEntity(companyId, tripId);
+    if (hasPlannedDatesPatch) {
+      const authorDisplayName =
+        actor?.name?.trim() || actor?.username?.trim() || 'Usuario';
+      await this.incidentsRepo.save(
+        this.incidentsRepo.create({
+          tripId: trip.id,
+          description:
+            `Fechas programadas actualizadas por ${authorDisplayName}. ` +
+            `Salida: ${updatedTripEntity.plannedDepartureAt.toLocaleString('es-MX')}. ` +
+            `Llegada cliente: ${updatedTripEntity.plannedArrivalAt.toLocaleString('es-MX')}. ` +
+            `Fin: ${updatedTripEntity.plannedCompletionAt.toLocaleString('es-MX')}. ` +
+            `Fecha de carga: ${updatedTripEntity.loadDate?.toLocaleString('es-MX') ?? '—'}. ` +
+            `Lugar de carga: ${updatedTripEntity.loadPlace?.trim() || '—'}. ` +
+            `Justificación: ${plannedDatesJustification!.trim()}`,
+          postedBy: actor?.username?.trim() || 'system',
+          occurredAt: new Date(),
+          status: 'closed',
+          openedAt: new Date(),
+          closedAt: new Date(),
+          category: 'planned_schedule_update',
+          isIncident: false,
+        }),
+      );
+    }
+    if (
+      trip.emptyDeliveryAt &&
+      (emptyDeliveryAt !== undefined || emptyDeliveryPlace !== undefined)
+    ) {
+      const authorDisplayName =
+        actor?.name?.trim() || actor?.username?.trim() || 'Usuario';
+      const nextDate = emptyDeliveryAt
+        ? new Date(emptyDeliveryAt).toLocaleString('es-MX')
+        : trip.emptyDeliveryAt.toLocaleString('es-MX');
+      const nextPlace =
+        emptyDeliveryPlace?.trim() || trip.emptyDeliveryPlace?.trim() || '—';
+      await this.incidentsRepo.save(
+        this.incidentsRepo.create({
+          tripId: trip.id,
+          description:
+            `Entrega de vacío actualizada por ${authorDisplayName}. ` +
+            `Nueva fecha: ${nextDate}. Lugar: ${nextPlace}. ` +
+            `Justificación: ${emptyDeliveryJustification!.trim()}`,
+          postedBy: actor?.username?.trim() || 'system',
+          occurredAt: new Date(),
+          status: 'closed',
+          openedAt: new Date(),
+          closedAt: new Date(),
+          category: 'empty_delivery_update',
+          isIncident: false,
+        }),
+      );
+    }
     await this.activityEvents.record({
       companyId,
       kind: COMPANY_ACTIVITY_KIND.TRIP_UPDATED,
@@ -1172,6 +1281,111 @@ export class TripsService {
         'Solo administradores pueden eliminar maniobras.',
       );
     }
+  }
+
+  /** Fechas planeadas y datos de carga se congelan al comenzar la maniobra. */
+  private assertScheduledDatesAreEditable(
+    trip: Trip,
+    patch: {
+      plannedDepartureAt?: string;
+      plannedArrivalAt?: string;
+      plannedCompletionAt?: string;
+      loadDate?: string;
+      loadPlace?: string;
+    },
+    justification: string | undefined,
+  ): void {
+    const hasDatePatch = Object.values(patch).some(
+      (value) => value !== undefined,
+    );
+    if (hasDatePatch && trip.status !== 'scheduled') {
+      throw new BadRequestException(
+        'Las fechas planeadas y los datos de carga solo pueden editarse mientras la maniobra está programada.',
+      );
+    }
+    if (hasDatePatch && !justification?.trim()) {
+      throw new BadRequestException(
+        'La justificación es obligatoria al actualizar las fechas programadas.',
+      );
+    }
+  }
+
+  /** Entrega de vacío solo aplica en curso/completada y con contenedor real. */
+  private assertEmptyDeliveryAllowed(
+    trip: Trip,
+    emptyDeliveryAt: string | undefined,
+    emptyDeliveryPlace: string | undefined,
+    justification: string | undefined,
+  ): void {
+    if (emptyDeliveryAt === undefined && emptyDeliveryPlace === undefined) {
+      return;
+    }
+    if (trip.status !== 'in_transit' && trip.status !== 'completed') {
+      throw new BadRequestException(
+        'La entrega de vacío solo puede registrarse cuando la maniobra está en curso o completada.',
+      );
+    }
+    const containerType = trip.containerType
+      ?.trim()
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+    if (
+      !containerType ||
+      containerType === 'na' ||
+      containerType === 'n/a' ||
+      containerType === 'no aplica'
+    ) {
+      throw new BadRequestException(
+        'La entrega de vacío solo aplica a maniobras con contenedor.',
+      );
+    }
+    if (!emptyDeliveryAt?.trim() || !emptyDeliveryPlace?.trim()) {
+      throw new BadRequestException(
+        'La fecha y el lugar de entrega de vacío son obligatorios.',
+      );
+    }
+    if (trip.emptyDeliveryAt && !justification?.trim()) {
+      throw new BadRequestException(
+        'La justificación es obligatoria al actualizar una entrega de vacío.',
+      );
+    }
+  }
+
+  /**
+   * Entrega de vacío: la fecha nunca puede ser menor al fin planeado ni al
+   * fin real de la maniobra. Devuelve la fecha lista para persistir.
+   */
+  private validateEmptyDeliveryAt(
+    trip: Trip,
+    patchedPlannedCompletionAt: Date | undefined,
+    emptyDeliveryAt: string | undefined,
+  ): Date | undefined {
+    if (!emptyDeliveryAt) {
+      return undefined;
+    }
+    const value = new Date(emptyDeliveryAt);
+    if (Number.isNaN(value.getTime())) {
+      throw new BadRequestException(
+        'La fecha de entrega de vacío no es válida.',
+      );
+    }
+    const plannedCompletion =
+      patchedPlannedCompletionAt ?? trip.plannedCompletionAt;
+    if (
+      plannedCompletion &&
+      value.getTime() < new Date(plannedCompletion).getTime()
+    ) {
+      throw new BadRequestException(
+        'La entrega de vacío no puede ser anterior al fin planeado de la maniobra.',
+      );
+    }
+    if (trip.returnAt && value.getTime() < new Date(trip.returnAt).getTime()) {
+      throw new BadRequestException(
+        'La entrega de vacío no puede ser anterior al fin real de la maniobra.',
+      );
+    }
+    return value;
   }
 
   private async getTripEntity(

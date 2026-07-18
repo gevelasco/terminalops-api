@@ -2,6 +2,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
   IsBoolean,
+  IsIn,
   IsNumber,
   IsOptional,
   IsString,
@@ -10,10 +11,26 @@ import {
 } from 'class-validator';
 import { CreateUnitFleetMetaDto } from './create-unit-fleet-meta.dto';
 
+const UNIT_TRANSPORT_TYPES = [
+  'tractocamion',
+  'rabon_plataforma',
+  'camion_pipa',
+  'maroma_volteo',
+] as const;
+
 export class CreateUnitDto {
   @ApiProperty()
   @IsString()
   plate: string;
+
+  @ApiPropertyOptional({
+    description: 'Configuración del vehículo motriz de carga',
+    example: 'tractocamion',
+    enum: UNIT_TRANSPORT_TYPES,
+  })
+  @IsOptional()
+  @IsIn(UNIT_TRANSPORT_TYPES)
+  transportType?: (typeof UNIT_TRANSPORT_TYPES)[number];
 
   @ApiProperty()
   @IsNumber()

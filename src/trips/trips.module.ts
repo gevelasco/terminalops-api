@@ -8,6 +8,8 @@ import { Trip } from 'src/trips/entities/trip.entity';
 import { Unit } from 'src/units/entities/unit.entity';
 import { TripEquipment } from 'src/trips/entities/trip-equipment.entity';
 import { TripIncident } from 'src/trips/entities/trip-incident.entity';
+import { TripLoadPlace } from 'src/trips/entities/trip-load-place.entity';
+import { TripLoadPlacesService } from 'src/trips/trip-load-places.service';
 import { TripAuditEvent } from 'src/trips/entities/trip-audit-event.entity';
 import { TripAuditService } from './lifecycle/trip-audit.service';
 import { TripLifecycleScheduler } from './lifecycle/trip-lifecycle.scheduler';
@@ -34,6 +36,7 @@ import { TripsService } from './trips.service';
       Trip,
       TripEquipment,
       TripIncident,
+      TripLoadPlace,
       TripAuditEvent,
       Equipment,
       Client,
@@ -48,6 +51,7 @@ import { TripsService } from './trips.service';
   controllers: [TripsController],
   providers: [
     TripsService,
+    TripLoadPlacesService,
     FuelEstimatorService,
     TripLifecycleService,
     TripFleetStatusSyncService,
@@ -56,6 +60,7 @@ import { TripsService } from './trips.service';
   ],
   exports: [
     TripsService,
+    TripLoadPlacesService,
     FuelEstimatorService,
     TripLifecycleService,
     TripFleetStatusSyncService,

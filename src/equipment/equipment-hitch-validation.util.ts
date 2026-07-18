@@ -3,6 +3,21 @@ import { Equipment } from 'src/equipment/entities/equipment.entity';
 
 export type HitchPosition = 'lead' | 'rear';
 
+/**
+ * Solo los tractocamiones llevan remolques/equipos enganchados. Unidades sin
+ * tipo (legado) se tratan como tractocamión.
+ */
+export function assertUnitCanHitchEquipment(
+  transportType: string | null | undefined,
+): void {
+  const t = transportType?.trim();
+  if (t && t !== 'tractocamion') {
+    throw new BadRequestException(
+      'Solo las unidades tipo tractocamión pueden llevar remolques o equipos enganchados.',
+    );
+  }
+}
+
 function isRearHitch(e: Pick<Equipment, 'hitchPosition'>): boolean {
   return e.hitchPosition === 'rear';
 }

@@ -5,16 +5,16 @@ type FleetMetaWithCatalog = {
   trailerVersion?: string;
 } | null | undefined;
 
+/**
+ * Solo el nombre completo (`fleetMeta.trailerBrandName`) alimenta el catálogo.
+ * `trailerBrandAbbr` es un código operativo derivado; usarlo como fallback
+ * contaminaba el catálogo con abreviaciones (ej. "KEN" junto a "Kenworth").
+ */
 export function resolveFleetBrandNameFromPayload(
   fleetMeta: FleetMetaWithCatalog,
-  trailerBrandAbbr?: string,
 ): string | null {
   const fromMeta = fleetMeta?.trailerBrandName?.trim();
-  if (fromMeta) {
-    return fromMeta;
-  }
-  const fromAbbr = trailerBrandAbbr?.trim();
-  return fromAbbr || null;
+  return fromMeta || null;
 }
 
 export function resolveFleetVersionNameFromPayload(

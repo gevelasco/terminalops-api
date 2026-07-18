@@ -9,10 +9,15 @@ describe('fleet-resource-user-patch.util', () => {
     expect(
       pickUnitUserMutableFields({
         plate: 'ABC',
+        transportType: 'tractocamion',
         isActive: false,
         companyId: 99,
       }),
-    ).toEqual({ plate: 'ABC', isActive: false });
+    ).toEqual({
+      plate: 'ABC',
+      transportType: 'tractocamion',
+      isActive: false,
+    });
   });
 
   it('pickUnitUserMutableFields rejects status in source', () => {
