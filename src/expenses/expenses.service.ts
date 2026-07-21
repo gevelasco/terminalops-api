@@ -216,13 +216,10 @@ export class ExpensesService {
       .getRawOne<{ sum: string }>();
     const totalAmount = sumRow?.sum ?? '0';
 
+    // select() for `e` (not addSelect): avoid duplicate aliases with skip/take DISTINCT.
     const rowsQb = this.repo
       .createQueryBuilder('e')
-      .leftJoin('e.trip', 'trip')
-      .leftJoin('e.relatedUnit', 'relatedUnit')
-      .leftJoin('e.relatedEquipment', 'relatedEquipment')
-      .leftJoin('e.relatedOperator', 'relatedOperator')
-      .addSelect([
+      .select([
         'e.id',
         'e.companyId',
         'e.tripId',
@@ -243,6 +240,10 @@ export class ExpensesService {
         'e.updatedAt',
         'e.discardedAt',
       ])
+      .leftJoin('e.trip', 'trip')
+      .leftJoin('e.relatedUnit', 'relatedUnit')
+      .leftJoin('e.relatedEquipment', 'relatedEquipment')
+      .leftJoin('e.relatedOperator', 'relatedOperator')
       .addSelect(['trip.id', 'trip.maneuverCode'])
       .addSelect([
         'relatedUnit.id',
