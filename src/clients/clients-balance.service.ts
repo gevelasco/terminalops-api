@@ -86,6 +86,27 @@ export class ClientsBalanceService {
       countsQuery,
       this.tripsRepo
         .createQueryBuilder('t')
+        .select([
+          't.id',
+          't.clientId',
+          't.maneuverCode',
+          't.status',
+          't.hasClientBilling',
+          't.falseManeuver',
+          't.clientCharge',
+          't.clientCollectedAt',
+          't.creditDays',
+          't.dieselAmount',
+          't.casetasAmount',
+          't.operatorQuota',
+          't.perDiemAmount',
+          't.routeDistanceKm',
+          't.departureAt',
+          't.arrivedAt',
+          't.returnAt',
+          't.plannedCompletionAt',
+          't.createdAt',
+        ])
         .where('t.companyId = :companyId', { companyId })
         .andWhere('t.deleted_at IS NULL')
         .andWhere('t.client_id IS NOT NULL')
@@ -147,6 +168,27 @@ export class ClientsBalanceService {
     const tripEntities = await this.tripsRepo.find({
       where: { companyId, clientId, deletedAt: IsNull() },
       order: { createdAt: 'DESC' },
+      select: [
+        'id',
+        'clientId',
+        'maneuverCode',
+        'status',
+        'hasClientBilling',
+        'falseManeuver',
+        'clientCharge',
+        'clientCollectedAt',
+        'creditDays',
+        'dieselAmount',
+        'casetasAmount',
+        'operatorQuota',
+        'perDiemAmount',
+        'routeDistanceKm',
+        'departureAt',
+        'arrivedAt',
+        'returnAt',
+        'plannedCompletionAt',
+        'createdAt',
+      ],
     });
 
     const clientExists = await this.tripsRepo.manager.query(

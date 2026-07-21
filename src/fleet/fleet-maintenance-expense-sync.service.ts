@@ -12,7 +12,8 @@ export class FleetMaintenanceExpenseSyncService {
 
   async syncForMaintenanceSave(params: {
     companyId: number;
-    maintenanceTarget: ExpenseMaintenanceTarget;
+    /** @deprecated derivado de related IDs */
+    maintenanceTarget?: ExpenseMaintenanceTarget;
     relatedUnitId?: number;
     relatedEquipmentId?: number;
     previous: MaintenanceEntryLike[];
@@ -39,7 +40,6 @@ export class FleetMaintenanceExpenseSyncService {
         amount,
         incurredAt: date,
         kind: 'maintenance',
-        maintenanceTarget: params.maintenanceTarget,
         relatedUnitId:
           params.relatedUnitId != null ? String(params.relatedUnitId) : undefined,
         relatedEquipmentId:

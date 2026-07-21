@@ -42,7 +42,6 @@ describe('UnitTripOdometerService', () => {
       unitId: 7,
       odometerKm: '1000',
       maintenanceKmCounter: '60',
-      maintenanceAlertByKm: true,
     });
 
     service = new UnitTripOdometerService(
@@ -59,8 +58,6 @@ describe('UnitTripOdometerService', () => {
       unitId: 7,
       status: 'completed',
       routeDistanceKm: '30',
-      operationalDistanceKm: '60',
-      isRoundTrip: true,
       unitOdometerKmCredited: undefined,
     } as never);
 
@@ -80,7 +77,7 @@ describe('UnitTripOdometerService', () => {
       companyId: 1,
       unitId: 7,
       status: 'completed',
-      operationalDistanceKm: '60',
+      routeDistanceKm: '30',
       unitOdometerKmCredited: '60',
     } as never);
 

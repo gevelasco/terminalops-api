@@ -42,7 +42,7 @@ const FORBIDDEN = [
 const REQUIRED = [
   {
     file: 'trip-operational-distance.util.ts',
-    includes: ['isRoundTrip !== false', 'operationalDistanceKm'],
+    includes: ['ROUND_TRIP_FACTOR', 'operationalDistanceKm'],
   },
   {
     file: 'fuel/fuel-estimator.service.ts',

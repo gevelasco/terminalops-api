@@ -8,25 +8,19 @@ import {
 function trip(partial: Partial<Trip> & Pick<Trip, 'id' | 'operatorId'>): Trip {
   return {
     maneuverCode: 'M-001',
-    origin: 'A',
-    destination: 'B',
+    originLocality: 'A',
+    destinationLocality: 'B',
     status: 'completed',
     companyId: 1,
     clientName: 'Cliente',
     operationType: 'full',
-    operationConfigurationNameSnapshot: '',
-    operationConfigurationVersionSnapshot: 1,
-    operationConfigurationMaxEquipmentCountSnapshot: 1,
     loadType: '',
     containerType: '',
     plannedDepartureAt: new Date('2026-01-01T12:00:00Z'),
     plannedArrivalAt: new Date('2026-01-02T12:00:00Z'),
     plannedCompletionAt: new Date('2026-01-03T12:00:00Z'),
-    isDelayed: false,
-    openIncidentCount: 0,
     creditDays: 0,
     hasIncident: false,
-    isRoundTrip: true,
     ...partial,
   } as Trip;
 }

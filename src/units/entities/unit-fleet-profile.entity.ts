@@ -39,50 +39,8 @@ export class UnitFleetProfile {
   @Column({ name: 'odometer_km', nullable: true })
   odometerKm?: string;
 
-  @Column({ name: 'last_maintenance_date', type: 'date', nullable: true })
-  lastMaintenanceDate?: string | null;
-
-  @Column({ name: 'last_maintenance_type', type: 'text', nullable: true })
-  lastMaintenanceType?: string | null;
-
-  @Column({
-    name: 'last_maintenance_cost',
-    type: 'numeric',
-    precision: 14,
-    scale: 2,
-    nullable: true,
-  })
-  lastMaintenanceCost?: string | null;
-
-  @Column({ name: 'last_maintenance_notes', type: 'text', nullable: true })
-  lastMaintenanceNotes?: string | null;
-
   @Column({ name: 'tire_condition', nullable: true })
   tireCondition?: string;
-
-  @Column({ name: 'maintenance_alert_by_km', nullable: true })
-  maintenanceAlertByKm?: boolean;
-
-  @Column({ name: 'maintenance_next_date_override', type: 'date', nullable: true })
-  maintenanceNextDateOverride?: string;
-
-  @Column({
-    name: 'maintenance_km_interval',
-    type: 'numeric',
-    precision: 10,
-    scale: 2,
-    nullable: true,
-  })
-  maintenanceKmInterval?: string;
-
-  @Column({
-    name: 'maintenance_trip_km_at_last_service',
-    type: 'numeric',
-    precision: 12,
-    scale: 2,
-    nullable: true,
-  })
-  maintenanceTripKmAtLastService?: string;
 
   /** Km acumulados desde el último mantenimiento (control por distancia). */
   @Column({
@@ -94,53 +52,8 @@ export class UnitFleetProfile {
   })
   maintenanceKmCounter: string;
 
-  @Column({
-    name: 'maintenance_km_remaining',
-    type: 'numeric',
-    precision: 12,
-    scale: 2,
-    nullable: true,
-  })
-  maintenanceKmRemaining?: string;
-
-  @Column({ name: 'verification_phys_mech_date', type: 'date', nullable: true })
-  verificationPhysMechDate?: string;
-
-  @Column({
-    name: 'verification_phys_mech_cost',
-    type: 'numeric',
-    precision: 14,
-    scale: 2,
-    nullable: true,
-  })
-  verificationPhysMechCost?: string;
-
-  @Column({ name: 'verification_emissions_date', type: 'date', nullable: true })
-  verificationEmissionsDate?: string;
-
-  @Column({
-    name: 'verification_emissions_cost',
-    type: 'numeric',
-    precision: 14,
-    scale: 2,
-    nullable: true,
-  })
-  verificationEmissionsCost?: string;
-
   @Column({ name: 'verification_double_articulated_applies', nullable: true })
   verificationDoubleArticulatedApplies?: boolean;
-
-  @Column({ name: 'verification_double_articulated_date', type: 'date', nullable: true })
-  verificationDoubleArticulatedDate?: string;
-
-  @Column({
-    name: 'verification_double_articulated_cost',
-    type: 'numeric',
-    precision: 14,
-    scale: 2,
-    nullable: true,
-  })
-  verificationDoubleArticulatedCost?: string;
 
   @Column({ name: 'insurance_policy_number', nullable: true })
   insurancePolicyNumber?: string;

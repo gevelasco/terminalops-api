@@ -9,10 +9,9 @@ import {
 
 function baseDto(overrides: Partial<CreateTripDto> = {}): CreateTripDto {
   return {
-    origin: 'A',
-    destination: 'B',
+    originLocality: 'A',
+    destinationLocality: 'B',
     clientName: 'Cliente',
-    status: 'scheduled',
     operationType: 'sencillo',
     loadType: 'vacio',
     containerType: '20dc',

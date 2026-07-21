@@ -53,18 +53,21 @@ export class FleetInsuranceExpenseSyncService {
 
   async ensureAllInsuranceInstallments(params: {
     companyId: number;
-    insuranceTarget: ExpenseMaintenanceTarget;
+    /** @deprecated derivado de related IDs */
+    insuranceTarget?: ExpenseMaintenanceTarget;
     relatedUnitId?: number;
     relatedEquipmentId?: number;
     profile: InsuranceProfileLike;
   }): Promise<void> {
     const {
       companyId,
-      insuranceTarget,
       relatedUnitId,
       relatedEquipmentId,
       profile,
     } = params;
+    const insuranceTarget: ExpenseMaintenanceTarget =
+      params.insuranceTarget ??
+      (relatedEquipmentId != null ? 'equipment' : 'unit');
 
     const dueDates = this.buildFullScheduleDueDates(profile);
     if (dueDates.length === 0) return;
@@ -117,7 +120,6 @@ export class FleetInsuranceExpenseSyncService {
           amount: cost,
           incurredAt: dueDate,
           kind: 'insurance',
-          insuranceTarget,
           relatedUnitId:
             relatedUnitId != null ? String(relatedUnitId) : undefined,
           relatedEquipmentId:
@@ -175,7 +177,7 @@ export class FleetInsuranceExpenseSyncService {
   /** @deprecated Use ensureAllInsuranceInstallments instead. Kept for backward compat during transition. */
   async syncForInsurancePaymentSave(params: {
     companyId: number;
-    insuranceTarget: ExpenseMaintenanceTarget;
+    insuranceTarget?: ExpenseMaintenanceTarget;
     relatedUnitId?: number;
     relatedEquipmentId?: number;
     previous: InsuranceProfileLike | null | undefined;
@@ -194,7 +196,7 @@ export class FleetInsuranceExpenseSyncService {
   /** @deprecated Use ensureAllInsuranceInstallments instead. */
   async ensureInitialInsurancePremium(params: {
     companyId: number;
-    insuranceTarget: ExpenseMaintenanceTarget;
+    insuranceTarget?: ExpenseMaintenanceTarget;
     relatedUnitId?: number;
     relatedEquipmentId?: number;
     previous: InsuranceProfileLike | null | undefined;

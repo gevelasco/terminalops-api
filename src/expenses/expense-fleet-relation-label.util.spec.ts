@@ -15,7 +15,7 @@ describe('buildExpenseFleetRelationLabel', () => {
     const label = buildExpenseFleetRelationLabel(
       expense({
         kind: 'maintenance',
-        maintenanceTarget: 'unit',
+        relatedUnitId: 7,
         relatedUnit: {
           id: 7,
           trailerBrandAbbr: 'HYU',
@@ -37,11 +37,12 @@ describe('buildExpenseFleetRelationLabel', () => {
     expect(label).toBe('Juan Pérez');
   });
 
-  it('appends verification scope for verification expenses', () => {
+  it('appends verification category for verification expenses', () => {
     const label = buildExpenseFleetRelationLabel(
       expense({
         kind: 'verification',
-        verificationScope: 'phys_mech',
+        category: 'Verificación - físico-mecánica',
+        relatedUnitId: 2,
         relatedUnit: {
           id: 2,
           trailerBrandAbbr: 'FRE',
@@ -50,7 +51,7 @@ describe('buildExpenseFleetRelationLabel', () => {
         } as Expense['relatedUnit'],
       }),
     );
-    expect(label).toBe('FRE-2020-12-BC-3D · Verificación físico-mecánica');
+    expect(label).toBe('FRE-2020-12-BC-3D · Verificación - físico-mecánica');
   });
 
   it('returns unit label for fuel expenses linked to a unit', () => {
@@ -68,12 +69,17 @@ describe('buildExpenseFleetRelationLabel', () => {
     expect(label).toBe('FRE-2022-233-SDCV-34');
   });
 
-  it('falls back to trip unit snapshot for fuel when related unit is missing', () => {
+  it('falls back to trip.unit for fuel when related unit is missing', () => {
     const label = buildExpenseFleetRelationLabel(
       expense({
         kind: 'fuel',
         trip: {
-          unitOperationalCodeSnapshot: 'FRE-2022-233-SDCV-34',
+          unit: {
+            id: 9,
+            trailerBrandAbbr: 'FRE',
+            trailerYear: '2022',
+            plate: '233-SDCV-34',
+          },
         } as Expense['trip'],
       }),
     );
@@ -87,7 +93,7 @@ describe('buildExpenseFleetRelationLabel', () => {
   it('falls back to plate when the unit lacks brand/year to build the code', () => {
     const row = expense({
       kind: 'maintenance',
-      maintenanceTarget: 'unit',
+      relatedUnitId: 7,
       relatedUnit: {
         id: 7,
         plate: '81-AA-9K',
@@ -100,7 +106,7 @@ describe('buildExpenseFleetRelationLabel', () => {
   it('exposes per-field relation labels for detail read view', () => {
     const row = expense({
       kind: 'maintenance',
-      maintenanceTarget: 'unit',
+      relatedUnitId: 7,
       relatedUnit: {
         id: 7,
         trailerBrandAbbr: 'HYU',

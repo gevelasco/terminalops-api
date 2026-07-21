@@ -47,10 +47,13 @@ describe('trip-fleet-status-sync.util', () => {
     );
   });
 
-  it('isProtectedFleetStatus blocks maintenance and HR states', () => {
+  it('isProtectedFleetStatus blocks unit maintenance and operator HR holds', () => {
     expect(isProtectedFleetStatus('unit', 'maintenance')).toBe(true);
     expect(isProtectedFleetStatus('unit', 'available')).toBe(false);
     expect(isProtectedFleetStatus('operator', 'leave')).toBe(true);
+    expect(isProtectedFleetStatus('operator', 'incapacitated')).toBe(true);
+    expect(isProtectedFleetStatus('operator', 'maintenance')).toBe(false);
+    expect(isProtectedFleetStatus('operator', 'inactive')).toBe(false);
     expect(isProtectedFleetStatus('operator', 'in_use')).toBe(false);
     expect(isProtectedFleetStatus('equipment', 'maintenance')).toBe(true);
   });

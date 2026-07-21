@@ -45,7 +45,10 @@ export class CreateDestinationRateDto {
   @Min(0)
   routeDistanceKm?: number;
 
-  @ApiPropertyOptional({ default: true })
+  @ApiPropertyOptional({
+    default: true,
+    description: 'Ignorado: las maniobras siempre son ida+vuelta (×2).',
+  })
   @IsOptional()
   @IsBoolean()
   isRoundTrip?: boolean;

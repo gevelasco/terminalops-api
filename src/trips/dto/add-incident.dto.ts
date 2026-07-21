@@ -22,9 +22,4 @@ export class AddIncidentDto {
   @IsBoolean()
   @Transform(({ value }) => value === true || value === 'true')
   isIncident?: boolean;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  category?: string;
 }

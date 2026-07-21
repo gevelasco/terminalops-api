@@ -23,9 +23,6 @@ export class ClientPaymentTerms {
   @Column({ name: 'approximate_credit_amount', nullable: true })
   approximateCreditAmount?: string;
 
-  @Column({ name: 'commercial_health', default: 'not_evaluated' })
-  commercialHealth: string;
-
   @Column({ name: 'default_payment_method', nullable: true })
   defaultPaymentMethod?: string;
 

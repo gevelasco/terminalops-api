@@ -3,18 +3,26 @@ import { Equipment } from 'src/equipment/entities/equipment.entity';
 import { toIsoString } from 'src/common/utils/iso-date.util';
 import { profileToFleetMeta } from 'src/units/mappers/unit-fleet-meta.mapper';
 import { FleetAssetTenure } from 'src/fleet/entities/fleet-asset-tenure.entity';
+import { recomputeLastMaintenanceFields } from 'src/fleet/fleet-maintenance-expense-sync.util';
 
-export type SerializeUnitOptions = { tenure?: FleetAssetTenure | null };
+export type SerializeUnitOptions = {
+  tenure?: FleetAssetTenure | null;
+  /** Listado: sin historial/docs/tenure en fleetMeta. */
+  list?: boolean;
+};
 
 export function serializeUnit(
   unit: Unit,
   options?: SerializeUnitOptions,
 ): Record<string, unknown> {
+  const list = options?.list === true;
   const fleetMeta = profileToFleetMeta(
     unit.fleetProfile,
     unit.maintenanceEntries,
-    unit.fleetDocuments,
-    options?.tenure,
+    list ? undefined : unit.fleetDocuments,
+    list ? undefined : options?.tenure,
+    unit.verificationEntries,
+    { includeHistory: !list },
   );
 
   return {
@@ -27,13 +35,18 @@ export function serializeUnit(
     isActive: unit.isActive !== false,
     serialNumber: unit.serialNumber ?? undefined,
     motorNumber: unit.motorNumber ?? undefined,
+    // Derivado: UI trabaja en toneladas; canónico en DB es capacity_kg.
     capacityTons:
-      unit.capacityTons != null ? Number(unit.capacityTons) : undefined,
+      unit.capacityKg > 0
+        ? Math.round((unit.capacityKg / 1000) * 100) / 100
+        : undefined,
     name: unit.name ?? undefined,
     trailerBrandAbbr: unit.trailerBrandAbbr ?? undefined,
     trailerYear: unit.trailerYear ?? undefined,
     fleetMeta,
-    equipment: (unit.equipment ?? []).map((e) => serializeEquipmentRef(e, unit.id)),
+    equipment: (unit.equipment ?? []).map((e) =>
+      serializeEquipmentRef(e, unit.id, list),
+    ),
     createdAt: toIsoString(unit.createdAt),
     updatedAt: toIsoString(unit.updatedAt),
   };
@@ -42,14 +55,18 @@ export function serializeUnit(
 function serializeEquipmentRef(
   equipment: Equipment,
   unitId: number,
+  list: boolean,
 ): Record<string, unknown> {
+  const lastMaint = list
+    ? null
+    : recomputeLastMaintenanceFields(equipment.maintenanceEntries ?? []);
   return {
     id: equipment.id,
     companyId: equipment.companyId,
     unitId,
     name: equipment.name,
     serialNumber: equipment.serialNumber,
-    lastServiceDate: equipment.lastServiceDate ?? undefined,
+    lastServiceDate: lastMaint?.lastMaintenanceDate ?? undefined,
     plate: equipment.plate ?? undefined,
     type: equipment.type ?? undefined,
     status: equipment.status ?? undefined,

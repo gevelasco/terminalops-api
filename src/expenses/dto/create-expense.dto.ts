@@ -8,10 +8,7 @@ import {
   IsString,
   Min,
 } from 'class-validator';
-import {
-  EXPENSE_MAINTENANCE_TARGETS,
-  EXPENSE_VERIFICATION_SCOPES,
-} from '../expense-payload.util';
+import { EXPENSE_VERIFICATION_SCOPES } from '../expense-payload.util';
 
 export class CreateExpenseDto {
   @ApiProperty()
@@ -71,16 +68,7 @@ export class CreateExpenseDto {
   @IsString()
   paymentMethod?: string;
 
-  @ApiPropertyOptional({ enum: EXPENSE_MAINTENANCE_TARGETS })
-  @IsOptional()
-  @IsIn(EXPENSE_MAINTENANCE_TARGETS)
-  maintenanceTarget?: (typeof EXPENSE_MAINTENANCE_TARGETS)[number];
-
-  @ApiPropertyOptional({ enum: EXPENSE_MAINTENANCE_TARGETS })
-  @IsOptional()
-  @IsIn(EXPENSE_MAINTENANCE_TARGETS)
-  insuranceTarget?: (typeof EXPENSE_MAINTENANCE_TARGETS)[number];
-
+  /** Solo create de verificación: se traduce a category canónica. */
   @ApiPropertyOptional({ enum: EXPENSE_VERIFICATION_SCOPES })
   @IsOptional()
   @IsIn(EXPENSE_VERIFICATION_SCOPES)
@@ -90,11 +78,6 @@ export class CreateExpenseDto {
   @IsOptional()
   @IsBoolean()
   invoiceRequired?: boolean;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsBoolean()
-  isOperationalProvision?: boolean;
 
   @ApiPropertyOptional({ description: 'Fecha en que se pagó (ISO). null = pendiente.' })
   @IsOptional()

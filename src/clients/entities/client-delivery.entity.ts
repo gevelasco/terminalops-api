@@ -37,9 +37,6 @@ export class ClientDelivery {
   @Column({ name: 'destination_rate_id', type: 'int', nullable: true })
   destinationRateId?: number;
 
-  @Column({ name: 'is_unpriced_route', default: false })
-  isUnpricedRoute: boolean;
-
   @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
   updatedAt: Date;
 

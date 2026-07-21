@@ -3,7 +3,6 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { Trip } from '../entities/trip.entity';
 import { TripIncident } from '../entities/trip-incident.entity';
-import { TripAuditService } from './trip-audit.service';
 import { TripFleetStatusSyncService } from './trip-fleet-status-sync.service';
 import { TripLifecycleService } from './trip-lifecycle.service';
 import { UnitTripOdometerService } from 'src/units/unit-trip-odometer.service';
@@ -47,10 +46,6 @@ describe('TripLifecycleService', () => {
           useValue: {
             find: incidentsFind,
           },
-        },
-        {
-          provide: TripAuditService,
-          useValue: { recordLifecycleStatusChange: jest.fn() },
         },
         {
           provide: TripFleetStatusSyncService,

@@ -69,7 +69,13 @@ export class FleetVerificationExpenseSyncService {
       ...(params.relatedEquipmentId != null
         ? { relatedEquipmentId: String(params.relatedEquipmentId) }
         : {}),
-      description: params.event.category,
+      description: `Pago de verificación - ${
+        params.event.scope === 'phys_mech'
+          ? 'físico-mecánica'
+          : params.event.scope === 'emissions'
+            ? 'emisiones'
+            : 'doble articulado'
+      }`,
     });
   }
 }

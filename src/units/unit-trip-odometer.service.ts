@@ -36,8 +36,6 @@ export class UnitTripOdometerService {
 
     const km = operationalKmFromStoredTrip(
       parseStoredKm(trip.routeDistanceKm),
-      parseStoredKm(trip.operationalDistanceKm),
-      trip.isRoundTrip,
     );
     if (km == null || km <= 0) {
       return;
@@ -159,12 +157,12 @@ export class UnitTripOdometerService {
     const nextOdometer = Math.max(0, currentOdometer + sign * km);
 
     const interval = resolveMaintenanceKmInterval(
-      profile.maintenanceKmInterval,
+      null,
       company?.maintenanceKmControlEnabled ?? false,
       company?.maintenanceKmIntervalDefault,
     );
     const kmControl = maintenanceKmControlActive(
-      profile.maintenanceAlertByKm,
+      null,
       company?.maintenanceKmControlEnabled ?? false,
     );
 

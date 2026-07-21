@@ -5,6 +5,7 @@ import {
   unitFleetMetaGpsTouched,
   unitFleetMetaInsurancePaymentDateTouched,
   unitFleetMetaInsuranceTouched,
+  unitFleetMetaVerificationTouched,
 } from './fleet-meta-expense-sync-scope.util';
 
 describe('fleet-meta-expense-sync-scope.util', () => {
@@ -85,5 +86,14 @@ describe('fleet-meta-expense-sync-scope.util', () => {
         { gpsLastPaymentDate: '2026-06-01T12:00:00.000Z' },
       ),
     ).toBe(false);
+  });
+
+  it('detects verificationEntries array in incoming dto', () => {
+    expect(
+      unitFleetMetaVerificationTouched(
+        { verificationPhysMechDate: '2026-05-01' },
+        { verificationEntries: [{ scope: 'phys_mech', date: '2026-06-01' }] },
+      ),
+    ).toBe(true);
   });
 });

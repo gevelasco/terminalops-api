@@ -1,6 +1,7 @@
 import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
+import { ActivityEventsService } from 'src/activity-events/activity-events.service';
 import { Equipment } from 'src/equipment/entities/equipment.entity';
 import { Expense } from 'src/expenses/entities/expense.entity';
 import { Operator } from 'src/operators/entities/operator.entity';
@@ -43,9 +44,6 @@ describe('ExpensesService (A2)', () => {
         kind: 'maintenance',
         vendor: 'Taller Norte',
         paymentMethod: 'transfer',
-        maintenanceTarget: 'unit',
-        insuranceTarget: null,
-        verificationScope: null,
         relatedUnitId: 7,
         trip: { id: 10, maneuverCode: 'ADM-0001' },
         relatedUnit: { id: 7 },
@@ -101,19 +99,22 @@ describe('ExpensesService (A2)', () => {
           provide: getRepositoryToken(Operator),
           useValue: { findOne: operatorsFindOne },
         },
+        {
+          provide: ActivityEventsService,
+          useValue: { record: jest.fn() },
+        },
       ],
     }).compile();
 
     service = module.get(ExpensesService);
   });
 
-  it('create persists vendor, paymentMethod and maintenanceTarget (round-trip)', async () => {
+  it('create persists vendor and paymentMethod (round-trip)', async () => {
     const result = await service.create(1, {
       category: 'Aceite',
       amount: 1500,
       incurredAt: '2025-06-02',
       kind: 'maintenance',
-      maintenanceTarget: 'unit',
       relatedUnitId: '7',
       vendor: '  Taller AC ',
       paymentMethod: 'cash',
@@ -123,22 +124,19 @@ describe('ExpensesService (A2)', () => {
     const payload = expenseCreate.mock.calls[0][0];
     expect(payload.vendor).toBe('Taller AC');
     expect(payload.paymentMethod).toBe('cash');
-    expect(payload.maintenanceTarget).toBe('unit');
-    expect(payload.insuranceTarget).toBeNull();
-    expect(payload.verificationScope).toBeNull();
+    expect(payload.relatedUnitId).toBe(7);
     expect(payload.incurredAt.toISOString()).toBe('2025-06-02T18:00:00.000Z');
     expect(result.vendor).toBe('Taller Norte');
     expect(result.paymentMethod).toBe('transfer');
   });
 
-  it('create rejects maintenance without maintenanceTarget', async () => {
+  it('create rejects maintenance without related asset', async () => {
     await expect(
       service.create(1, {
         category: 'Aceite',
         amount: 100,
         incurredAt: '2025-06-02',
         kind: 'maintenance',
-        relatedUnitId: '7',
       }),
     ).rejects.toBeInstanceOf(BadRequestException);
     expect(expenseSave).not.toHaveBeenCalled();
@@ -149,9 +147,6 @@ describe('ExpensesService (A2)', () => {
       id: 42,
       companyId: 1,
       kind: 'fuel',
-      maintenanceTarget: null,
-      insuranceTarget: null,
-      verificationScope: null,
       relatedUnitId: null,
       relatedEquipmentId: null,
     });
@@ -166,23 +161,18 @@ describe('ExpensesService (A2)', () => {
       expect.objectContaining({
         vendor: 'Gasolinera 1',
         paymentMethod: 'credit',
-        maintenanceTarget: null,
-        insuranceTarget: null,
-        verificationScope: null,
       }),
     );
   });
 
-  it('update clears targets when kind changes to fuel', async () => {
+  it('update allows kind change to fuel', async () => {
     expenseFindOne.mockResolvedValueOnce({
       id: 42,
       companyId: 1,
       kind: 'maintenance',
-      maintenanceTarget: 'unit',
-      insuranceTarget: null,
-      verificationScope: null,
       relatedUnitId: 7,
       relatedEquipmentId: null,
+      category: 'Aceite',
     });
 
     await service.update(1, 42, { kind: 'fuel' });
@@ -191,14 +181,11 @@ describe('ExpensesService (A2)', () => {
       { id: 42, companyId: 1 },
       expect.objectContaining({
         kind: 'fuel',
-        maintenanceTarget: null,
-        insuranceTarget: null,
-        verificationScope: null,
       }),
     );
   });
 
-  it('createAutoExpensesForTrip does not set A2 relation fields', async () => {
+  it('createAutoExpensesForTrip does not set vendor/paymentMethod', async () => {
     await service.createAutoExpensesForTrip(1, {
       id: 99,
       maneuverCode: 'ADM-0099',
@@ -219,9 +206,6 @@ describe('ExpensesService (A2)', () => {
     for (const row of rows) {
       expect(row.vendor).toBeUndefined();
       expect(row.paymentMethod).toBeUndefined();
-      expect(row.maintenanceTarget).toBeUndefined();
-      expect(row.insuranceTarget).toBeUndefined();
-      expect(row.verificationScope).toBeUndefined();
     }
   });
 

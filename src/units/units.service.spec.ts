@@ -4,6 +4,7 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { FleetBrandsService } from 'src/fleet/fleet-brands.service';
 import { FleetTenureService } from 'src/fleet/fleet-tenure.service';
 import { FleetMaintenanceEntry } from 'src/units/entities/fleet-maintenance-entry.entity';
+import { FleetVerificationEntry } from 'src/units/entities/fleet-verification-entry.entity';
 import { UnitFleetDocument } from 'src/units/entities/unit-fleet-document.entity';
 import { UnitFleetProfile } from 'src/units/entities/unit-fleet-profile.entity';
 import { Unit } from 'src/units/entities/unit.entity';
@@ -35,6 +36,12 @@ describe('UnitsService (A6 fleet status lock)', () => {
     create: jest.fn((dto: object) => dto),
   };
   const maintenanceRepo = {
+    find: jest.fn(),
+    delete: jest.fn(),
+    save: jest.fn(),
+    create: jest.fn((dto: object) => dto),
+  };
+  const verificationRepo = {
     find: jest.fn(),
     delete: jest.fn(),
     save: jest.fn(),
@@ -99,6 +106,7 @@ describe('UnitsService (A6 fleet status lock)', () => {
       equipment: [],
     });
     maintenanceRepo.find.mockResolvedValue([]);
+    verificationRepo.find.mockResolvedValue([]);
     profileRepo.findOne.mockResolvedValue(null);
     fleetTenureService.findByUnit.mockResolvedValue(null);
 
@@ -110,6 +118,10 @@ describe('UnitsService (A6 fleet status lock)', () => {
         {
           provide: getRepositoryToken(FleetMaintenanceEntry),
           useValue: maintenanceRepo,
+        },
+        {
+          provide: getRepositoryToken(FleetVerificationEntry),
+          useValue: verificationRepo,
         },
         { provide: getRepositoryToken(UnitFleetDocument), useValue: documentsRepo },
         { provide: FleetTenureService, useValue: fleetTenureService },

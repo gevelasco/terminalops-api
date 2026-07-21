@@ -81,7 +81,7 @@ function isManualExpense(expense: Expense): boolean {
   if (expense.tripId != null) {
     return false;
   }
-  if (expense.isOperationalProvision === true) {
+  if (expense.kind === 'operational_control') {
     return false;
   }
   if (COVERAGE_KINDS.has(expense.kind)) {

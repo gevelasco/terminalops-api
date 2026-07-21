@@ -11,6 +11,7 @@ import { Trip } from 'src/trips/entities/trip.entity';
 import { Unit } from 'src/units/entities/unit.entity';
 import { OperatorsController } from './operators.controller';
 import { OperatorsService } from './operators.service';
+import { OperatorHrHoldWorkflowService } from './operator-hr-hold-workflow.service';
 
 @Module({
   imports: [
@@ -27,7 +28,7 @@ import { OperatorsService } from './operators.service';
     ]),
   ],
   controllers: [OperatorsController],
-  providers: [OperatorsService],
+  providers: [OperatorsService, OperatorHrHoldWorkflowService],
   exports: [OperatorsService],
 })
 export class OperatorsModule {}

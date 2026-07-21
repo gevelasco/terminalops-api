@@ -38,11 +38,33 @@ export class CreateEquipmentFleetMaintenanceEntryDto {
   @IsOptional()
   @IsString()
   paymentMethod?: string;
+}
 
-  @ApiPropertyOptional({ enum: ['concluido'] })
+export class CreateEquipmentFleetVerificationEntryDto {
+  @ApiPropertyOptional({ enum: ['phys_mech'] })
   @IsOptional()
-  @IsIn(['concluido'])
-  status?: 'concluido';
+  @IsIn(['phys_mech'])
+  scope?: 'phys_mech';
+
+  @ApiPropertyOptional()
+  @OptionalIsoDate()
+  date?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  cost?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  notes?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  paymentMethod?: string;
 }
 
 export class CreateEquipmentFleetMetaDto {
@@ -130,22 +152,34 @@ export class CreateEquipmentFleetMetaDto {
   @Min(0)
   equipmentTireCount?: number;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({
+    deprecated: true,
+    description: 'Derivado de maintenanceEntries al leer; no se persiste en profile.',
+  })
   @OptionalIsoDate()
   lastMaintenanceDate?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({
+    deprecated: true,
+    description: 'Derivado de maintenanceEntries al leer; no se persiste en profile.',
+  })
   @IsOptional()
   @IsString()
   lastMaintenanceType?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({
+    deprecated: true,
+    description: 'Derivado de maintenanceEntries al leer; no se persiste en profile.',
+  })
   @IsOptional()
   @IsNumber()
   @Min(0)
   lastMaintenanceCost?: number;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({
+    deprecated: true,
+    description: 'Derivado de maintenanceEntries al leer; no se persiste en profile.',
+  })
   @IsOptional()
   @IsString()
   lastMaintenanceNotes?: string;
@@ -162,33 +196,53 @@ export class CreateEquipmentFleetMetaDto {
   @IsString()
   tireCondition?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({
+    deprecated: true,
+    description: 'Ignorado en escritura.',
+  })
   @IsOptional()
   @IsBoolean()
   maintenanceAlertByKm?: boolean;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({
+    deprecated: true,
+    description: 'Ignorado en escritura; próximo mantenimiento se calcula en vivo.',
+  })
   @OptionalIsoDate()
   maintenanceNextDateOverride?: string;
 
-  @ApiPropertyOptional()
+  /** @deprecated Ignorado en escritura. */
+  @ApiPropertyOptional({ deprecated: true })
   @IsOptional()
   @IsNumber()
   @Min(0)
   maintenanceKmInterval?: number;
 
-  @ApiPropertyOptional()
+  /** @deprecated Ignorado en escritura. */
+  @ApiPropertyOptional({ deprecated: true })
   @IsOptional()
   @IsNumber()
   @Min(0)
   maintenanceTripKmAtLastService?: number;
 
-  @ApiPropertyOptional()
+  /** @deprecated Ignorado en escritura. */
+  @ApiPropertyOptional({ deprecated: true })
   @IsOptional()
   @IsNumber()
+  @Min(0)
   maintenanceKmRemaining?: number;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ type: [CreateEquipmentFleetVerificationEntryDto] })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CreateEquipmentFleetVerificationEntryDto)
+  verificationEntries?: CreateEquipmentFleetVerificationEntryDto[];
+
+  @ApiPropertyOptional({
+    description:
+      'Compat FE: se convierte a verificationEntries al guardar si no se envía el array.',
+  })
   @OptionalIsoDate()
   verificationPhysMechDate?: string;
 
@@ -197,15 +251,6 @@ export class CreateEquipmentFleetMetaDto {
   @IsNumber()
   @Min(0)
   verificationPhysMechCost?: number;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsBoolean()
-  equipmentOperatedByAgency?: boolean;
-
-  @ApiPropertyOptional()
-  @OptionalIsoDate()
-  physMechTwoYearExemptStartDate?: string;
 
   @ApiPropertyOptional()
   @IsOptional()

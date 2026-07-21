@@ -10,15 +10,13 @@ export async function syncTripIncidentMarkers(
 ): Promise<void> {
   const entries = await incidentsRepo.find({
     where: { tripId },
-    select: ['id', 'isIncident', 'status'],
+    select: ['id', 'isIncident'],
   });
   const incidentEntries = entries.filter((row) => row.isIncident);
   await tripsRepo.update(
     { id: tripId, companyId },
     {
       hasIncident: incidentEntries.length > 0,
-      // Bitácora: `isIncident` es clasificación; no hay incidentes "abiertos" que bloqueen cierre.
-      openIncidentCount: 0,
     },
   );
 }

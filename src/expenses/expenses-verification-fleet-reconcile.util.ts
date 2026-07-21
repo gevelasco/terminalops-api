@@ -1,4 +1,8 @@
 import type { ExpenseVerificationScope } from 'src/expenses/expense-payload.util';
+import {
+  isExpenseVerificationScope,
+  verificationScopeFromExpenseText,
+} from 'src/expenses/expense-payload.util';
 import { VERIFICATION_SCOPE_SPECS } from 'src/fleet/fleet-verification-expense-sync.util';
 
 export type VerificationProfileFieldKeys = {
@@ -39,8 +43,5 @@ export function verificationProfileDate(
   return typeof raw === 'string' ? raw.trim() : '';
 }
 
-export function isExpenseVerificationScope(
-  scope: string | null | undefined,
-): scope is ExpenseVerificationScope {
-  return VERIFICATION_SCOPE_SPECS.some((row) => row.scope === scope);
-}
+export { isExpenseVerificationScope, verificationScopeFromExpenseText };
+export type { ExpenseVerificationScope };

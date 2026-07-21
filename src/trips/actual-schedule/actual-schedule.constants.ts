@@ -1,5 +1,3 @@
-export const SCHEDULE_UPDATE_INCIDENT_CATEGORY = 'schedule_update';
-
 export const ACTUAL_SCHEDULE_FIELD_KEYS = [
   'departureAt',
   'arrivedAt',

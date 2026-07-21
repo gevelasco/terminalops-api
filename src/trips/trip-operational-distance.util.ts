@@ -1,62 +1,57 @@
 /**
- * Distancias de maniobra: OSRM = solo ida; operación logística = ida + vuelta (default).
- * Fuente única para diesel, desgaste y métricas de km.
+ * Distancias de maniobra: OSRM = solo ida; operación logística = siempre ida + vuelta (×2).
+ * Fuente única para diesel, desgaste y métricas de km del path de trips/fuel.
  *
- * `isRoundTrip !== false` — el default explícito es ida+vuelta; no omitir el flag en DTOs.
  * Verificación: `npm run check:trip-distance`
  */
 export type TripDistanceBreakdown = {
   routeDistanceKm: number;
   operationalDistanceKm: number;
   roundTripFactor: number;
-  isRoundTrip: boolean;
+  /** Siempre true: las maniobras operan ida+vuelta. */
+  isRoundTrip: true;
 };
+
+const ROUND_TRIP_FACTOR = 2;
 
 export function resolveTripOperationalDistance(
   routeDistanceKmOneWay: number,
-  isRoundTrip: boolean | undefined = true,
+  /** Ignorado: trips/fuel siempre ×2 (compat call sites legacy). */
+  _isRoundTrip?: boolean,
 ): TripDistanceBreakdown {
   const route = Number(routeDistanceKmOneWay);
   if (!Number.isFinite(route) || route <= 0) {
     throw new Error('routeDistanceKm must be a positive finite number');
   }
-  const roundTrip = isRoundTrip !== false;
-  const roundTripFactor = roundTrip ? 2 : 1;
   return {
     routeDistanceKm: route,
-    operationalDistanceKm: route * roundTripFactor,
-    roundTripFactor,
-    isRoundTrip: roundTrip,
+    operationalDistanceKm: route * ROUND_TRIP_FACTOR,
+    roundTripFactor: ROUND_TRIP_FACTOR,
+    isRoundTrip: true,
   };
 }
 
 export function resolveOperationalDistanceKm(
   routeDistanceKmOneWay: number,
-  isRoundTrip: boolean | undefined = true,
+  _isRoundTrip?: boolean,
 ): number {
-  return resolveTripOperationalDistance(routeDistanceKmOneWay, isRoundTrip)
+  return resolveTripOperationalDistance(routeDistanceKmOneWay)
     .operationalDistanceKm;
 }
 
-/** Km operativos persistidos o estimación legacy (solo ida guardada → ×2). */
+/** Km operativos: siempre route × 2 (ya no se persiste operational_distance_km). */
 export function operationalKmFromStoredTrip(
   routeDistanceKm: number | null | undefined,
-  operationalDistanceKm: number | null | undefined,
-  isRoundTrip: boolean | undefined = true,
+  /** Ignorado: columna dropeada; se conserva firma por call sites legacy. */
+  _operationalDistanceKm?: number | null,
+  _isRoundTrip?: boolean,
 ): number | null {
-  if (
-    operationalDistanceKm != null &&
-    Number.isFinite(operationalDistanceKm) &&
-    operationalDistanceKm > 0
-  ) {
-    return operationalDistanceKm;
-  }
   if (
     routeDistanceKm != null &&
     Number.isFinite(routeDistanceKm) &&
     routeDistanceKm > 0
   ) {
-    return resolveOperationalDistanceKm(routeDistanceKm, isRoundTrip);
+    return resolveOperationalDistanceKm(routeDistanceKm);
   }
   return null;
 }

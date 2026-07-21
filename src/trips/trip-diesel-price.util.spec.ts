@@ -4,17 +4,7 @@ import {
 } from './trip-diesel-price.util';
 
 describe('trip-diesel-price.util', () => {
-  it('prefers stored snapshot over derived', () => {
-    expect(
-      tripDieselPricePerLiterAtCreation({
-        dieselPricePerLiterAtCreation: '24.5000',
-        dieselLiters: '100',
-        dieselAmount: '3000',
-      }),
-    ).toBe(24.5);
-  });
-
-  it('derives price from amount and liters when snapshot missing', () => {
+  it('derives price from amount and liters', () => {
     expect(
       tripDieselPricePerLiterAtCreation({
         dieselLiters: '10',
@@ -23,13 +13,28 @@ describe('trip-diesel-price.util', () => {
     ).toBe(25.5);
   });
 
-  it('computes historical amount from snapshot', () => {
+  it('returns null when liters/amount missing', () => {
+    expect(
+      tripDieselPricePerLiterAtCreation({
+        dieselLiters: '10',
+      }),
+    ).toBeNull();
+  });
+
+  it('computes historical amount from derived price', () => {
     expect(
       tripHistoricalDieselAmount({
         dieselLiters: '10',
-        dieselPricePerLiterAtCreation: '24.5',
-        dieselAmount: '999',
+        dieselAmount: '245',
       }),
     ).toBe(245);
+  });
+
+  it('falls back to stored amount when cannot derive', () => {
+    expect(
+      tripHistoricalDieselAmount({
+        dieselAmount: '999',
+      }),
+    ).toBe(999);
   });
 });

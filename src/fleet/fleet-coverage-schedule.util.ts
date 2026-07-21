@@ -15,6 +15,8 @@ export type CoverageScheduleRow = {
   dueDate: string;
   status: CoverageScheduleRowStatus;
   paid: boolean;
+  /** Hay gasto en ledger para el ciclo (pagado o no). */
+  hasExpense: boolean;
 };
 
 export type FleetCoveragePaymentMeta = {
@@ -125,6 +127,7 @@ export function buildCoveragePaymentSchedule(params: {
       i + 1,
     );
     const paid = fleetCycleIsPaid(matched);
+    const hasExpense = matched != null;
 
     let status: CoverageScheduleRowStatus;
     if (paid) {
@@ -140,6 +143,7 @@ export function buildCoveragePaymentSchedule(params: {
       dueDate,
       status,
       paid,
+      hasExpense,
     });
   }
 
@@ -201,7 +205,7 @@ export function listInsuranceCoverageDueDatesInRange(
   });
   if (schedule.length > 0) {
     return schedule
-      .filter((row) => !row.paid && row.dueDate >= fromYmd && row.dueDate <= toYmd)
+      .filter((row) => !row.hasExpense && row.dueDate >= fromYmd && row.dueDate <= toYmd)
       .map((row) => row.dueDate);
   }
 
@@ -216,7 +220,7 @@ export function listInsuranceCoverageDueDatesInRange(
       meta?.lastPaymentDate?.trim(),
       paymentExpenses,
     );
-    return !fleetCycleIsPaid(matched);
+    return matched == null;
   });
 }
 
@@ -235,7 +239,7 @@ export function listGpsCoverageDueDatesInRange(
   });
   if (schedule.length > 0) {
     return schedule
-      .filter((row) => !row.paid && row.dueDate >= fromYmd && row.dueDate <= toYmd)
+      .filter((row) => !row.hasExpense && row.dueDate >= fromYmd && row.dueDate <= toYmd)
       .map((row) => row.dueDate);
   }
 
@@ -246,6 +250,6 @@ export function listGpsCoverageDueDatesInRange(
       meta?.lastPaymentDate?.trim(),
       paymentExpenses,
     );
-    return !fleetCycleIsPaid(matched);
+    return matched == null;
   });
 }

@@ -66,6 +66,36 @@ export class OperatorsController {
     return this.service.revertTripPayment(companyId, operatorId, tripId, user);
   }
 
+  @Post(':operatorId/hr-hold/leave')
+  async startLeave(
+    @Param('operatorId', ParseIntPipe) operatorId: number,
+    @LoggedUser() user: AuthUser,
+  ) {
+    assertModuleWrite(user, APP_MODULE_CODES.OPERATORS);
+    const companyId = await this.tenantContext.resolveInternalIdFromAuthUser(user);
+    return this.service.startHrHold(companyId, operatorId, 'leave');
+  }
+
+  @Post(':operatorId/hr-hold/incapacitated')
+  async startIncapacitated(
+    @Param('operatorId', ParseIntPipe) operatorId: number,
+    @LoggedUser() user: AuthUser,
+  ) {
+    assertModuleWrite(user, APP_MODULE_CODES.OPERATORS);
+    const companyId = await this.tenantContext.resolveInternalIdFromAuthUser(user);
+    return this.service.startHrHold(companyId, operatorId, 'incapacitated');
+  }
+
+  @Post(':operatorId/hr-hold/end')
+  async endHrHold(
+    @Param('operatorId', ParseIntPipe) operatorId: number,
+    @LoggedUser() user: AuthUser,
+  ) {
+    assertModuleWrite(user, APP_MODULE_CODES.OPERATORS);
+    const companyId = await this.tenantContext.resolveInternalIdFromAuthUser(user);
+    return this.service.endHrHold(companyId, operatorId);
+  }
+
   @Get(':operatorId')
   async findOne(
     @Param('operatorId', ParseIntPipe) operatorId: number,

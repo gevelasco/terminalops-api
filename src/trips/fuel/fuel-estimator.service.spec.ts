@@ -45,24 +45,17 @@ describe('FuelEstimatorService', () => {
     expect(res.estimatedLiters).toBeGreaterThan(40);
   });
 
-  it('uses round trip by default (100 km → 200 km efectivos)', async () => {
-    const base = {
-      configuration: 'sencillo' as const,
+  it('always uses round-trip distance (×2)', async () => {
+    const res = await service.estimate({
+      distanceKm: 100,
+      configuration: 'sencillo',
       approximateWeightTons: 10,
       cargoType: 'lleno',
       containerType: 'na',
-    };
-    const roundTripDefault = await service.estimate({ ...base, distanceKm: 100 });
-    const oneWay = await service.estimate({
-      ...base,
-      distanceKm: 100,
-      isRoundTrip: false,
     });
-    expect(roundTripDefault.adjustments.effectiveDistanceKm).toBe(200);
-    expect(roundTripDefault.estimatedLiters).toBeCloseTo(
-      oneWay.estimatedLiters * 2,
-      1,
-    );
+    expect(res.operationalDistanceKm).toBe(200);
+    expect(res.adjustments.roundTripFactor).toBe(2);
+    expect(res.adjustments.effectiveDistanceKm).toBe(200);
   });
 
   it('allows manual diesel override without calling FuelPriceService', async () => {

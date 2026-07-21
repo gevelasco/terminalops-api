@@ -3,27 +3,20 @@ import { formatIncidentAuthorLabel } from 'src/common/utils/incident-author.util
 import { Equipment } from 'src/equipment/entities/equipment.entity';
 import { Trip } from 'src/trips/entities/trip.entity';
 import { TripIncident } from 'src/trips/entities/trip-incident.entity';
-import { tripDieselPricePerLiterAtCreation } from 'src/trips/trip-diesel-price.util';
 import { exposeTripActualSchedule } from 'src/trips/actual-schedule/resolve-exposed-actual-schedule';
-import { operationalKmFromStoredTrip } from 'src/trips/trip-operational-distance.util';
-import { buildUnitOperationalId, buildEquipmentOperationalId } from 'src/common/utils/unit-operational-id.util';
+import {
+  buildUnitOperationalId,
+  buildEquipmentOperationalId,
+} from 'src/common/utils/unit-operational-id.util';
 
 export type TripResponse = Record<string, unknown>;
 
 function resolveOperatorDisplayName(trip: Trip): string | undefined {
-  const snapshot = trip.operatorNameSnapshot?.trim();
-  if (snapshot) {
-    return snapshot;
-  }
   const joined = trip.operator?.name?.trim();
   return joined || undefined;
 }
 
 function resolveUnitDisplayCode(trip: Trip): string | undefined {
-  const snapshot = trip.unitOperationalCodeSnapshot?.trim();
-  if (snapshot) {
-    return snapshot;
-  }
   if (trip.unit) {
     return buildUnitOperationalId(trip.unit);
   }
@@ -61,14 +54,10 @@ export function mapTripToResponse(
     id: trip.id,
     companyId: trip.companyId,
     maneuverCode: trip.maneuverCode,
-    origin: trip.origin,
-    destination: trip.destination,
     clientName: trip.clientName,
     clientId: trip.client?.id ?? trip.clientId ?? '',
     unitId: trip.unit?.id ?? trip.unitId ?? '',
     operatorId: trip.operator?.id ?? trip.operatorId ?? '',
-    operatorNameSnapshot: trip.operatorNameSnapshot ?? undefined,
-    unitOperationalCodeSnapshot: trip.unitOperationalCodeSnapshot ?? undefined,
     operatorName: resolveOperatorDisplayName(trip),
     unitOperationalCode: resolveUnitDisplayCode(trip),
     status: trip.status,
@@ -79,19 +68,9 @@ export function mapTripToResponse(
     statusChangedAt: trip.statusChangedAt?.toISOString() ?? null,
     statusChangedBy: trip.statusChangedBy ?? null,
     completedAt: trip.completedAt?.toISOString() ?? null,
-    isDelayed: trip.isDelayed ?? false,
-    delayPhase: trip.delayPhase ?? 'none',
-    delayDepartureMinutes: trip.delayDepartureMinutes ?? null,
-    delayArrivalMinutes: trip.delayArrivalMinutes ?? null,
-    delayCompletionMinutes: trip.delayCompletionMinutes ?? null,
-    openIncidentCount: trip.openIncidentCount ?? 0,
     operationType: trip.operationType,
     operationConfigurationId: trip.operationConfigurationId ?? null,
     operationConfigurationCode: trip.operationType,
-    operationConfigurationNameSnapshot: trip.operationConfigurationNameSnapshot,
-    operationConfigurationVersionSnapshot: trip.operationConfigurationVersionSnapshot,
-    operationConfigurationMaxEquipmentCountSnapshot:
-      trip.operationConfigurationMaxEquipmentCountSnapshot,
     loadType: trip.loadType,
     containerType: trip.containerType,
     cargoDescription: trip.cargoDescription,
@@ -109,12 +88,6 @@ export function mapTripToResponse(
     hasIncident: tripHasMarkedIncidents(trip.incidents),
     incidents: mappedIncidents,
     routeDistanceKm: trip.routeDistanceKm ? Number(trip.routeDistanceKm) : null,
-    operationalDistanceKm: operationalKmFromStoredTrip(
-      trip.routeDistanceKm ? Number(trip.routeDistanceKm) : null,
-      trip.operationalDistanceKm ? Number(trip.operationalDistanceKm) : null,
-      trip.isRoundTrip,
-    ),
-    isRoundTrip: trip.isRoundTrip !== false,
     maneuverKind: trip.maneuverKind,
     originPostalCode: trip.originPostalCode,
     originCityMunicipality: trip.originCityMunicipality,
@@ -123,15 +96,9 @@ export function mapTripToResponse(
     destinationCityMunicipality: trip.destinationCityMunicipality,
     destinationLocality: trip.destinationLocality,
     destinationRateId: trip.destinationRateId ?? null,
-    operatorLicenseNumber: trip.operatorLicenseNumber,
-    operatorLicenseExpiresLabel: trip.operatorLicenseExpiresLabel,
     dieselLiters: trip.dieselLiters?.toString(),
     dieselAmount: trip.dieselAmount?.toString(),
-    dieselPricePerLiterAtCreation: tripDieselPricePerLiterAtCreation(trip),
     casetasAmount: trip.casetasAmount?.toString(),
-    tollRouteId: trip.tollRouteId ?? null,
-    tollCalculationMode: trip.tollCalculationMode ?? null,
-    routeTollAmount: trip.routeTollAmount ? Number(trip.routeTollAmount) : null,
     operatorQuota: trip.operatorQuota?.toString(),
     perDiemAmount: trip.perDiemAmount?.toString(),
     clientCharge: trip.clientCharge?.toString(),
@@ -148,17 +115,11 @@ function mapIncident(i: TripIncident, authorLookup?: IncidentAuthorLookup) {
   return {
     id: i.id,
     description: i.description,
-    occurredAt: i.occurredAt.toISOString(),
+    createdAt: i.createdAt.toISOString(),
     postedBy: i.postedBy,
     postedByLabel: authorLookup
       ? formatIncidentAuthorLabel(i.postedBy, authorLookup)
       : i.postedBy,
-    severity: i.severity,
     isIncident: i.isIncident === true,
-    status: i.status ?? 'open',
-    category: i.category ?? undefined,
-    openedAt: (i.openedAt ?? i.occurredAt).toISOString(),
-    closedAt: i.closedAt?.toISOString() ?? null,
-    resolutionNotes: i.resolutionNotes ?? undefined,
   };
 }

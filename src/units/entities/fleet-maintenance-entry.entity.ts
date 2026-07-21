@@ -33,9 +33,6 @@ export class FleetMaintenanceEntry {
   @Column({ nullable: true })
   notes?: string;
 
-  @Column({ nullable: true })
-  status?: string;
-
   @Column({ name: 'payment_method', type: 'text', nullable: true })
   paymentMethod?: string;
 

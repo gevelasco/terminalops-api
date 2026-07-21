@@ -14,7 +14,6 @@ import { AppUser } from 'src/users/entities/app-user.entity';
 import { DestinationRatesService } from 'src/destination-rates/destination-rates.service';
 import { OperationConfigurationsService } from 'src/operation-configurations/operation-configurations.service';
 import { OperationalCentersService } from 'src/operational-centers/operational-centers.service';
-import { FuelPriceService } from 'src/fuel/fuel-price.service';
 import { TripFleetStatusSyncService } from './lifecycle/trip-fleet-status-sync.service';
 import { TripLifecycleService } from './lifecycle/trip-lifecycle.service';
 import { UnitTripOdometerService } from 'src/units/unit-trip-odometer.service';
@@ -39,7 +38,7 @@ describe('TripsService.update (A4 snapshot immutability)', () => {
     tripEquipment: [],
     destinationRateId: 5,
     hasClientBilling: true,
-  } as Trip;
+  } as unknown as Trip;
 
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -63,8 +62,7 @@ describe('TripsService.update (A4 snapshot immutability)', () => {
         { provide: getRepositoryToken(Unit), useValue: { findOne: unitsFindOne } },
         { provide: getRepositoryToken(Operator), useValue: { findOne: jest.fn() } },
         { provide: getRepositoryToken(AppUser), useValue: { find: jest.fn() } },
-        { provide: FuelPriceService, useValue: {} },
-        { provide: OperationConfigurationsService, useValue: { resolveSnapshot: jest.fn() } },
+        { provide: OperationConfigurationsService, useValue: { findByCode: jest.fn() } },
         { provide: DestinationRatesService, useValue: {} },
         { provide: OperationalCentersService, useValue: {} },
         { provide: TripLifecycleService, useValue: { applyLifecycleChainForTrip: jest.fn(), ensureCompanyLifecycleFresh: jest.fn().mockResolvedValue({ scanned: 0, transitioned: 0, skipped: 0 }) } },
@@ -118,7 +116,6 @@ describe('TripsService.update (A4 snapshot immutability)', () => {
       { id: 10, companyId: 1 },
       expect.objectContaining({
         unitId: 3,
-        unitOperationalCodeSnapshot: '3',
       }),
     );
     expect(unitsFindOne).toHaveBeenCalled();

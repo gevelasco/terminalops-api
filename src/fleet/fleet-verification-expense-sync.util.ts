@@ -35,19 +35,19 @@ export const VERIFICATION_SCOPE_SPECS: Array<{
 }> = [
   {
     scope: 'phys_mech',
-    category: 'Verificación físico-mecánica',
+    category: 'Verificación - físico-mecánica',
     dateKey: 'verificationPhysMechDate',
     costKey: 'verificationPhysMechCost',
   },
   {
     scope: 'emissions',
-    category: 'Verificación de emisiones',
+    category: 'Verificación - emisiones',
     dateKey: 'verificationEmissionsDate',
     costKey: 'verificationEmissionsCost',
   },
   {
     scope: 'double_articulated',
-    category: 'Doble articulado (SPP)',
+    category: 'Verificación - doble articulado',
     dateKey: 'verificationDoubleArticulatedDate',
     costKey: 'verificationDoubleArticulatedCost',
     applies: (meta) => meta.verificationDoubleArticulatedApplies !== false,

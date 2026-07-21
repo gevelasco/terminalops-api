@@ -7,7 +7,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, IsNull, type EntityManager } from 'typeorm';
+import { Repository, IsNull, In, type EntityManager } from 'typeorm';
 import { isAdminRole } from 'src/common/constants/app-modules';
 import { assertTripBitacoraAccess } from 'src/common/utils/module-permission.util';
 import type AuthUser from 'src/types/auth-user.type';
@@ -44,11 +44,9 @@ import { mapTripLinkOption } from './trip-link-option.mapper';
 import { UpdateTripDto } from './dto/update-trip.dto';
 import type { ClientCargoHistoryResponseDto } from './dto/client-cargo-history.dto';
 import { mapTripToResponse } from './trips.mapper';
-import { FuelPriceService } from 'src/fuel/fuel-price.service';
 import { DestinationRatesService } from 'src/destination-rates/destination-rates.service';
 import { OperationalCentersService } from 'src/operational-centers/operational-centers.service';
 import { OperationConfigurationsService } from 'src/operation-configurations/operation-configurations.service';
-import { buildUnitOperationalId } from 'src/common/utils/unit-operational-id.util';
 import { normalizeOperationConfigCode } from 'src/common/utils/operation-config-code.util';
 import { resolveTripOperationalDistance } from './trip-operational-distance.util';
 import {
@@ -71,7 +69,6 @@ import {
   assertNoSnapshotMutation,
   assertNoSnapshotMutationDto,
 } from './trip-snapshot-immutability.util';
-import { SCHEDULE_UPDATE_INCIDENT_CATEGORY } from './actual-schedule/actual-schedule.constants';
 import type { ActualScheduleFieldKey } from './actual-schedule/actual-schedule.constants';
 import { buildConsolidatedScheduleUpdateIncidentDescription } from './actual-schedule/actual-schedule-incident.util';
 import { syncTripIncidentMarkers } from './trip-incident-markers.util';
@@ -122,7 +119,6 @@ export class TripsService {
     private readonly operatorsRepo: Repository<Operator>,
     @InjectRepository(AppUser)
     private readonly usersRepo: Repository<AppUser>,
-    private readonly fuelPriceService: FuelPriceService,
     private readonly operationConfigurations: OperationConfigurationsService,
     private readonly destinationRates: DestinationRatesService,
     private readonly operationalCenters: OperationalCentersService,
@@ -169,9 +165,21 @@ export class TripsService {
       rowsQb.skip((page - 1) * limit).take(limit);
     }
 
-    const [trips, equipment, authorLookup] = await Promise.all([
-      rowsQb.getMany(),
-      this.equipmentRepo.find({ where: { companyId } }),
+    const trips = await rowsQb.getMany();
+    const equipmentIds = [
+      ...new Set(
+        trips.flatMap((t) =>
+          (t.tripEquipment ?? []).map((te) => te.equipmentId),
+        ),
+      ),
+    ];
+    const [equipment, authorLookup] = await Promise.all([
+      equipmentIds.length > 0
+        ? this.equipmentRepo.find({
+            where: { companyId, id: In(equipmentIds) },
+            select: ['id', 'trailerBrandAbbr', 'trailerYear', 'plate'],
+          })
+        : Promise.resolve([]),
       this.loadAuthorLookup(companyId),
     ]);
 
@@ -256,22 +264,49 @@ export class TripsService {
       this.operationalCenters.findAllEntities(companyId),
     ]);
 
-    const items = await Promise.all(
-      trips.map(async (trip) => {
-        const matchedRateDestination =
-          await this.resolveMatchedRateDestinationForMap(
+    const destinationsNeedingMatch = trips
+      .filter((trip) => {
+        const rate = trip.destinationRate;
+        if (
+          this.hasGeoCoords(rate?.destinationLatitude, rate?.destinationLongitude)
+        ) {
+          return false;
+        }
+        const delivery = trip.client?.delivery;
+        if (this.hasGeoCoords(delivery?.latitude, delivery?.longitude)) {
+          return false;
+        }
+        return !!(
+          trip.destinationPostalCode?.trim() &&
+          trip.destinationLocality?.trim()
+        );
+      })
+      .map((trip) => ({
+        destinationPostalCode: trip.destinationPostalCode!.trim(),
+        destinationLocality: trip.destinationLocality!.trim(),
+      }));
+
+    const matchedByKey =
+      destinationsNeedingMatch.length > 0
+        ? await this.destinationRates.findMatchingRatesForMapDestinations(
             companyId,
-            trip,
             defaultCenter.id,
-          );
-        const ctx: TripGeoResolverContext = {
-          defaultCenter,
-          operationalCenters,
-          matchedRateDestination,
-        };
-        return mapTripToMapItem(trip, ctx);
-      }),
-    );
+            destinationsNeedingMatch,
+          )
+        : new Map();
+
+    const items = trips.map((trip) => {
+      const matchedRateDestination = this.resolveMatchedRateDestinationFromBatch(
+        trip,
+        matchedByKey,
+      );
+      const ctx: TripGeoResolverContext = {
+        defaultCenter,
+        operationalCenters,
+        matchedRateDestination,
+      };
+      return mapTripToMapItem(trip, ctx);
+    });
 
     return {
       items,
@@ -279,11 +314,18 @@ export class TripsService {
     };
   }
 
-  private async resolveMatchedRateDestinationForMap(
-    companyId: number,
+  private resolveMatchedRateDestinationFromBatch(
     trip: Trip,
-    defaultCenterId: number,
-  ): Promise<TripGeoResolverContext['matchedRateDestination']> {
+    matchedByKey: Map<
+      string,
+      {
+        destinationLatitude: string | number | null;
+        destinationLongitude: string | number | null;
+        postalCode: string;
+        locality: string;
+      }
+    >,
+  ): TripGeoResolverContext['matchedRateDestination'] {
     const rate = trip.destinationRate;
     if (
       this.hasGeoCoords(rate?.destinationLatitude, rate?.destinationLongitude)
@@ -302,23 +344,33 @@ export class TripsService {
       return null;
     }
 
-    const matched = await this.destinationRates.findMatchingRate(companyId, {
-      originOperationalCenterId: defaultCenterId,
-      destinationPostalCode,
-      destinationLocality,
-    });
-    if (!matched) {
+    const key = `${destinationPostalCode.trim()}|${destinationLocality.trim().toLowerCase()}`;
+    const matched =
+      matchedByKey.get(key) ??
+      matchedByKey.get(
+        `${destinationPostalCode}|${destinationLocality.toLowerCase()}`,
+      );
+    if (
+      !matched ||
+      !this.hasGeoCoords(
+        matched.destinationLatitude,
+        matched.destinationLongitude,
+      )
+    ) {
       return null;
     }
 
     return {
-      destinationLatitude: matched.destinationLatitude,
-      destinationLongitude: matched.destinationLongitude,
-      originLatitude: matched.originLatitude,
-      originLongitude: matched.originLongitude,
+      destinationLatitude:
+        matched.destinationLatitude == null
+          ? null
+          : String(matched.destinationLatitude),
+      destinationLongitude:
+        matched.destinationLongitude == null
+          ? null
+          : String(matched.destinationLongitude),
       postalCode: matched.postalCode,
       locality: matched.locality,
-      cityMunicipality: matched.cityMunicipality,
     };
   }
 
@@ -344,9 +396,17 @@ export class TripsService {
   async findOne(companyId: number, tripId: number) {
     await this.tripLifecycle.ensureTripLifecycleFresh(companyId, tripId);
 
-    const [trip, equipment, authorLookup] = await Promise.all([
-      this.getTripEntity(companyId, tripId),
-      this.equipmentRepo.find({ where: { companyId } }),
+    const trip = await this.getTripEntity(companyId, tripId);
+    const equipmentIds = [
+      ...new Set((trip.tripEquipment ?? []).map((te) => te.equipmentId)),
+    ];
+    const [equipment, authorLookup] = await Promise.all([
+      equipmentIds.length > 0
+        ? this.equipmentRepo.find({
+            where: { companyId, id: In(equipmentIds) },
+            select: ['id', 'trailerBrandAbbr', 'trailerYear', 'plate'],
+          })
+        : Promise.resolve([]),
       this.loadAuthorLookup(companyId),
     ]);
     return mapTripToResponse(trip, equipment, authorLookup);
@@ -435,7 +495,6 @@ export class TripsService {
       clientId = client?.id;
     }
 
-    const isRoundTrip = dto.isRoundTrip !== false;
     const defaultOriginCenter =
       await this.operationalCenters.getDefaultEntity(companyId);
     const originCenterId =
@@ -460,15 +519,9 @@ export class TripsService {
         routeDistanceKm = Number(matchedRate.routeDistanceKm);
       }
     }
-    const distanceFields = this.resolveDistanceFieldsForPersist(
-      routeDistanceKm,
-      isRoundTrip,
-    );
+    const distanceFields = this.resolveDistanceFieldsForPersist(routeDistanceKm);
 
-    const dieselPricePerLiterAtCreation =
-      await this.resolveDieselPriceSnapshot(dto);
-
-    const operationSnapshot = await this.resolveOperationConfigSnapshot(
+    const operationConfig = await this.resolveOperationConfig(
       companyId,
       dto.operationType,
     );
@@ -482,25 +535,12 @@ export class TripsService {
 
     await this.tripLoadPlaces.findOrCreate(companyId, dto.loadPlace);
 
-    const [unitRow, operatorRow] = await Promise.all([
-      resolvedUnitId
-        ? this.unitsRepo.findOne({ where: { id: resolvedUnitId, companyId } })
-        : Promise.resolve(null),
-      resolvedOperatorId
-        ? this.operatorsRepo.findOne({
-            where: { id: resolvedOperatorId, companyId },
-          })
-        : Promise.resolve(null),
-    ]);
-
     const initialStatus = 'scheduled';
     const createdAt = new Date();
 
     const entity = this.tripsRepo.create({
       companyId,
       maneuverCode,
-      origin: dto.origin,
-      destination: dto.destination,
       clientId,
       clientName: dto.clientName,
       unitId: resolvedUnitId,
@@ -511,14 +551,8 @@ export class TripsService {
       plannedCompletionAt: planned.plannedCompletionAt,
       statusChangedAt: createdAt,
       statusChangedBy: 'system',
-      isDelayed: false,
-      openIncidentCount: 0,
-      operationType: operationSnapshot.code,
-      operationConfigurationId: operationSnapshot.id,
-      operationConfigurationNameSnapshot: operationSnapshot.nameSnapshot,
-      operationConfigurationVersionSnapshot: operationSnapshot.versionSnapshot,
-      operationConfigurationMaxEquipmentCountSnapshot:
-        operationSnapshot.maxEquipmentCountSnapshot,
+      operationType: operationConfig.code,
+      operationConfigurationId: operationConfig.id,
       loadType: dto.loadType,
       containerType: dto.containerType,
       cargoDescription: dto.cargoDescription,
@@ -527,12 +561,9 @@ export class TripsService {
       loadPlace: dto.loadPlace?.trim() || undefined,
       creditDays: dto.creditDays ?? 0,
       routeDistanceKm: distanceFields?.routeDistanceKm,
-      operationalDistanceKm: distanceFields?.operationalDistanceKm,
-      isRoundTrip,
       maneuverKind: dto.maneuverKind,
       dieselLiters: dto.dieselLiters,
       dieselAmount: dto.dieselAmount,
-      dieselPricePerLiterAtCreation,
       casetasAmount: dto.casetasAmount,
       operatorQuota: dto.operatorQuota,
       perDiemAmount: dto.perDiemAmount,
@@ -546,13 +577,6 @@ export class TripsService {
       destinationCityMunicipality: dto.destinationCityMunicipality,
       destinationLocality: dto.destinationLocality,
       destinationRateId,
-      operatorLicenseNumber: dto.operatorLicenseNumber,
-      operatorLicenseExpiresLabel: dto.operatorLicenseExpiresLabel,
-      operatorNameSnapshot: operatorRow?.name?.trim() || undefined,
-      unitOperationalCodeSnapshot: unitRow
-        ? buildUnitOperationalId(unitRow)
-        : undefined,
-      tollCalculationMode: dto.tollCalculationMode,
       hasClientBilling: dto.hasClientBilling ?? !!dto.clientName?.trim(),
     });
     const equipmentIds = dto.equipmentIds?.length
@@ -652,7 +676,6 @@ export class TripsService {
       plannedDepartureAt,
       plannedArrivalAt,
       plannedCompletionAt,
-      isRoundTrip,
       clientId,
       unitId,
       operatorId,
@@ -660,8 +683,6 @@ export class TripsService {
       departureAt: _ignoredDepartureAt,
       arrivedAt: _ignoredArrivedAt,
       returnAt: _ignoredReturnAt,
-      dieselPricePerLiterAtCreation: _immutablePrice,
-      tollCalculationMode: _immutableTollMode,
       loadDate,
       loadPlace,
       emptyDeliveryAt,
@@ -701,27 +722,15 @@ export class TripsService {
     });
     const operationPatch =
       operationType !== undefined
-        ? await this.resolveOperationConfigSnapshot(companyId, operationType)
+        ? await this.resolveOperationConfig(companyId, operationType)
         : null;
 
     let resolvedUnitIdForPatch: number | undefined | null = undefined;
     let resolvedOperatorIdForPatch: number | undefined | null = undefined;
-    const assignmentSnapshotPatch: {
-      unitOperationalCodeSnapshot?: string;
-      operatorNameSnapshot?: string;
-    } = {};
 
     if (unitId !== undefined) {
       resolvedUnitIdForPatch = unitId
         ? await this.resolveUnitId(companyId, unitId, tripId)
-        : undefined;
-      const unitRow = resolvedUnitIdForPatch
-        ? await this.unitsRepo.findOne({
-            where: { id: resolvedUnitIdForPatch, companyId },
-          })
-        : null;
-      assignmentSnapshotPatch.unitOperationalCodeSnapshot = unitRow
-        ? buildUnitOperationalId(unitRow)
         : undefined;
     }
 
@@ -729,13 +738,6 @@ export class TripsService {
       resolvedOperatorIdForPatch = operatorId
         ? await this.resolveOperatorId(companyId, operatorId, tripId)
         : undefined;
-      const operatorRow = resolvedOperatorIdForPatch
-        ? await this.operatorsRepo.findOne({
-            where: { id: resolvedOperatorIdForPatch, companyId },
-          })
-        : null;
-      assignmentSnapshotPatch.operatorNameSnapshot =
-        operatorRow?.name?.trim() || undefined;
     }
 
     const emptyDeliveryAtDate = this.validateEmptyDeliveryAt(
@@ -766,10 +768,6 @@ export class TripsService {
         ...(operationPatch && {
           operationType: operationPatch.code,
           operationConfigurationId: operationPatch.id,
-          operationConfigurationNameSnapshot: operationPatch.nameSnapshot,
-          operationConfigurationVersionSnapshot: operationPatch.versionSnapshot,
-          operationConfigurationMaxEquipmentCountSnapshot:
-            operationPatch.maxEquipmentCountSnapshot,
         }),
         ...(plannedPatch.plannedDepartureAt && {
           plannedDepartureAt: plannedPatch.plannedDepartureAt,
@@ -780,9 +778,6 @@ export class TripsService {
         ...(plannedPatch.plannedCompletionAt && {
           plannedCompletionAt: plannedPatch.plannedCompletionAt,
         }),
-        ...(isRoundTrip !== undefined && {
-          isRoundTrip: isRoundTrip !== false,
-        }),
         ...(clientId !== undefined && {
           clientId: clientId
             ? await this.resolveClientId(companyId, clientId)
@@ -791,13 +786,6 @@ export class TripsService {
         ...(unitId !== undefined && { unitId: resolvedUnitIdForPatch }),
         ...(operatorId !== undefined && {
           operatorId: resolvedOperatorIdForPatch,
-        }),
-        ...(unitId !== undefined && {
-          unitOperationalCodeSnapshot:
-            assignmentSnapshotPatch.unitOperationalCodeSnapshot,
-        }),
-        ...(operatorId !== undefined && {
-          operatorNameSnapshot: assignmentSnapshotPatch.operatorNameSnapshot,
         }),
       },
     );
@@ -886,11 +874,6 @@ export class TripsService {
             `Lugar de carga: ${updatedTripEntity.loadPlace?.trim() || '—'}. ` +
             `Justificación: ${plannedDatesJustification!.trim()}`,
           postedBy: actor?.username?.trim() || 'system',
-          occurredAt: new Date(),
-          status: 'closed',
-          openedAt: new Date(),
-          closedAt: new Date(),
-          category: 'planned_schedule_update',
           isIncident: false,
         }),
       );
@@ -914,11 +897,6 @@ export class TripsService {
             `Nueva fecha: ${nextDate}. Lugar: ${nextPlace}. ` +
             `Justificación: ${emptyDeliveryJustification!.trim()}`,
           postedBy: actor?.username?.trim() || 'system',
-          occurredAt: new Date(),
-          status: 'closed',
-          openedAt: new Date(),
-          closedAt: new Date(),
-          category: 'empty_delivery_update',
           isIncident: false,
         }),
       );
@@ -977,18 +955,12 @@ export class TripsService {
       assertTripBitacoraAccess(actor, dto.isIncident === true);
     }
     const trip = await this.getTripEntity(companyId, tripId);
-    const openedAt = new Date();
     const isIncident = dto.isIncident === true;
     const savedIncident = await this.incidentsRepo.save(
       this.incidentsRepo.create({
         tripId: trip.id,
         description: dto.description.trim(),
         postedBy: dto.postedBy.trim(),
-        occurredAt: openedAt,
-        status: 'closed',
-        openedAt,
-        closedAt: openedAt,
-        category: dto.category?.trim() || (isIncident ? 'other' : 'bitacora'),
         isIncident,
       }),
     );
@@ -1097,7 +1069,7 @@ export class TripsService {
 
     await this.tripsRepo.update({ id: trip.id, companyId }, patch);
 
-    const openedAt = new Date();
+    const updatedAt = new Date();
     const authorDisplayName =
       user.name?.trim() || user.username?.trim() || 'Usuario';
     await this.incidentsRepo.save(
@@ -1114,21 +1086,14 @@ export class TripsService {
           authorDisplayName,
         }),
         postedBy: user.username.trim(),
-        occurredAt: openedAt,
-        status: 'closed',
-        openedAt,
-        closedAt: openedAt,
-        category: SCHEDULE_UPDATE_INCIDENT_CATEGORY,
         isIncident: false,
       }),
     );
 
-    await this.tripLifecycle.refreshDelayMetricsForTrip(trip.id, openedAt);
-
     const reloaded = await this.getTripEntity(companyId, tripId);
     await this.tripLifecycle.applyLifecycleChainForTrip(
       reloaded,
-      openedAt,
+      updatedAt,
       'system',
     );
 
@@ -1267,8 +1232,8 @@ export class TripsService {
       reason: MISSING_PLANNED_FIELDS_REASON,
       companyId,
       clientName: dto.clientName,
-      origin: dto.origin,
-      destination: dto.destination,
+      originLocality: dto.originLocality,
+      destinationLocality: dto.destinationLocality,
       hasPlannedDepartureAt: Boolean(dto.plannedDepartureAt?.trim()),
       hasPlannedArrivalAt: Boolean(dto.plannedArrivalAt?.trim()),
       hasPlannedCompletionAt: Boolean(dto.plannedCompletionAt?.trim()),
@@ -1409,17 +1374,11 @@ export class TripsService {
   private async loadAuthorLookup(
     companyId: number,
   ): Promise<IncidentAuthorLookup> {
-    const [users, operators] = await Promise.all([
-      this.usersRepo.find({
-        where: { companyId },
-        select: ['username', 'displayName', 'jobTitle', 'role'],
-      }),
-      this.operatorsRepo.find({
-        where: { companyId },
-        select: ['name', 'portalUsername'],
-      }),
-    ]);
-    return buildIncidentAuthorLookup(users, operators);
+    const users = await this.usersRepo.find({
+      where: { companyId },
+      select: ['username', 'displayName', 'jobTitle', 'role'],
+    });
+    return buildIncidentAuthorLookup(users);
   }
 
   private async nextManeuverSequence(companyId: number): Promise<number> {
@@ -1539,25 +1498,17 @@ export class TripsService {
     return row.id;
   }
 
-  private async resolveOperationConfigSnapshot(
+  private async resolveOperationConfig(
     companyId: number,
     rawCode: string,
   ): Promise<{
     code: string;
     id?: number;
-    nameSnapshot: string;
-    versionSnapshot: number;
-    maxEquipmentCountSnapshot: number;
   }> {
     const code =
       normalizeOperationConfigCode(rawCode) || rawCode.trim().toLowerCase();
     if (!code) {
-      return {
-        code: '',
-        nameSnapshot: 'Configuración desconocida',
-        versionSnapshot: 1,
-        maxEquipmentCountSnapshot: 1,
-      };
+      return { code: '' };
     }
     const config = await this.operationConfigurations.findByCode(
       companyId,
@@ -1567,71 +1518,20 @@ export class TripsService {
       return {
         code: config.code,
         id: config.id,
-        nameSnapshot: config.name,
-        versionSnapshot: config.version ?? 1,
-        maxEquipmentCountSnapshot: Math.max(1, config.maxEquipmentCount ?? 1),
       };
     }
-    return {
-      code,
-      nameSnapshot: this.fallbackOperationConfigName(code),
-      versionSnapshot: 1,
-      maxEquipmentCountSnapshot: 1,
-    };
-  }
-
-  private fallbackOperationConfigName(code: string): string {
-    const t = code.trim();
-    if (!t) {
-      return 'Configuración desconocida';
-    }
-    return t
-      .split('-')
-      .filter(Boolean)
-      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-      .join(' ');
-  }
-
-  private async resolveDieselPriceSnapshot(
-    dto: CreateTripDto,
-  ): Promise<string> {
-    const fromDto = dto.dieselPricePerLiterAtCreation;
-    if (
-      fromDto != null &&
-      Number.isFinite(fromDto) &&
-      fromDto > 0 &&
-      fromDto < 200
-    ) {
-      return String(roundPrice4(fromDto));
-    }
-    const liters = dto.dieselLiters != null ? Number(dto.dieselLiters) : NaN;
-    const amount = dto.dieselAmount != null ? Number(dto.dieselAmount) : NaN;
-    if (
-      Number.isFinite(liters) &&
-      liters > 0 &&
-      Number.isFinite(amount) &&
-      amount >= 0
-    ) {
-      return String(roundPrice4(amount / liters));
-    }
-    const current = await this.fuelPriceService.getCurrentDieselPrice();
-    return String(roundPrice4(current));
+    return { code };
   }
 
   private resolveDistanceFieldsForPersist(
     routeDistanceKm: number | undefined,
-    isRoundTrip: boolean,
-  ): { routeDistanceKm: string; operationalDistanceKm: string } | undefined {
+  ): { routeDistanceKm: string } | undefined {
     if (routeDistanceKm === undefined || routeDistanceKm === null) {
       return undefined;
     }
-    const breakdown = resolveTripOperationalDistance(
-      routeDistanceKm,
-      isRoundTrip,
-    );
+    const breakdown = resolveTripOperationalDistance(routeDistanceKm);
     return {
       routeDistanceKm: String(breakdown.routeDistanceKm),
-      operationalDistanceKm: String(breakdown.operationalDistanceKm),
     };
   }
 
@@ -1666,8 +1566,4 @@ export class TripsService {
     }
     return out;
   }
-}
-
-function roundPrice4(n: number): number {
-  return Math.round(n * 10000) / 10000;
 }

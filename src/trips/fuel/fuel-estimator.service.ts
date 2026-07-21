@@ -29,7 +29,7 @@ export class FuelEstimatorService {
       routeDistanceKm,
       operationalDistanceKm,
       roundTripFactor,
-    } = resolveTripOperationalDistance(dto.distanceKm, dto.isRoundTrip);
+    } = resolveTripOperationalDistance(dto.distanceKm);
     const configuration = dto.configuration;
     const weightTons = Math.max(0, dto.approximateWeightTons);
     const loaded = this.isLoadedCargo(dto.cargoType);

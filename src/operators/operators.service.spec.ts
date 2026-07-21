@@ -11,6 +11,8 @@ import { OperatorPublicInsurance } from './entities/operator-public-insurance.en
 import { Operator } from './entities/operator.entity';
 import { UpdateOperatorDto } from './dto/update-operator.dto';
 import { OperatorsService } from './operators.service';
+import { OperatorHrHoldWorkflowService } from './operator-hr-hold-workflow.service';
+import { ActivityEventsService } from 'src/activity-events/activity-events.service';
 
 describe('OperatorsService (A6 fleet status lock)', () => {
   let service: OperatorsService;
@@ -29,11 +31,11 @@ describe('OperatorsService (A6 fleet status lock)', () => {
         },
         {
           provide: getRepositoryToken(OperatorPublicInsurance),
-          useValue: { findOne: jest.fn(), save: jest.fn() },
+          useValue: { findOne: jest.fn(), save: jest.fn(), delete: jest.fn() },
         },
         {
           provide: getRepositoryToken(OperatorPrivateInsurance),
-          useValue: { findOne: jest.fn(), save: jest.fn() },
+          useValue: { findOne: jest.fn(), save: jest.fn(), delete: jest.fn() },
         },
         {
           provide: getRepositoryToken(OperatorDocument),
@@ -42,6 +44,14 @@ describe('OperatorsService (A6 fleet status lock)', () => {
         { provide: getRepositoryToken(Trip), useValue: { createQueryBuilder: jest.fn(), find: jest.fn() } },
         { provide: getRepositoryToken(Expense), useValue: { createQueryBuilder: jest.fn(), find: jest.fn() } },
         { provide: getRepositoryToken(Unit), useValue: { find: jest.fn() } },
+        {
+          provide: OperatorHrHoldWorkflowService,
+          useValue: { startHold: jest.fn(), endHold: jest.fn() },
+        },
+        {
+          provide: ActivityEventsService,
+          useValue: { record: jest.fn() },
+        },
       ],
     }).compile();
 

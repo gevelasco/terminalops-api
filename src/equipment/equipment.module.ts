@@ -5,6 +5,7 @@ import { EquipmentFleetDocument } from 'src/equipment/entities/equipment-fleet-d
 import { EquipmentFleetProfile } from 'src/equipment/entities/equipment-fleet-profile.entity';
 import { Equipment } from 'src/equipment/entities/equipment.entity';
 import { FleetMaintenanceEntry } from 'src/units/entities/fleet-maintenance-entry.entity';
+import { FleetVerificationEntry } from 'src/units/entities/fleet-verification-entry.entity';
 import { Unit } from 'src/units/entities/unit.entity';
 import { EquipmentController } from './equipment.controller';
 import { EquipmentService } from './equipment.service';
@@ -17,6 +18,7 @@ import { EquipmentService } from './equipment.service';
       Unit,
       EquipmentFleetProfile,
       FleetMaintenanceEntry,
+      FleetVerificationEntry,
       EquipmentFleetDocument,
     ]),
   ],

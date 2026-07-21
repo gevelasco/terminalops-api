@@ -25,8 +25,6 @@ export const TRIP_DELAY_PHASES = [
 
 export type TripDelayPhase = (typeof TRIP_DELAY_PHASES)[number];
 
-export const LIFECYCLE_ENGINE_REASON = 'lifecycle_engine';
-
 export interface TripLifecycleEvaluationInput {
   status: TripLifecycleStatus;
   plannedDepartureAt: Date;

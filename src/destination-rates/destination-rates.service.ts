@@ -56,10 +56,7 @@ export class DestinationRatesService {
     );
     await this.assertUniquePriceConfigs(dto.prices);
     const priceRows = await this.buildPriceEntities(companyId, dto.prices);
-    const distanceFields = this.resolveDistanceFieldsForPersist(
-      dto.routeDistanceKm,
-      dto.isRoundTrip !== false,
-    );
+    const distanceFields = this.resolveDistanceFieldsForPersist(dto.routeDistanceKm);
     const estimatedTimeFields = this.resolveEstimatedTimeFieldsForPersist(dto);
     const originSnapshot = this.operationalCenters.snapshotFromCenter(originCenter);
     const saved = await this.repo.save(
@@ -83,8 +80,6 @@ export class DestinationRatesService {
             ? String(dto.destinationLongitude)
             : undefined,
         routeDistanceKm: distanceFields?.routeDistanceKm,
-        operationalDistanceKm: distanceFields?.operationalDistanceKm,
-        isRoundTrip: dto.isRoundTrip !== false,
         distanceCalculatedAt: distanceFields ? new Date() : undefined,
         ...estimatedTimeFields,
         active: dto.active ?? true,
@@ -142,23 +137,112 @@ export class DestinationRatesService {
       activeOnly?: boolean;
     },
   ): Promise<DestinationRate | null> {
-    const where: Record<string, unknown> = {
+    return this.findRateByUniqueRoute(
       companyId,
-      originOperationalCenterId: params.originOperationalCenterId,
-      postalCode: this.normalizeRouteDestinationPostalCode(
-        params.destinationPostalCode,
-      ),
-      locality: this.normalizeRouteDestinationLocality(
-        params.destinationLocality,
-      ),
-    };
-    if (params.activeOnly !== false) {
-      where.active = true;
+      params.originOperationalCenterId,
+      params.destinationPostalCode,
+      params.destinationLocality,
+      params.activeOnly !== false,
+    );
+  }
+
+  /**
+   * Batch map lookup: one query for many (postal, locality) destinations
+   * from the same origin center. Returns coords-only matches keyed by
+   * normalized "postal|locality".
+   */
+  async findMatchingRatesForMapDestinations(
+    companyId: number,
+    originOperationalCenterId: number,
+    destinations: ReadonlyArray<{
+      destinationPostalCode: string;
+      destinationLocality: string;
+    }>,
+  ): Promise<
+    Map<
+      string,
+      {
+        destinationLatitude: string | number | null;
+        destinationLongitude: string | number | null;
+        postalCode: string;
+        locality: string;
+      }
+    >
+  > {
+    const unique = new Map<
+      string,
+      { postalCode: string; locality: string }
+    >();
+    for (const dest of destinations) {
+      const postalCode = this.normalizeRouteDestinationPostalCode(
+        dest.destinationPostalCode,
+      );
+      const locality = this.normalizeRouteDestinationLocality(
+        dest.destinationLocality,
+      );
+      if (!postalCode || !locality) {
+        continue;
+      }
+      unique.set(`${postalCode}|${locality.toLowerCase()}`, {
+        postalCode,
+        locality,
+      });
     }
-    return this.repo.findOne({
-      where,
-      relations: [...RATE_RELATIONS],
-    });
+    if (unique.size === 0) {
+      return new Map();
+    }
+
+    const pairs = [...unique.values()];
+    const qb = this.repo
+      .createQueryBuilder('rate')
+      .select([
+        'rate.id',
+        'rate.postalCode',
+        'rate.locality',
+        'rate.destinationLatitude',
+        'rate.destinationLongitude',
+      ])
+      .where('rate.companyId = :companyId', { companyId })
+      .andWhere('rate.originOperationalCenterId = :originOperationalCenterId', {
+        originOperationalCenterId,
+      })
+      .andWhere('rate.active = true');
+
+    qb.andWhere(
+      pairs
+        .map(
+          (_, i) =>
+            `(rate.postalCode = :postal${i} AND LOWER(BTRIM(rate.locality)) = LOWER(BTRIM(:locality${i})))`,
+        )
+        .join(' OR '),
+      Object.fromEntries(
+        pairs.flatMap((pair, i) => [
+          [`postal${i}`, pair.postalCode],
+          [`locality${i}`, pair.locality],
+        ]),
+      ),
+    );
+
+    const rows = await qb.getMany();
+    const out = new Map<
+      string,
+      {
+        destinationLatitude: string | number | null;
+        destinationLongitude: string | number | null;
+        postalCode: string;
+        locality: string;
+      }
+    >();
+    for (const row of rows) {
+      const key = `${this.normalizeRouteDestinationPostalCode(row.postalCode)}|${this.normalizeRouteDestinationLocality(row.locality).toLowerCase()}`;
+      out.set(key, {
+        destinationLatitude: row.destinationLatitude ?? null,
+        destinationLongitude: row.destinationLongitude ?? null,
+        postalCode: row.postalCode,
+        locality: row.locality,
+      });
+    }
+    return out;
   }
 
   async checkRouteExists(
@@ -271,13 +355,16 @@ export class DestinationRatesService {
 
     const normalizedPostalCode = this.normalizeRouteDestinationPostalCode(postalCode);
     const normalizedLocality = this.normalizeRouteDestinationLocality(locality);
-    const matches = await this.repo.find({
-      where: {
-        companyId,
+    const matches = await this.repo
+      .createQueryBuilder('rate')
+      .where('rate.companyId = :companyId', { companyId })
+      .andWhere('rate.postalCode = :postalCode', {
         postalCode: normalizedPostalCode,
+      })
+      .andWhere('LOWER(BTRIM(rate.locality)) = LOWER(BTRIM(:locality))', {
         locality: normalizedLocality,
-      },
-    });
+      })
+      .getMany();
     if (matches.length === 1) {
       return matches[0];
     }
@@ -299,13 +386,10 @@ export class DestinationRatesService {
       .update(ClientDelivery)
       .set({
         destinationRateId: rate.id,
-        isUnpricedRoute: false,
       })
       .where('postal_code = :postalCode', { postalCode })
-      .andWhere('locality = :locality', { locality })
-      .andWhere(
-        '(destination_rate_id IS NULL OR is_unpriced_route = TRUE)',
-      )
+      .andWhere('LOWER(BTRIM(locality)) = LOWER(BTRIM(:locality))', { locality })
+      .andWhere('destination_rate_id IS NULL')
       .andWhere(
         `client_id IN (
           SELECT id FROM terminalops.clients WHERE company_id = :companyId
@@ -377,7 +461,7 @@ export class DestinationRatesService {
     if (
       nextOriginCenterId !== existing.originOperationalCenterId ||
       nextPostal !== existing.postalCode ||
-      nextLocality !== existing.locality
+      nextLocality.toLowerCase() !== existing.locality.trim().toLowerCase()
     ) {
       await this.assertUniqueRoute(
         companyId,
@@ -390,24 +474,19 @@ export class DestinationRatesService {
 
     const distanceFields =
       dto.routeDistanceKm !== undefined
-        ? this.resolveDistanceFieldsForPersist(
-            dto.routeDistanceKm,
-            dto.isRoundTrip !== undefined ? dto.isRoundTrip : existing.isRoundTrip,
-          )
+        ? this.resolveDistanceFieldsForPersist(dto.routeDistanceKm)
         : undefined;
     const originSnapshot = this.operationalCenters.snapshotFromCenter(originCenter);
 
     await this.repo.update(
       { id: rateId, companyId },
       {
-        ...(dto.originOperationalCenterId !== undefined && {
-          originOperationalCenterId: originCenter.id,
-          originPostalCode: originSnapshot.originPostalCode,
-          originCityMunicipality: originSnapshot.originCityMunicipality,
-          originLocality: originSnapshot.originLocality,
-          originLatitude: originSnapshot.originLatitude,
-          originLongitude: originSnapshot.originLongitude,
-        }),
+        originOperationalCenterId: originCenter.id,
+        originPostalCode: originSnapshot.originPostalCode,
+        originCityMunicipality: originSnapshot.originCityMunicipality,
+        originLocality: originSnapshot.originLocality,
+        originLatitude: originSnapshot.originLatitude,
+        originLongitude: originSnapshot.originLongitude,
         ...(dto.postalCode !== undefined && { postalCode: dto.postalCode.trim() }),
         ...(dto.cityMunicipality !== undefined && {
           cityMunicipality: dto.cityMunicipality.trim(),
@@ -425,10 +504,8 @@ export class DestinationRatesService {
         }),
         ...(distanceFields && {
           routeDistanceKm: distanceFields.routeDistanceKm,
-          operationalDistanceKm: distanceFields.operationalDistanceKm,
           distanceCalculatedAt: new Date(),
         }),
-        ...(dto.isRoundTrip !== undefined && { isRoundTrip: dto.isRoundTrip }),
         ...this.resolveEstimatedTimeFieldsForUpdate(dto),
       },
     );
@@ -448,8 +525,29 @@ export class DestinationRatesService {
 
   async remove(companyId: number, rateId: number) {
     await this.findOne(companyId, rateId);
+    const maneuverCount = await this.countLiveManeuvers(companyId, rateId);
+    if (maneuverCount > 0) {
+      throw new ConflictException(
+        `No se puede eliminar: hay ${maneuverCount} maniobra(s) vinculada(s). Desactiva la tarifa en su lugar.`,
+      );
+    }
     await this.repo.delete({ id: rateId, companyId });
     return { id: rateId, deleted: true };
+  }
+
+  private async countLiveManeuvers(
+    companyId: number,
+    rateId: number,
+  ): Promise<number> {
+    const raw = await this.repo
+      .createQueryBuilder('rate')
+      .innerJoin('rate.trips', 'trip')
+      .where('rate.id = :rateId', { rateId })
+      .andWhere('rate.companyId = :companyId', { companyId })
+      .andWhere('trip.deletedAt IS NULL')
+      .select('COUNT(trip.id)', 'cnt')
+      .getRawOne<{ cnt: string }>();
+    return Number(raw?.cnt ?? 0);
   }
 
   private resolveEstimatedTimeFieldsForPersist(
@@ -521,15 +619,13 @@ export class DestinationRatesService {
 
   private resolveDistanceFieldsForPersist(
     routeDistanceKm: number | undefined,
-    isRoundTrip: boolean,
-  ): { routeDistanceKm: string; operationalDistanceKm: string } | undefined {
+  ): { routeDistanceKm: string } | undefined {
     if (routeDistanceKm === undefined || routeDistanceKm === null) {
       return undefined;
     }
-    const breakdown = resolveTripOperationalDistance(routeDistanceKm, isRoundTrip);
+    const breakdown = resolveTripOperationalDistance(routeDistanceKm);
     return {
       routeDistanceKm: String(breakdown.routeDistanceKm),
-      operationalDistanceKm: String(breakdown.operationalDistanceKm),
     };
   }
 
@@ -593,15 +689,27 @@ export class DestinationRatesService {
     originOperationalCenterId: number,
     destinationPostalCode: string,
     destinationLocality: string,
+    activeOnly?: boolean,
   ): Promise<DestinationRate | null> {
-    return this.repo.findOne({
-      where: {
-        companyId,
+    const qb = this.repo
+      .createQueryBuilder('rate')
+      .leftJoinAndSelect('rate.prices', 'prices')
+      .leftJoinAndSelect('prices.operationConfiguration', 'operationConfiguration')
+      .leftJoinAndSelect('rate.originOperationalCenter', 'originOperationalCenter')
+      .where('rate.companyId = :companyId', { companyId })
+      .andWhere('rate.originOperationalCenterId = :originOperationalCenterId', {
         originOperationalCenterId,
+      })
+      .andWhere('rate.postalCode = :postalCode', {
         postalCode: this.normalizeRouteDestinationPostalCode(destinationPostalCode),
+      })
+      .andWhere('LOWER(BTRIM(rate.locality)) = LOWER(BTRIM(:locality))', {
         locality: this.normalizeRouteDestinationLocality(destinationLocality),
-      },
-    });
+      });
+    if (activeOnly === true) {
+      qb.andWhere('rate.active = true');
+    }
+    return qb.getOne();
   }
 
   private async assertUniqueRoute(

@@ -9,6 +9,7 @@ import {
 import { TERMINALOPS_SCHEMA } from 'src/common/constants/schema-name';
 import { Trip } from 'src/trips/entities/trip.entity';
 
+/** Entrada de bitácora de maniobra; `isIncident` marca el subconjunto operativo. */
 @Entity({ schema: TERMINALOPS_SCHEMA, name: 'trip_incidents' })
 export class TripIncident {
   @PrimaryGeneratedColumn()
@@ -20,32 +21,8 @@ export class TripIncident {
   @Column()
   description: string;
 
-  @Column({ name: 'occurred_at', type: 'timestamptz' })
-  occurredAt: Date;
-
   @Column({ name: 'posted_by' })
   postedBy: string;
-
-  @Column({ default: 'open' })
-  status: string;
-
-  @Column({ nullable: true })
-  category?: string;
-
-  @Column({ name: 'opened_at', type: 'timestamptz', nullable: true })
-  openedAt?: Date;
-
-  @Column({ name: 'closed_at', type: 'timestamptz', nullable: true })
-  closedAt?: Date;
-
-  @Column({ name: 'closed_by_user_id', type: 'int', nullable: true })
-  closedByUserId?: number;
-
-  @Column({ name: 'resolution_notes', nullable: true, type: 'text' })
-  resolutionNotes?: string;
-
-  @Column({ nullable: true })
-  severity?: string;
 
   @Column({ name: 'is_incident', default: false })
   isIncident: boolean;

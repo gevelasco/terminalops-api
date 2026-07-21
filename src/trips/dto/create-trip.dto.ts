@@ -18,14 +18,6 @@ export class CreateTripDto {
 
   @ApiProperty()
   @IsString()
-  origin: string;
-
-  @ApiProperty()
-  @IsString()
-  destination: string;
-
-  @ApiProperty()
-  @IsString()
   clientName: string;
 
   @ApiPropertyOptional({ description: 'ID público numérico del cliente' })
@@ -118,14 +110,6 @@ export class CreateTripDto {
   @IsNumber()
   routeDistanceKm?: number;
 
-  @ApiPropertyOptional({
-    description: 'Si true (default), operationalDistanceKm = routeDistanceKm × 2',
-    default: true,
-  })
-  @IsOptional()
-  @IsBoolean()
-  isRoundTrip?: boolean;
-
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
@@ -140,14 +124,6 @@ export class CreateTripDto {
   @IsOptional()
   @IsString()
   dieselAmount?: string;
-
-  @ApiPropertyOptional({
-    description:
-      'Snapshot MXN/L al crear (fuel-estimate). Si omitido, se deriva de litros/monto o FuelPriceService.',
-  })
-  @IsOptional()
-  @IsNumber()
-  dieselPricePerLiterAtCreation?: number;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -214,16 +190,6 @@ export class CreateTripDto {
 
   @ApiPropertyOptional()
   @IsOptional()
-  @IsString()
-  operatorLicenseNumber?: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  operatorLicenseExpiresLabel?: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
   @IsDateString()
   departureAt?: string;
 
@@ -236,14 +202,6 @@ export class CreateTripDto {
   @IsOptional()
   @IsDateString()
   returnAt?: string;
-
-  @ApiPropertyOptional({
-    enum: ['auto', 'manual'],
-    description: 'Origen del monto de casetas al crear (tarifa operativa vs manual)',
-  })
-  @IsOptional()
-  @IsString()
-  tollCalculationMode?: 'auto' | 'manual';
 
   @ApiPropertyOptional()
   @IsOptional()

@@ -4,6 +4,9 @@ import type { Unit } from 'src/units/entities/unit.entity';
 import { buildEquipmentOperationalId, buildUnitOperationalId } from 'src/common/utils/unit-operational-id.util';
 import { operationalKmFromStoredTrip } from 'src/trips/trip-operational-distance.util';
 import {
+  buildTripRouteLabel,
+} from 'src/trips/trip-route-label.util';
+import {
   buildOperatorPaymentRows,
   summarizeOperatorPaymentRows,
 } from './operator-payment-rows.util';
@@ -19,8 +22,12 @@ type TripLike = Pick<
   Trip,
   | 'id'
   | 'maneuverCode'
-  | 'origin'
-  | 'destination'
+  | 'originLocality'
+  | 'originCityMunicipality'
+  | 'originPostalCode'
+  | 'destinationLocality'
+  | 'destinationCityMunicipality'
+  | 'destinationPostalCode'
   | 'clientId'
   | 'clientName'
   | 'unitId'
@@ -34,9 +41,6 @@ type TripLike = Pick<
   | 'completedAt'
   | 'creditDays'
   | 'routeDistanceKm'
-  | 'operationalDistanceKm'
-  | 'isRoundTrip'
-  | 'unitOperationalCodeSnapshot'
   | 'tripEquipment'
   | 'unit'
 >;
@@ -67,21 +71,11 @@ function parseMoney(raw?: string | null): number {
 function tripKm(trip: TripLike): number {
   const km = operationalKmFromStoredTrip(
     trip.routeDistanceKm != null ? Number(trip.routeDistanceKm) : null,
-    trip.operationalDistanceKm != null ? Number(trip.operationalDistanceKm) : null,
-    trip.isRoundTrip,
   );
   return km != null && Number.isFinite(km) ? km : 0;
 }
 
-function formatTripRouteLabel(origin: string, destination: string): string {
-  return `${origin} → ${destination}`;
-}
-
 function labelForUnit(trip: TripLike, unitsById: ReadonlyMap<number, Unit>): string {
-  const snapshot = trip.unitOperationalCodeSnapshot?.trim();
-  if (snapshot) {
-    return snapshot;
-  }
   if (trip.unit) {
     return buildUnitOperationalId(trip.unit);
   }
@@ -191,7 +185,7 @@ function buildActiveAssignment(
   }
   return {
     maneuverCode: active.maneuverCode,
-    routeLabel: formatTripRouteLabel(active.origin, active.destination),
+    routeLabel: buildTripRouteLabel(active),
     clientName: active.clientName?.trim() || '—',
     unitLabel: labelForUnit(active, unitsById),
     equipmentLabel: equipmentLabels(active),

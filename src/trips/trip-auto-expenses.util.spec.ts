@@ -43,9 +43,6 @@ describe('trip-auto-expenses.util', () => {
     expect(drafts.find((d) => d.kind === 'operational_control')?.amount).toBe(
       '1000.00',
     );
-    expect(
-      drafts.find((d) => d.kind === 'operational_control')?.isOperationalProvision,
-    ).toBe(true);
     expect(drafts.find((d) => d.kind === 'operational_control')?.description).toBe(
       'Control operativo 5% — maniobra ACME-001',
     );

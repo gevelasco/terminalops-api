@@ -44,15 +44,16 @@ export function applyTripListFilters(
     `(
       trip.maneuver_code ILIKE :q
       OR CAST(trip.id AS TEXT) ILIKE :q
-      OR trip.origin ILIKE :q
-      OR trip.destination ILIKE :q
+      OR COALESCE(trip.origin_locality, '') ILIKE :q
+      OR COALESCE(trip.origin_city_municipality, '') ILIKE :q
+      OR COALESCE(trip.origin_postal_code, '') ILIKE :q
+      OR COALESCE(trip.destination_locality, '') ILIKE :q
+      OR COALESCE(trip.destination_city_municipality, '') ILIKE :q
+      OR COALESCE(trip.destination_postal_code, '') ILIKE :q
       OR trip.client_name ILIKE :q
       OR CAST(COALESCE(trip.client_id, 0) AS TEXT) ILIKE :q
       OR trip.status ILIKE :q
       OR trip.operation_type ILIKE :q
-      OR COALESCE(trip.operation_configuration_name_snapshot, '') ILIKE :q
-      OR COALESCE(trip.operator_name_snapshot, '') ILIKE :q
-      OR COALESCE(trip.unit_operational_code_snapshot, '') ILIKE :q
       OR CAST(COALESCE(trip.departure_at, trip.planned_departure_at) AS TEXT) ILIKE :q
       OR CAST(COALESCE(trip.arrived_at, trip.planned_arrival_at) AS TEXT) ILIKE :q
       OR (trip.has_incident = true AND 'incidente' ILIKE :q)

@@ -6,7 +6,6 @@ import {
 
 export type FleetMetaLike = {
   lastMaintenanceDate?: string | null;
-  maintenanceNextDateOverride?: string | null;
   maintenanceKmCounter?: number | null;
   tireCondition?: string | null;
   verificationPhysMechDate?: string | null;
@@ -102,18 +101,10 @@ function maintenanceBucket(
     return 'ok';
   }
   if (policy?.dateControlEnabled) {
-    const override = meta.maintenanceNextDateOverride?.trim();
-    if (override) {
-      return renewalBucketFromTargetYmd(override);
-    }
     return renewalBucketFromLast(
       meta.lastMaintenanceDate,
       policy.datePeriodMonths,
     );
-  }
-  const override = meta.maintenanceNextDateOverride?.trim();
-  if (override) {
-    return renewalBucketFromTargetYmd(override);
   }
   return renewalBucketFromLast(meta.lastMaintenanceDate, 6);
 }
@@ -218,10 +209,6 @@ export function nextMaintenanceDateLabel(
 ): string | null {
   if (!meta) {
     return null;
-  }
-  const override = meta.maintenanceNextDateOverride?.trim();
-  if (override) {
-    return fmtMxDateYmd(override);
   }
   const last = meta.lastMaintenanceDate?.trim();
   if (!last) {

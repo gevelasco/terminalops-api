@@ -8,24 +8,18 @@ import {
 function trip(partial: Partial<Trip> & Pick<Trip, 'id' | 'status'>): Trip {
   return {
     maneuverCode: 'M-001',
-    origin: 'A',
-    destination: 'B',
+    originLocality: 'A',
+    destinationLocality: 'B',
     companyId: 1,
     clientName: 'Cliente',
     operationType: 'full',
-    operationConfigurationNameSnapshot: '',
-    operationConfigurationVersionSnapshot: 1,
-    operationConfigurationMaxEquipmentCountSnapshot: 1,
     loadType: '',
     containerType: '',
     plannedDepartureAt: new Date('2026-01-01T12:00:00Z'),
     plannedArrivalAt: new Date('2026-01-02T12:00:00Z'),
     plannedCompletionAt: new Date('2026-01-03T12:00:00Z'),
-    isDelayed: false,
-    openIncidentCount: 0,
     creditDays: 0,
     hasIncident: false,
-    isRoundTrip: false,
     routeDistanceKm: '100',
     operatorQuota: '0',
     ...partial,
@@ -75,6 +69,6 @@ describe('operator-operation-summary.util', () => {
       cancelled: 0,
       total: 3,
     });
-    expect(summary.completedKm).toBe(1492);
+    expect(summary.completedKm).toBe(2984);
   });
 });

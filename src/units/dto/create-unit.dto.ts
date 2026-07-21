@@ -52,7 +52,9 @@ export class CreateUnitDto {
   @IsString()
   motorNumber?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({
+    description: 'Capacidad en toneladas (se persiste como capacity_kg ×1000).',
+  })
   @IsOptional()
   @IsNumber()
   @Min(0)

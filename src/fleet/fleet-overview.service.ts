@@ -12,13 +12,19 @@ import { Company } from 'src/companies/entities/company.entity';
 import { CompanyOperationConfiguration } from 'src/operation-configurations/entities/company-operation-configuration.entity';
 import { Trip } from 'src/trips/entities/trip.entity';
 import { exposeTripActualSchedule } from 'src/trips/actual-schedule/resolve-exposed-actual-schedule';
+import {
+  buildTripDestinationLabel,
+  buildTripOriginLabel,
+} from 'src/trips/trip-route-label.util';
+import { operationalKmFromStoredTrip } from 'src/trips/trip-operational-distance.util';
 import { TRIP_FLEET_ACTIVE_STATUSES } from 'src/fleet/fleet-status-resolver.util';
 import { FleetStatusResolverService } from 'src/fleet/fleet-status-resolver.service';
 import { Unit } from 'src/units/entities/unit.entity';
+import { FleetMaintenanceEntry } from 'src/units/entities/fleet-maintenance-entry.entity';
+import { FleetVerificationEntry } from 'src/units/entities/fleet-verification-entry.entity';
 import { profileToFleetMeta } from 'src/units/mappers/unit-fleet-meta.mapper';
 import { profileToFleetMeta as equipmentProfileToFleetMeta } from 'src/equipment/mappers/equipment-fleet-meta.mapper';
-import {
-  FleetOverviewEquipmentConvoyType,
+import {  FleetOverviewEquipmentConvoyType,
   FleetOverviewEquipmentRowDto,
   FleetOverviewItemDto,
   FleetOverviewResponseDto,
@@ -82,16 +88,6 @@ function buildEquipmentOperationalCode(eq: Equipment): string {
   return String(eq.id);
 }
 
-function parseOperationalKm(
-  raw: string | number | null | undefined,
-): number | undefined {
-  if (raw == null) {
-    return undefined;
-  }
-  const n = typeof raw === 'number' ? raw : parseFloat(String(raw));
-  return Number.isFinite(n) && n > 0 ? n : undefined;
-}
-
 function tripStatus(raw: string): FleetOverviewTripStatus {
   if (raw === 'in_transit' || raw === 'scheduled' || raw === 'completed') {
     return raw;
@@ -108,25 +104,14 @@ function resolveConfiguration(
     return {
       id: trip.operationConfigurationId,
       code: trip.operationType?.trim() || cfg?.code || '',
-      name:
-        trip.operationConfigurationNameSnapshot?.trim() ||
-        cfg?.name ||
-        trip.operationType ||
-        '',
-      maxEquipmentCount:
-        trip.operationConfigurationMaxEquipmentCountSnapshot ??
-        cfg?.maxEquipmentCount ??
-        1,
+      name: cfg?.name || trip.operationType || '',
+      maxEquipmentCount: cfg?.maxEquipmentCount ?? 1,
     };
   }
   return undefined;
 }
 
 function resolveOperatorDisplayName(trip: Trip): string | undefined {
-  const snapshot = trip.operatorNameSnapshot?.trim();
-  if (snapshot) {
-    return snapshot;
-  }
   const joined = trip.operator?.name?.trim();
   return joined || undefined;
 }
@@ -222,46 +207,28 @@ export class FleetOverviewService {
       return { items: [], equipment: [] };
     }
 
-    const [units, equipment, configs, lastEndedAtByUnitId, company] =
+    const [unitsRaw, equipmentRaw, configs, lastEndedAtByUnitId, company] =
       await Promise.all([
         unitIds
           ? this.unitsRepo.find({
               where: { companyId, id: In(unitIds) },
-              relations: [
-                'fleetProfile',
-                'maintenanceEntries',
-                'fleetDocuments',
-                'equipment',
-              ],
+              relations: ['fleetProfile'],
               order: { plate: 'ASC' },
             })
           : this.unitsRepo.find({
               where: { companyId },
-              relations: [
-                'fleetProfile',
-                'maintenanceEntries',
-                'fleetDocuments',
-                'equipment',
-              ],
+              relations: ['fleetProfile'],
               order: { plate: 'ASC' },
             }),
         unitIds
           ? this.equipmentRepo.find({
               where: { companyId, unitId: In(unitIds) },
-              relations: [
-                'fleetProfile',
-                'maintenanceEntries',
-                'fleetDocuments',
-              ],
+              relations: ['fleetProfile'],
               order: { name: 'ASC' },
             })
           : this.equipmentRepo.find({
               where: { companyId },
-              relations: [
-                'fleetProfile',
-                'maintenanceEntries',
-                'fleetDocuments',
-              ],
+              relations: ['fleetProfile'],
               order: { name: 'ASC' },
             }),
         this.configsRepo.find({
@@ -280,6 +247,26 @@ export class FleetOverviewService {
           ],
         }),
       ]);
+
+    const loadedUnitIds = unitsRaw.map((u) => u.id);
+    const loadedEquipmentIds = equipmentRaw.map((e) => e.id);
+    const [unitMaint, unitVerif, eqMaint, eqVerif] = await Promise.all([
+      this.loadLatestMaintenanceByUnitIds(loadedUnitIds),
+      this.loadLatestVerificationByUnitIds(loadedUnitIds),
+      this.loadLatestMaintenanceByEquipmentIds(loadedEquipmentIds),
+      this.loadLatestVerificationByEquipmentIds(loadedEquipmentIds),
+    ]);
+
+    const units = unitsRaw.map((unit) => {
+      unit.maintenanceEntries = unitMaint.get(unit.id) ?? [];
+      unit.verificationEntries = unitVerif.get(unit.id) ?? [];
+      return unit;
+    });
+    const equipment = equipmentRaw.map((eq) => {
+      eq.maintenanceEntries = eqMaint.get(eq.id) ?? [];
+      eq.verificationEntries = eqVerif.get(eq.id) ?? [];
+      return eq;
+    });
 
     const maintenancePolicy = companyMaintenancePolicyContext(company);
 
@@ -332,7 +319,10 @@ export class FleetOverviewService {
       const unitMetaRaw = profileToFleetMeta(
         unit.fleetProfile,
         unit.maintenanceEntries,
-        unit.fleetDocuments,
+        undefined,
+        undefined,
+        unit.verificationEntries,
+        { includeHistory: false },
       );
       const unitMeta = toFleetMetaLike(unitMetaRaw);
       const convoyType = convoyTypeFromCount(hitched.length);
@@ -367,9 +357,11 @@ export class FleetOverviewService {
       };
 
       if (activeTrip) {
+        const originLabel = buildTripOriginLabel(activeTrip);
+        const destinationLabel = buildTripDestinationLabel(activeTrip);
         const routeLabel = formatCompactTripRouteLabel(
-          activeTrip.origin,
-          activeTrip.destination,
+          originLabel,
+          destinationLabel,
         );
         const exposedActual = exposeTripActualSchedule(activeTrip);
         item.trip = {
@@ -377,7 +369,7 @@ export class FleetOverviewService {
           maneuverCode: activeTrip.maneuverCode,
           clientName: activeTrip.clientName,
           origin: routeLabel,
-          destination: formatCompactRouteEndpoint(activeTrip.destination),
+          destination: formatCompactRouteEndpoint(destinationLabel),
           status: tripStatus(activeTrip.status),
           plannedDepartureAt:
             toIsoString(activeTrip.plannedDepartureAt) ?? undefined,
@@ -388,9 +380,12 @@ export class FleetOverviewService {
           departureAt: toIsoString(exposedActual.departureAt) ?? undefined,
           arrivedAt: toIsoString(exposedActual.arrivedAt) ?? undefined,
           returnAt: toIsoString(exposedActual.returnAt) ?? undefined,
-          operationalDistanceKm: parseOperationalKm(
-            activeTrip.operationalDistanceKm,
-          ),
+          operationalDistanceKm:
+            operationalKmFromStoredTrip(
+              activeTrip.routeDistanceKm
+                ? Number(activeTrip.routeDistanceKm)
+                : null,
+            ) ?? undefined,
           operatorName: resolveOperatorDisplayName(activeTrip),
         };
       } else {
@@ -447,7 +442,10 @@ export class FleetOverviewService {
         const metaRaw = equipmentProfileToFleetMeta(
           eq.fleetProfile,
           eq.maintenanceEntries,
-          eq.fleetDocuments,
+          undefined,
+          undefined,
+          eq.verificationEntries,
+          { includeHistory: false },
         );
         const meta = toFleetMetaLike(metaRaw);
         const brand =
@@ -525,6 +523,137 @@ export class FleetOverviewService {
     });
 
     return { items: filteredItems, equipment: filteredEquipmentRows };
+  }
+
+  private async loadLatestMaintenanceByUnitIds(
+    unitIds: readonly number[],
+  ): Promise<Map<number, FleetMaintenanceEntry[]>> {
+    return this.loadLatestMaintenance('unit_id', unitIds);
+  }
+
+  private async loadLatestMaintenanceByEquipmentIds(
+    equipmentIds: readonly number[],
+  ): Promise<Map<number, FleetMaintenanceEntry[]>> {
+    return this.loadLatestMaintenance('equipment_id', equipmentIds);
+  }
+
+  private async loadLatestMaintenance(
+    ownerColumn: 'unit_id' | 'equipment_id',
+    ownerIds: readonly number[],
+  ): Promise<Map<number, FleetMaintenanceEntry[]>> {
+    const out = new Map<number, FleetMaintenanceEntry[]>();
+    if (ownerIds.length === 0) {
+      return out;
+    }
+    const schema = this.unitsRepo.metadata.schema;
+    const rows: Array<{
+      id: number;
+      unit_id: number | null;
+      equipment_id: number | null;
+      entry_date: string | null;
+      entry_type: string | null;
+      cost: string | null;
+      notes: string | null;
+      payment_method: string | null;
+      sort_order: number;
+    }> = await this.unitsRepo.query(
+      `
+      SELECT DISTINCT ON (${ownerColumn})
+        id, unit_id, equipment_id, entry_date, entry_type, cost, notes,
+        payment_method, sort_order
+      FROM ${schema}.fleet_maintenance_entries
+      WHERE ${ownerColumn} = ANY($1::int[])
+      ORDER BY ${ownerColumn}, sort_order DESC NULLS LAST, entry_date DESC NULLS LAST, id DESC
+      `,
+      [ownerIds],
+    );
+    for (const row of rows) {
+      const ownerId =
+        ownerColumn === 'unit_id' ? row.unit_id : row.equipment_id;
+      if (ownerId == null) {
+        continue;
+      }
+      const entry = {
+        id: row.id,
+        unitId: row.unit_id ?? undefined,
+        equipmentId: row.equipment_id ?? undefined,
+        entryDate: row.entry_date ?? undefined,
+        entryType: row.entry_type ?? undefined,
+        cost: row.cost ?? undefined,
+        notes: row.notes ?? undefined,
+        paymentMethod: row.payment_method ?? undefined,
+        sortOrder: row.sort_order ?? 0,
+      } as FleetMaintenanceEntry;
+      out.set(ownerId, [entry]);
+    }
+    return out;
+  }
+
+  private async loadLatestVerificationByUnitIds(
+    unitIds: readonly number[],
+  ): Promise<Map<number, FleetVerificationEntry[]>> {
+    return this.loadLatestVerification('unit_id', unitIds);
+  }
+
+  private async loadLatestVerificationByEquipmentIds(
+    equipmentIds: readonly number[],
+  ): Promise<Map<number, FleetVerificationEntry[]>> {
+    return this.loadLatestVerification('equipment_id', equipmentIds);
+  }
+
+  private async loadLatestVerification(
+    ownerColumn: 'unit_id' | 'equipment_id',
+    ownerIds: readonly number[],
+  ): Promise<Map<number, FleetVerificationEntry[]>> {
+    const out = new Map<number, FleetVerificationEntry[]>();
+    if (ownerIds.length === 0) {
+      return out;
+    }
+    const schema = this.unitsRepo.metadata.schema;
+    const rows: Array<{
+      id: number;
+      unit_id: number | null;
+      equipment_id: number | null;
+      scope: FleetVerificationEntry['scope'];
+      entry_date: string | null;
+      cost: string | null;
+      notes: string | null;
+      payment_method: string | null;
+      sort_order: number;
+    }> = await this.unitsRepo.query(
+      `
+      SELECT DISTINCT ON (${ownerColumn}, scope)
+        id, unit_id, equipment_id, scope, entry_date, cost, notes,
+        payment_method, sort_order
+      FROM ${schema}.fleet_verification_entries
+      WHERE ${ownerColumn} = ANY($1::int[])
+      ORDER BY ${ownerColumn}, scope, sort_order DESC NULLS LAST,
+        entry_date DESC NULLS LAST, id DESC
+      `,
+      [ownerIds],
+    );
+    for (const row of rows) {
+      const ownerId =
+        ownerColumn === 'unit_id' ? row.unit_id : row.equipment_id;
+      if (ownerId == null) {
+        continue;
+      }
+      const entry = {
+        id: row.id,
+        unitId: row.unit_id ?? undefined,
+        equipmentId: row.equipment_id ?? undefined,
+        scope: row.scope,
+        entryDate: row.entry_date ?? undefined,
+        cost: row.cost ?? undefined,
+        notes: row.notes ?? undefined,
+        paymentMethod: row.payment_method ?? undefined,
+        sortOrder: row.sort_order ?? 0,
+      } as FleetVerificationEntry;
+      const bucket = out.get(ownerId) ?? [];
+      bucket.push(entry);
+      out.set(ownerId, bucket);
+    }
+    return out;
   }
 
   /**

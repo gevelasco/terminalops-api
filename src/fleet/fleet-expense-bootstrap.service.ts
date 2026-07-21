@@ -182,8 +182,7 @@ export class FleetExpenseBootstrapService implements OnApplicationBootstrap {
       if (fp.insuranceContractDate && fp.insuranceCost) {
         await this.insuranceSync.ensureAllInsuranceInstallments({
           companyId,
-          insuranceTarget: 'unit',
-          relatedUnitId: unit.id,
+                    relatedUnitId: unit.id,
           profile: fp,
         });
       }
@@ -208,8 +207,7 @@ export class FleetExpenseBootstrapService implements OnApplicationBootstrap {
       if (fp.insuranceContractDate && fp.insuranceCost) {
         await this.insuranceSync.ensureAllInsuranceInstallments({
           companyId,
-          insuranceTarget: 'equipment',
-          relatedEquipmentId: eq.id,
+                    relatedEquipmentId: eq.id,
           profile: fp,
         });
       }

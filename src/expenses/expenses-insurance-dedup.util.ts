@@ -1,3 +1,5 @@
+import { expenseFleetTargetFromRelatedIds } from 'src/expenses/expense-payload.util';
+
 /** Coincide fecha operativa (mediodía MX) y registros legados en medianoche UTC. */
 export function fleetInsuranceIncurredAtMatchSql(
   alias = 'e',
@@ -12,13 +14,26 @@ export function fleetInsuranceIncurredAtMatchSql(
 export type FleetInsuranceExpenseRow = {
   id: number;
   company_id: number;
-  insurance_target: string | null;
+  /** Legado (migración 174550); preferir related_* IDs. */
+  insurance_target?: string | null;
   related_unit_id: number | null;
   related_equipment_id: number | null;
   amount: string | number;
   category: string;
   incurred_at: Date | string;
 };
+
+function insuranceTargetKey(row: FleetInsuranceExpenseRow): string {
+  if (row.insurance_target) {
+    return row.insurance_target;
+  }
+  return (
+    expenseFleetTargetFromRelatedIds({
+      relatedUnitId: row.related_unit_id,
+      relatedEquipmentId: row.related_equipment_id,
+    }) ?? ''
+  );
+}
 
 /** Fecha operativa canónica para deduplicar (incluye legado UTC medianoche). */
 export function normalizeInsuranceOperationalDate(incurredAt: Date | string): string {
@@ -38,7 +53,7 @@ export function normalizeInsuranceOperationalDate(incurredAt: Date | string): st
 export function fleetInsuranceDedupKey(row: FleetInsuranceExpenseRow): string {
   return [
     row.company_id,
-    row.insurance_target ?? '',
+    insuranceTargetKey(row),
     row.related_unit_id ?? '',
     row.related_equipment_id ?? '',
     normalizeInsuranceOperationalDate(row.incurred_at),

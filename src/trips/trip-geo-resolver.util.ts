@@ -1,5 +1,9 @@
 import type { OperationalCenter } from 'src/operational-centers/entities/operational-center.entity';
 import type { Trip } from 'src/trips/entities/trip.entity';
+import {
+  buildTripDestinationLabel,
+  buildTripOriginLabel,
+} from 'src/trips/trip-route-label.util';
 import type {
   TripMapGeoPointDto,
   TripMapGeoPointSource,
@@ -28,27 +32,6 @@ function normalizeToken(value: string | null | undefined): string {
     .toLowerCase()
     .normalize('NFD')
     .replace(/\p{M}/gu, '');
-}
-
-function isCompactRouteToken(value: string): boolean {
-  return value.length > 0 && !value.includes(',') && !/CP\s/i.test(value);
-}
-
-function routeEndpointLabel(
-  primary: string | null | undefined,
-  locality: string | null | undefined,
-  cityMunicipality: string | null | undefined,
-): string {
-  const primaryTrimmed = (primary ?? '').trim();
-  const localityTrimmed = (locality ?? '').trim();
-  const cityTrimmed = (cityMunicipality ?? '').trim();
-
-  if (primaryTrimmed && !isCompactRouteToken(primaryTrimmed)) {
-    return primaryTrimmed;
-  }
-
-  const parts = [primaryTrimmed, localityTrimmed, cityTrimmed].filter((part) => part.length > 0);
-  return parts.length > 0 ? parts.join(' · ') : '—';
 }
 
 function pointFromCoords(
@@ -118,11 +101,7 @@ export function resolveDestinationPoint(
   trip: Trip,
   ctx: TripGeoResolverContext,
 ): TripMapGeoPointDto {
-  const label = routeEndpointLabel(
-    trip.destination,
-    trip.destinationLocality,
-    trip.destinationCityMunicipality,
-  );
+  const label = buildTripDestinationLabel(trip);
   const rate = trip.destinationRate;
 
   const rateLat = parseCoord(rate?.destinationLatitude);
@@ -154,11 +133,7 @@ export function resolveOriginPoint(
   trip: Trip,
   ctx: TripGeoResolverContext,
 ): TripMapGeoPointDto {
-  const label = routeEndpointLabel(
-    trip.origin,
-    trip.originLocality,
-    trip.originCityMunicipality,
-  );
+  const label = buildTripOriginLabel(trip);
   const rate = trip.destinationRate;
 
   const rateLat = parseCoord(rate?.originLatitude);

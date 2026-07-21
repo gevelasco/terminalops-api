@@ -31,10 +31,9 @@ function trip(overrides: Partial<Trip> = {}): Trip {
     id: 10,
     maneuverCode: 'ACME-001',
     status: 'scheduled',
-    origin: '64000',
     originLocality: 'Centro',
     originCityMunicipality: 'Monterrey',
-    destination: '06600',
+    originPostalCode: '64000',
     destinationLocality: 'Juárez',
     destinationCityMunicipality: 'CDMX',
     destinationPostalCode: '06600',
@@ -140,13 +139,12 @@ describe('trip-geo-resolver.util', () => {
     expect(fromMatched.source).toBe('fallback');
   });
 
-  it('mapTripToMapItem usa dirección completa sin duplicar localidad', () => {
+  it('mapTripToMapItem arma label desde partes postales', () => {
     const item = mapTripToMapItem(
       trip({
-        destination:
-          'Aniceto Corpus, Monterrey, Nuevo León, México (CP 64103)',
         destinationLocality: 'Aniceto Corpus',
         destinationCityMunicipality: 'Monterrey, Nuevo León',
+        destinationPostalCode: '64103',
         destinationRate: {
           destinationLatitude: '25.7817504',
           destinationLongitude: '-100.4100934',
@@ -155,7 +153,7 @@ describe('trip-geo-resolver.util', () => {
       ctx(),
     );
     expect(item.destination.label).toBe(
-      'Aniceto Corpus, Monterrey, Nuevo León, México (CP 64103)',
+      'Aniceto Corpus · Monterrey, Nuevo León · 64103',
     );
   });
 

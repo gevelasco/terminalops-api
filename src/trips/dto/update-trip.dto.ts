@@ -3,8 +3,6 @@ import { IsDateString, IsOptional, IsString } from 'class-validator';
 import { CreateTripDto } from './create-trip.dto';
 
 const TRIP_SNAPSHOT_IMMUTABLE_FIELDS = [
-  'origin',
-  'destination',
   'originPostalCode',
   'originCityMunicipality',
   'originLocality',

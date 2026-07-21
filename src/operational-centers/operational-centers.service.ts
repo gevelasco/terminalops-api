@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Company } from 'src/companies/entities/company.entity';
+import { DestinationRate } from 'src/destination-rates/entities/destination-rate.entity';
 import { serializeOperationalCenter } from 'src/common/serializers/operational-center.serializer';
 import { OperationalCenter } from './entities/operational-center.entity';
 import {
@@ -16,6 +17,8 @@ export class OperationalCentersService {
     private readonly repo: Repository<OperationalCenter>,
     @InjectRepository(Company)
     private readonly companiesRepo: Repository<Company>,
+    @InjectRepository(DestinationRate)
+    private readonly destinationRatesRepo: Repository<DestinationRate>,
   ) {}
 
   async findAll(companyId: number) {
@@ -41,17 +44,23 @@ export class OperationalCentersService {
   }
 
   async getDefaultEntity(companyId: number): Promise<OperationalCenter> {
+    const company = await this.companiesRepo.findOne({ where: { id: companyId } });
+    if (company) {
+      const primary = await this.findExistingPrimaryCenter(company);
+      if (primary) {
+        await this.ensureCompanyPrimaryPointer(company, primary.id);
+        return primary;
+      }
+    }
+
     let row = await this.repo.findOne({
-      where: { companyId, isDefault: true },
+      where: { companyId },
+      order: { id: 'ASC' },
     });
     if (!row) {
-      row = await this.repo.findOne({
-        where: { companyId },
-        order: { id: 'ASC' },
-      });
-    }
-    if (!row) {
       row = await this.ensureDefaultCenterForCompany(companyId);
+    } else if (company) {
+      await this.ensureCompanyPrimaryPointer(company, row.id);
     }
     return row;
   }
@@ -142,6 +151,7 @@ export class OperationalCentersService {
     if (company) {
       await this.ensureCompanyPrimaryPointer(company, saved.id);
     }
+    await this.refreshDestinationRateOriginSnapshots(saved);
     return saved;
   }
 
@@ -153,6 +163,26 @@ export class OperationalCentersService {
       originLatitude: center.latitude,
       originLongitude: center.longitude,
     };
+  }
+
+  /** Mantiene origin_* denormalizado al día cuando cambia la geo del patio. */
+  async refreshDestinationRateOriginSnapshots(
+    center: OperationalCenter,
+  ): Promise<void> {
+    const snap = this.snapshotFromCenter(center);
+    await this.destinationRatesRepo.update(
+      {
+        companyId: center.companyId,
+        originOperationalCenterId: center.id,
+      },
+      {
+        originPostalCode: snap.originPostalCode,
+        originCityMunicipality: snap.originCityMunicipality,
+        originLocality: snap.originLocality,
+        originLatitude: snap.originLatitude,
+        originLongitude: snap.originLongitude,
+      },
+    );
   }
 
   private async findExistingPrimaryCenter(
@@ -180,14 +210,33 @@ export class OperationalCentersService {
     });
   }
 
+  /**
+   * Fuente de verdad: companies.primary_operational_center_id.
+   * is_default se mantiene como espejo para listados/FE.
+   */
   private async ensureCompanyPrimaryPointer(
     company: Company,
     centerId: number,
   ): Promise<void> {
-    if (company.primaryOperationalCenterId === centerId) {
-      return;
+    if (company.primaryOperationalCenterId !== centerId) {
+      company.primaryOperationalCenterId = centerId;
+      await this.companiesRepo.save(company);
     }
-    company.primaryOperationalCenterId = centerId;
-    await this.companiesRepo.save(company);
+    await this.repo
+      .createQueryBuilder()
+      .update(OperationalCenter)
+      .set({ isDefault: false })
+      .where('company_id = :companyId', { companyId: company.id })
+      .andWhere('id <> :centerId', { centerId })
+      .andWhere('is_default = true')
+      .execute();
+    await this.repo
+      .createQueryBuilder()
+      .update(OperationalCenter)
+      .set({ isDefault: true })
+      .where('id = :centerId', { centerId })
+      .andWhere('company_id = :companyId', { companyId: company.id })
+      .andWhere('is_default = false')
+      .execute();
   }
 }

@@ -1,16 +1,14 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, In, IsNull, Repository } from 'typeorm';
+import { DataSource, IsNull, Repository } from 'typeorm';
 import { Trip } from '../entities/trip.entity';
 import { TripIncident } from '../entities/trip-incident.entity';
 import { syncTripIncidentMarkers } from '../trip-incident-markers.util';
-import { calculateTripDelays } from './calculate-trip-delays';
 import {
   evaluateTripLifecycle,
   resolveEffectiveCompletionAt,
   resolveTripLifecycleStatus,
 } from './evaluate-trip-lifecycle';
-import { TripAuditService } from './trip-audit.service';
 import { UnitTripOdometerService } from 'src/units/unit-trip-odometer.service';
 import { TripFleetStatusSyncService } from './trip-fleet-status-sync.service';
 import {
@@ -56,7 +54,6 @@ export class TripLifecycleService {
     private readonly tripsRepo: Repository<Trip>,
     @InjectRepository(TripIncident)
     private readonly incidentsRepo: Repository<TripIncident>,
-    private readonly auditService: TripAuditService,
     private readonly fleetStatusSync: TripFleetStatusSyncService,
     private readonly unitTripOdometer: UnitTripOdometerService,
     private readonly dataSource: DataSource,
@@ -111,7 +108,6 @@ export class TripLifecycleService {
 
     const evaluation = this.evaluateTripLifecycle(trip, now);
     if (!evaluation.nextStatus || evaluation.nextStatus === trip.status) {
-      await this.refreshDelayMetrics(trip.id, now);
       return false;
     }
 
@@ -137,16 +133,7 @@ export class TripLifecycleService {
       return false;
     }
 
-    await this.auditService.recordLifecycleStatusChange({
-      tripId: trip.id,
-      companyId: trip.companyId,
-      fromStatus,
-      toStatus,
-      occurredAt: transitionedAt,
-    });
-
     trip.status = toStatus;
-    await this.refreshDelayMetrics(trip.id, now);
     await this.fleetStatusSync.syncForTrip(trip);
     if (toStatus === 'completed') {
       await this.unitTripOdometer.creditUnitForCompletedTrip(trip);
@@ -283,8 +270,6 @@ export class TripLifecycleService {
       }
     }
 
-    await this.refreshDelaysForActiveTrips(now);
-
     return {
       scanned: candidates.length,
       transitioned,
@@ -321,91 +306,6 @@ export class TripLifecycleService {
     qb.andWhere('trip.deleted_at IS NULL');
 
     return qb.orderBy('trip.id', 'ASC').getMany();
-  }
-
-  private async refreshDelaysForActiveTrips(now: Date): Promise<void> {
-    const active = await this.tripsRepo.find({
-      where: {
-        status: In([...ACTIVE_TRIP_LIFECYCLE_STATUSES]),
-        deletedAt: IsNull(),
-      },
-      select: [
-        'id',
-        'companyId',
-        'status',
-        'plannedDepartureAt',
-        'plannedArrivalAt',
-        'plannedCompletionAt',
-        'departureAt',
-        'arrivedAt',
-        'returnAt',
-        'isDelayed',
-        'delayPhase',
-        'delayDepartureMinutes',
-        'delayArrivalMinutes',
-        'delayCompletionMinutes',
-      ],
-    });
-
-    for (const trip of active) {
-      await this.refreshDelayMetrics(trip.id, now, trip);
-    }
-  }
-
-  /** Recalcula retrasos de una maniobra tras actualizar fechas reales (sin esperar cron). */
-  async refreshDelayMetricsForTrip(
-    tripId: number,
-    now: Date = new Date(),
-  ): Promise<void> {
-    await this.refreshDelayMetrics(tripId, now);
-  }
-
-  private async refreshDelayMetrics(
-    tripId: number,
-    now: Date,
-    tripSnapshot?: Trip,
-  ): Promise<void> {
-    const trip =
-      tripSnapshot ??
-      (await this.tripsRepo.findOne({
-        where: { id: tripId },
-      }));
-    if (!trip) {
-      return;
-    }
-
-    const metrics = calculateTripDelays({
-      status: trip.status,
-      plannedDepartureAt: trip.plannedDepartureAt,
-      plannedArrivalAt: trip.plannedArrivalAt,
-      plannedCompletionAt: trip.plannedCompletionAt,
-      actualDepartureAt: trip.departureAt,
-      actualArrivalAt: trip.arrivedAt,
-      actualCompletionAt: trip.returnAt,
-      now,
-    });
-
-    const unchanged =
-      trip.isDelayed === metrics.isDelayed &&
-      (trip.delayPhase ?? 'none') === metrics.delayPhase &&
-      trip.delayDepartureMinutes === metrics.delayDepartureMinutes &&
-      trip.delayArrivalMinutes === metrics.delayArrivalMinutes &&
-      trip.delayCompletionMinutes === metrics.delayCompletionMinutes;
-
-    if (unchanged) {
-      return;
-    }
-
-    await this.tripsRepo.update(
-      { id: trip.id },
-      {
-        isDelayed: metrics.isDelayed,
-        delayPhase: metrics.delayPhase,
-        delayDepartureMinutes: metrics.delayDepartureMinutes ?? undefined,
-        delayArrivalMinutes: metrics.delayArrivalMinutes ?? undefined,
-        delayCompletionMinutes: metrics.delayCompletionMinutes ?? undefined,
-      },
-    );
   }
 
   private tripNeedsLifecycleEvaluation(trip: Trip, now: Date): boolean {

@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Company } from 'src/companies/entities/company.entity';
+import { DestinationRate } from 'src/destination-rates/entities/destination-rate.entity';
 import { OperationalCenter } from './entities/operational-center.entity';
 import { OperationalCentersService } from './operational-centers.service';
 
@@ -12,6 +13,17 @@ describe('OperationalCentersService (A1 Fase 1–2)', () => {
   const centerFindOne = jest.fn();
   const companyFindOne = jest.fn();
   const companySave = jest.fn();
+  const qbExecute = jest.fn().mockResolvedValue(undefined);
+  const createQueryBuilder = jest.fn(() => {
+    const qb: Record<string, unknown> = {};
+    const chain = () => qb;
+    qb.update = jest.fn(chain);
+    qb.set = jest.fn(chain);
+    qb.where = jest.fn(chain);
+    qb.andWhere = jest.fn(chain);
+    qb.execute = qbExecute;
+    return qb;
+  });
 
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -31,6 +43,7 @@ describe('OperationalCentersService (A1 Fase 1–2)', () => {
             create: centerCreate,
             findOne: centerFindOne,
             find: jest.fn(),
+            createQueryBuilder,
           },
         },
         {
@@ -38,6 +51,12 @@ describe('OperationalCentersService (A1 Fase 1–2)', () => {
           useValue: {
             save: companySave,
             findOne: companyFindOne,
+          },
+        },
+        {
+          provide: getRepositoryToken(DestinationRate),
+          useValue: {
+            update: jest.fn().mockResolvedValue(undefined),
           },
         },
       ],

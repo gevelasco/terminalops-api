@@ -12,9 +12,7 @@ export const TRIP_FLEET_ACTIVE_STATUSES: readonly TripLifecycleStatus[] = [
 ];
 
 export const OPERATOR_PROTECTED_STATUSES = new Set([
-  'maintenance',
   'leave',
-  'inactive',
   'incapacitated',
 ]);
 

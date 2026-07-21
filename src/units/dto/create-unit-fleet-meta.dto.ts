@@ -44,11 +44,33 @@ export class CreateUnitFleetMaintenanceEntryDto {
   @IsArray()
   @IsString({ each: true })
   documentNames?: string[];
+}
 
-  @ApiPropertyOptional({ enum: ['concluido'] })
+export class CreateUnitFleetVerificationEntryDto {
+  @ApiPropertyOptional({ enum: ['phys_mech', 'emissions', 'double_articulated'] })
   @IsOptional()
-  @IsIn(['concluido'])
-  status?: 'concluido';
+  @IsIn(['phys_mech', 'emissions', 'double_articulated'])
+  scope?: 'phys_mech' | 'emissions' | 'double_articulated';
+
+  @ApiPropertyOptional()
+  @OptionalIsoDate()
+  date?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  cost?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  notes?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  paymentMethod?: string;
 }
 
 export class CreateUnitFleetMetaDto {
@@ -139,22 +161,34 @@ export class CreateUnitFleetMetaDto {
   @IsString()
   odometerKm?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({
+    deprecated: true,
+    description: 'Derivado de maintenanceEntries al leer; no se persiste en profile.',
+  })
   @OptionalIsoDate()
   lastMaintenanceDate?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({
+    deprecated: true,
+    description: 'Derivado de maintenanceEntries al leer; no se persiste en profile.',
+  })
   @IsOptional()
   @IsString()
   lastMaintenanceType?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({
+    deprecated: true,
+    description: 'Derivado de maintenanceEntries al leer; no se persiste en profile.',
+  })
   @IsOptional()
   @IsNumber()
   @Min(0)
   lastMaintenanceCost?: number;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({
+    deprecated: true,
+    description: 'Derivado de maintenanceEntries al leer; no se persiste en profile.',
+  })
   @IsOptional()
   @IsString()
   lastMaintenanceNotes?: string;
@@ -171,12 +205,18 @@ export class CreateUnitFleetMetaDto {
   @IsString()
   tireCondition?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({
+    deprecated: true,
+    description: 'Ignorado en escritura; próximo mantenimiento se calcula en vivo.',
+  })
   @IsOptional()
   @IsBoolean()
   maintenanceAlertByKm?: boolean;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({
+    deprecated: true,
+    description: 'Ignorado en escritura; próximo mantenimiento se calcula en vivo.',
+  })
   @OptionalIsoDate()
   maintenanceNextDateOverride?: string;
 
@@ -209,7 +249,17 @@ export class CreateUnitFleetMetaDto {
   @IsNumber()
   maintenanceKmRemaining?: number;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ type: [CreateUnitFleetVerificationEntryDto] })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CreateUnitFleetVerificationEntryDto)
+  verificationEntries?: CreateUnitFleetVerificationEntryDto[];
+
+  @ApiPropertyOptional({
+    description:
+      'Compat FE: se convierte a verificationEntries al guardar si no se envía el array.',
+  })
   @OptionalIsoDate()
   verificationPhysMechDate?: string;
 

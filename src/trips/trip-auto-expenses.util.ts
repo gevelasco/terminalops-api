@@ -20,7 +20,6 @@ export interface TripAutoExpenseDraft {
   relatedUnitId?: number;
   relatedOperatorId?: number;
   paymentMethod?: string;
-  isOperationalProvision: boolean;
 }
 
 export type TripAutoExpenseBuildOptions = {
@@ -90,7 +89,6 @@ export function buildTripAutoExpenses(
       description: dieselDescription,
       relatedUnitId: trip.unitId,
       paymentMethod: fuelPaymentMethod,
-      isOperationalProvision: false,
     });
   }
 
@@ -105,7 +103,6 @@ export function buildTripAutoExpenses(
       description: `Casetas — maniobra ${maneuverRef}`,
       relatedUnitId: trip.unitId,
       paymentMethod: tollsPaymentMethod,
-      isOperationalProvision: false,
     });
   }
 
@@ -121,7 +118,6 @@ export function buildTripAutoExpenses(
       relatedOperatorId: trip.operatorId,
       relatedUnitId: trip.unitId,
       paymentMethod: perDiemPaymentMethod,
-      isOperationalProvision: false,
     });
   }
 
@@ -138,7 +134,6 @@ export function buildTripAutoExpenses(
       kind: TRIP_AUTO_EXPENSE_KIND.OPERATIONAL_CONTROL,
       description: `Control operativo ${provisionRate}% — maniobra ${maneuverRef}`,
       paymentMethod: controlPaymentMethod,
-      isOperationalProvision: true,
     });
   }
 

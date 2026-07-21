@@ -104,9 +104,8 @@ export class ExpensesService {
       : undefined;
     const relationFields = normalizeExpenseRelationFields({
       kind: dto.kind,
-      maintenanceTarget: dto.maintenanceTarget,
-      insuranceTarget: dto.insuranceTarget,
       verificationScope: dto.verificationScope,
+      category: dto.category,
       relatedUnitId: relatedUnitId ?? null,
       relatedEquipmentId: relatedEquipmentId ?? null,
     });
@@ -114,7 +113,7 @@ export class ExpensesService {
     const saved = await this.repo.save(
       this.repo.create({
         companyId,
-        category: dto.category,
+        category: relationFields.category ?? dto.category,
         amount: String(dto.amount),
         currency: dto.currency ?? 'MXN',
         incurredAt: parseOperationalIncurredAt(dto.incurredAt),
@@ -127,14 +126,10 @@ export class ExpensesService {
         relatedOperatorId: dto.relatedOperatorId
           ? await this.resolveOperatorId(companyId, dto.relatedOperatorId)
           : undefined,
-        description: dto.description,
+        description: dto.description?.trim() || relationFields.descriptionHint,
         vendor: expenseTextColumn(dto.vendor),
         paymentMethod: expenseTextColumn(dto.paymentMethod),
-        maintenanceTarget: relationFields.maintenanceTarget,
-        insuranceTarget: relationFields.insuranceTarget,
-        verificationScope: relationFields.verificationScope,
         invoiceRequired: dto.invoiceRequired ?? false,
-        isOperationalProvision: dto.isOperationalProvision ?? false,
         paidAt: dto.paidAt
           ? parseOperationalIncurredAt(dto.paidAt)
           : dto.paidAt === null
@@ -190,7 +185,6 @@ export class ExpensesService {
           relatedUnitId: draft.relatedUnitId,
           relatedOperatorId: draft.relatedOperatorId,
           paymentMethod: draft.paymentMethod,
-          isOperationalProvision: draft.isOperationalProvision,
         }),
       ),
     );
@@ -224,10 +218,45 @@ export class ExpensesService {
 
     const rowsQb = this.repo
       .createQueryBuilder('e')
-      .leftJoinAndSelect('e.trip', 'trip')
-      .leftJoinAndSelect('e.relatedUnit', 'relatedUnit')
-      .leftJoinAndSelect('e.relatedEquipment', 'relatedEquipment')
-      .leftJoinAndSelect('e.relatedOperator', 'relatedOperator');
+      .leftJoin('e.trip', 'trip')
+      .leftJoin('e.relatedUnit', 'relatedUnit')
+      .leftJoin('e.relatedEquipment', 'relatedEquipment')
+      .leftJoin('e.relatedOperator', 'relatedOperator')
+      .addSelect([
+        'e.id',
+        'e.companyId',
+        'e.tripId',
+        'e.category',
+        'e.amount',
+        'e.currency',
+        'e.incurredAt',
+        'e.kind',
+        'e.description',
+        'e.vendor',
+        'e.paymentMethod',
+        'e.relatedUnitId',
+        'e.relatedEquipmentId',
+        'e.relatedOperatorId',
+        'e.invoiceRequired',
+        'e.paidAt',
+        'e.createdAt',
+        'e.updatedAt',
+        'e.discardedAt',
+      ])
+      .addSelect(['trip.id', 'trip.maneuverCode'])
+      .addSelect([
+        'relatedUnit.id',
+        'relatedUnit.trailerBrandAbbr',
+        'relatedUnit.trailerYear',
+        'relatedUnit.plate',
+      ])
+      .addSelect([
+        'relatedEquipment.id',
+        'relatedEquipment.trailerBrandAbbr',
+        'relatedEquipment.trailerYear',
+        'relatedEquipment.plate',
+      ])
+      .addSelect(['relatedOperator.id', 'relatedOperator.name']);
     applyExpenseListFilters(rowsQb, companyId, query, tripFilter);
     rowsQb.orderBy('e.incurredAt', 'DESC');
 
@@ -255,12 +284,33 @@ export class ExpensesService {
     const limit = normalizeExpenseListLimit(query.limit);
     const page = Math.max(1, query.page ?? 1);
 
-    // La proyección solo necesita:
-    // - maniobras activas (programadas/en curso): compromisos de diésel/casetas/viáticos/cuota;
-    // - completadas CON saldo pendiente al operador (las pagadas no proyectan nada aquí).
-    // Cargar el historial completo escalaba con años de datos, no con el periodo.
+    // Maniobras activas / completadas con saldo a operador (no historial completo).
     const tripsQb = this.tripsRepo
       .createQueryBuilder('trip')
+      .leftJoin('trip.unit', 'unit')
+      .addSelect([
+        'trip.id',
+        'trip.companyId',
+        'trip.status',
+        'trip.maneuverCode',
+        'trip.dieselAmount',
+        'trip.casetasAmount',
+        'trip.perDiemAmount',
+        'trip.operatorQuota',
+        'trip.unitId',
+        'trip.operatorId',
+        'trip.plannedDepartureAt',
+        'trip.plannedCompletionAt',
+        'trip.returnAt',
+        'trip.completedAt',
+        'trip.arrivedAt',
+      ])
+      .addSelect([
+        'unit.id',
+        'unit.trailerBrandAbbr',
+        'unit.trailerYear',
+        'unit.plate',
+      ])
       .where('trip.companyId = :companyId', { companyId })
       .andWhere('trip.deleted_at IS NULL')
       .andWhere(
@@ -281,29 +331,42 @@ export class ExpensesService {
         )`,
       );
 
-    const [actualResult, trips, units, equipment, operators] =
-      await Promise.all([
-        this.findAll(
-          companyId,
-          { from, to, limit: 0 },
-          { allowUnlimited: true },
-        ),
-        tripsQb.getMany(),
-        this.unitsRepo.find({
-          where: { companyId },
-          relations: ['fleetProfile'],
-        }),
-        this.equipmentRepo.find({
-          where: { companyId },
-          relations: ['fleetProfile'],
-        }),
-        this.operatorsRepo.find({ where: { companyId } }),
-      ]);
+    const [actualResult, trips, units, equipment] = await Promise.all([
+      this.findAll(
+        companyId,
+        { from, to, limit: 0 },
+        { allowUnlimited: true },
+      ),
+      tripsQb.getMany(),
+      this.loadCalendarScheduleUnits(companyId),
+      this.loadCalendarScheduleEquipment(companyId),
+    ]);
 
-    // Gastos de dedup acotados a lo que la proyección compara:
-    // los ligados a las maniobras cargadas + verificaciones con vencimiento en el rango.
+    const operatorIds = [
+      ...new Set(
+        trips
+          .map((t) => t.operatorId)
+          .filter((id): id is number => id != null && id > 0),
+      ),
+    ];
+    const operators =
+      operatorIds.length > 0
+        ? await this.operatorsRepo.find({
+            where: { companyId, id: In(operatorIds) },
+            select: ['id', 'name', 'paymentSchedule', 'paymentMethod'],
+          })
+        : [];
+
     const tripIds = trips.map((t) => t.id);
-    const [tripDedupExpenses, verificationDedupExpenses] = await Promise.all([
+    const unitIds = units.map((u) => u.id);
+    const equipmentIds = equipment.map((e) => e.id);
+
+    const [
+      tripDedupExpenses,
+      verificationDedupExpenses,
+      insuranceDedupExpenses,
+      gpsDedupExpenses,
+    ] = await Promise.all([
       tripIds.length > 0
         ? this.repo.find({
             where: {
@@ -318,6 +381,18 @@ export class ExpensesService {
                 'operator_commission',
               ]),
             },
+            select: [
+              'id',
+              'tripId',
+              'kind',
+              'amount',
+              'category',
+              'description',
+              'relatedUnitId',
+              'relatedEquipmentId',
+              'incurredAt',
+              'discardedAt',
+            ],
           })
         : Promise.resolve([] as Expense[]),
       this.repo
@@ -330,8 +405,41 @@ export class ExpensesService {
           { from, to },
         )
         .getMany(),
+      unitIds.length > 0 || equipmentIds.length > 0
+        ? this.repo
+            .createQueryBuilder('e')
+            .where('e.companyId = :companyId', { companyId })
+            .andWhere('e.discarded_at IS NULL')
+            .andWhere(`e.kind = 'insurance'`)
+            .andWhere(
+              `(
+                (e.related_unit_id IS NOT NULL AND e.related_unit_id IN (:...unitIds))
+                OR (e.related_equipment_id IS NOT NULL AND e.related_equipment_id IN (:...equipmentIds))
+              )`,
+              {
+                unitIds: unitIds.length > 0 ? unitIds : [0],
+                equipmentIds: equipmentIds.length > 0 ? equipmentIds : [0],
+              },
+            )
+            .getMany()
+        : Promise.resolve([] as Expense[]),
+      unitIds.length > 0
+        ? this.repo.find({
+            where: {
+              companyId,
+              discardedAt: IsNull(),
+              kind: 'gps',
+              relatedUnitId: In(unitIds),
+            },
+          })
+        : Promise.resolve([] as Expense[]),
     ]);
-    const dedupExpenses = [...tripDedupExpenses, ...verificationDedupExpenses];
+    const dedupExpenses = [
+      ...tripDedupExpenses,
+      ...verificationDedupExpenses,
+      ...insuranceDedupExpenses,
+      ...gpsDedupExpenses,
+    ];
 
     const projection = buildExpenseCalendarProjection({
       from,
@@ -383,6 +491,61 @@ export class ExpensesService {
         grandTotalAmount: formatTotal(projection.summary.grandTotalAmount),
       },
     };
+  }
+
+  /** Units con schedule de GPS, seguro o entradas de verificación. */
+  private async loadCalendarScheduleUnits(companyId: number): Promise<Unit[]> {
+    return this.unitsRepo
+      .createQueryBuilder('u')
+      .leftJoinAndSelect('u.fleetProfile', 'fp')
+      .leftJoinAndSelect('u.verificationEntries', 've')
+      .where('u.companyId = :companyId', { companyId })
+      .andWhere(
+        `(
+          EXISTS (
+            SELECT 1 FROM ${this.unitsRepo.metadata.schema}.unit_fleet_profiles p
+            WHERE p.unit_id = u.id
+              AND (
+                (p.has_gps = true AND COALESCE(p.gps_price, 0) > 0)
+                OR COALESCE(p.insurance_cost, 0) > 0
+              )
+          )
+          OR EXISTS (
+            SELECT 1 FROM ${this.unitsRepo.metadata.schema}.fleet_verification_entries v
+            WHERE v.unit_id = u.id
+              AND v.entry_date IS NOT NULL
+              AND COALESCE(v.cost, 0) > 0
+          )
+        )`,
+      )
+      .getMany();
+  }
+
+  /** Equipment con schedule de seguro o verificación. */
+  private async loadCalendarScheduleEquipment(
+    companyId: number,
+  ): Promise<Equipment[]> {
+    return this.equipmentRepo
+      .createQueryBuilder('eq')
+      .leftJoinAndSelect('eq.fleetProfile', 'fp')
+      .leftJoinAndSelect('eq.verificationEntries', 've')
+      .where('eq.companyId = :companyId', { companyId })
+      .andWhere(
+        `(
+          EXISTS (
+            SELECT 1 FROM ${this.equipmentRepo.metadata.schema}.equipment_fleet_profiles p
+            WHERE p.equipment_id = eq.id
+              AND COALESCE(p.insurance_cost, 0) > 0
+          )
+          OR EXISTS (
+            SELECT 1 FROM ${this.equipmentRepo.metadata.schema}.fleet_verification_entries v
+            WHERE v.equipment_id = eq.id
+              AND v.entry_date IS NOT NULL
+              AND COALESCE(v.cost, 0) > 0
+          )
+        )`,
+      )
+      .getMany();
   }
 
   async findOne(companyId: number, expenseId: number) {
@@ -563,13 +726,11 @@ export class ExpensesService {
       .andWhere('e.kind = :kind', { kind })
       .andWhere('e.discardedAt IS NULL');
     if (params.insuranceTarget === 'unit' && params.relatedUnitId != null) {
-      qb.andWhere('e.insuranceTarget = :it', { it: 'unit' });
       qb.andWhere('e.relatedUnitId = :uid', { uid: params.relatedUnitId });
     } else if (
       params.insuranceTarget === 'equipment' &&
       params.relatedEquipmentId != null
     ) {
-      qb.andWhere('e.insuranceTarget = :it', { it: 'equipment' });
       qb.andWhere('e.relatedEquipmentId = :eid', {
         eid: params.relatedEquipmentId,
       });
@@ -631,29 +792,24 @@ export class ExpensesService {
           : undefined;
         const relationFields = normalizeExpenseRelationFields({
           kind: dto.kind,
-          maintenanceTarget: dto.maintenanceTarget,
-          insuranceTarget: dto.insuranceTarget,
           verificationScope: dto.verificationScope,
+          category: dto.category,
           relatedUnitId: relatedUnitId ?? null,
           relatedEquipmentId: relatedEquipmentId ?? null,
         });
         return repo.create({
           companyId,
-          category: dto.category,
+          category: relationFields.category ?? dto.category,
           amount: String(dto.amount),
           currency: dto.currency ?? 'MXN',
           incurredAt: parseOperationalIncurredAt(dto.incurredAt),
           kind: dto.kind,
           relatedUnitId,
           relatedEquipmentId,
-          description: dto.description,
+          description: dto.description?.trim() || relationFields.descriptionHint,
           vendor: expenseTextColumn(dto.vendor),
           paymentMethod: expenseTextColumn(dto.paymentMethod),
-          maintenanceTarget: relationFields.maintenanceTarget,
-          insuranceTarget: relationFields.insuranceTarget,
-          verificationScope: relationFields.verificationScope,
           invoiceRequired: dto.invoiceRequired ?? false,
-          isOperationalProvision: dto.isOperationalProvision ?? false,
           paidAt: dto.paidAt ? parseOperationalIncurredAt(dto.paidAt) : null,
         });
       }),
@@ -704,10 +860,10 @@ export class ExpensesService {
       relatedOperatorId,
       vendor,
       paymentMethod,
-      maintenanceTarget,
-      insuranceTarget,
       verificationScope,
       kind,
+      category,
+      description,
       paidAt,
       ...rest
     } = dto;
@@ -742,7 +898,7 @@ export class ExpensesService {
     const relationFields = normalizeExpenseRelationFields(
       mergeExpenseRelationForNormalize(
         existing,
-        { kind, maintenanceTarget, insuranceTarget, verificationScope },
+        { kind, verificationScope, category },
         {
           relatedUnitId:
             resolvedRelatedUnitId !== undefined
@@ -762,6 +918,17 @@ export class ExpensesService {
       ...rest,
       ...clears,
       ...(kind !== undefined && { kind }),
+      ...(category !== undefined || relationFields.category
+        ? { category: relationFields.category ?? category ?? existing.category }
+        : {}),
+      ...(description !== undefined || relationFields.descriptionHint
+        ? {
+            description:
+              description?.trim() ||
+              relationFields.descriptionHint ||
+              existing.description,
+          }
+        : {}),
       ...(amount !== undefined && { amount: String(amount) }),
       ...(incurredAt && { incurredAt: parseOperationalIncurredAt(incurredAt) }),
       ...(tripId
@@ -785,9 +952,6 @@ export class ExpensesService {
       ...(paymentMethod !== undefined && {
         paymentMethod: expenseTextColumn(paymentMethod),
       }),
-      maintenanceTarget: relationFields.maintenanceTarget,
-      insuranceTarget: relationFields.insuranceTarget,
-      verificationScope: relationFields.verificationScope,
       ...(paidAt !== undefined && {
         paidAt: paidAt ? parseOperationalIncurredAt(paidAt) : null,
       }),

@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Repository } from 'typeorm';
+import { TERMINALOPS_SCHEMA } from 'src/common/constants/schema-name';
 import { Company } from 'src/companies/entities/company.entity';
 import {
   operationalDateKey,
@@ -37,16 +38,14 @@ function weekOverWeekPercent(
 }
 
 const OPERATIONAL_TZ = 'America/Mexico_City';
-const DESTINATION_KEY_SQL = `COALESCE(NULLIF(TRIM(trip.destination_postal_code), ''), NULLIF(TRIM(trip.destination), ''))`;
+const DESTINATION_KEY_SQL = `COALESCE(NULLIF(TRIM(trip.destination_postal_code), ''), NULLIF(TRIM(trip.destination_locality), ''), NULLIF(TRIM(trip.destination_city_municipality), ''))`;
 const DESTINATION_DISPLAY_LABEL_SQL = `COALESCE(
   NULLIF(TRIM(CONCAT_WS(', ', NULLIF(TRIM(trip.destination_locality), ''), NULLIF(TRIM(trip.destination_city_municipality), ''))), ''),
-  NULLIF(TRIM(MAX(trip.destination)), ''),
   NULLIF(TRIM(trip.destination_postal_code), '')
 )`;
 const DESTINATION_HAS_LABEL_SQL = `(
   NULLIF(TRIM(trip.destination_locality), '') IS NOT NULL
   OR NULLIF(TRIM(trip.destination_city_municipality), '') IS NOT NULL
-  OR NULLIF(TRIM(trip.destination), '') IS NOT NULL
   OR NULLIF(TRIM(trip.destination_postal_code), '') IS NOT NULL
 )`;
 
@@ -95,7 +94,7 @@ export class DashboardService {
     const now = new Date();
     const operationalDate = operationalDateKey(now);
     const todaySql = sqlIsOperationalCalendarToday;
-    const destinationKeySql = `COALESCE(NULLIF(TRIM(trip.destination_postal_code), ''), NULLIF(TRIM(trip.destination), ''))`;
+    const destinationKeySql = DESTINATION_KEY_SQL;
 
     const [
       tripsInTransit,
@@ -408,10 +407,17 @@ export class DashboardService {
         .addSelect('trip.status', 'status')
         .addSelect('trip.falseManeuver', 'falseManeuver')
         .addSelect(
-          `COALESCE(NULLIF(TRIM(trip.operatorNameSnapshot), ''), NULLIF(TRIM(operator.name), ''), 'Sin operador')`,
+          `COALESCE(NULLIF(TRIM(operator.name), ''), 'Sin operador')`,
           'operatorName',
         )
-        .addSelect('trip.destination', 'destination')
+        .addSelect(
+          `COALESCE(
+            NULLIF(TRIM(CONCAT_WS(', ', NULLIF(TRIM(trip.destination_locality), ''), NULLIF(TRIM(trip.destination_city_municipality), ''))), ''),
+            NULLIF(TRIM(trip.destination_postal_code), ''),
+            '—'
+          )`,
+          'destination',
+        )
         .addSelect('trip.clientCharge', 'clientCharge')
         .where('trip.companyId = :companyId', { companyId })
         .andWhere('trip.deleted_at IS NULL')
@@ -427,8 +433,13 @@ export class DashboardService {
         }>(),
       this.tripsRepo
         .createQueryBuilder('trip')
+        .leftJoin(
+          `${TERMINALOPS_SCHEMA}.company_operation_configurations`,
+          'cfg',
+          'cfg.id = trip.operation_configuration_id',
+        )
         .select('trip.operationType', 'operationType')
-        .addSelect('trip.operationConfigurationNameSnapshot', 'nameSnapshot')
+        .addSelect('cfg.name', 'nameSnapshot')
         .addSelect('COUNT(*)', 'count')
         .where('trip.companyId = :companyId', { companyId })
         .andWhere('trip.deleted_at IS NULL')
@@ -437,7 +448,7 @@ export class DashboardService {
           `(trip.created_at AT TIME ZONE '${OPERATIONAL_TZ}')::date >= ${flowStartSql}`,
         )
         .groupBy('trip.operationType')
-        .addGroupBy('trip.operationConfigurationNameSnapshot')
+        .addGroupBy('cfg.name')
         .orderBy('COUNT(*)', 'DESC')
         .getRawMany<{
           operationType: string;
@@ -515,7 +526,7 @@ export class DashboardService {
       .addSelect('COUNT(*)', 'count')
       .where('e.companyId = :companyId', { companyId })
       .andWhere('e.discarded_at IS NULL')
-      .andWhere('e.isOperationalProvision = false')
+      .andWhere("e.kind <> 'operational_control'")
       .andWhere(todaySql('e.incurred_at'))
       .groupBy('e.kind')
       .addGroupBy('CASE WHEN e.tripId IS NULL THEN 0 ELSE 1 END')

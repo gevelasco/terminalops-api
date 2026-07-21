@@ -62,11 +62,6 @@ export class CreateClientPaymentTermsDto {
   @IsString()
   approximateCreditAmount?: string;
 
-  @ApiPropertyOptional({ default: 'not_evaluated' })
-  @IsOptional()
-  @IsString()
-  commercialHealth?: string;
-
   @ApiPropertyOptional({ enum: ['cash', 'transfer', 'check'] })
   @IsOptional()
   @IsString()

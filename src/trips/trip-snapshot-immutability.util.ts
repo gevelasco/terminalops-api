@@ -16,7 +16,6 @@ export const TRIP_SNAPSHOT_IMMUTABLE_DTO_FIELDS = [
   'destinationLocality',
   'destinationRateId',
   'routeDistanceKm',
-  'operationalDistanceKm',
   'originOperationalCenterId',
 ] as const;
 
@@ -30,7 +29,6 @@ const IMMUTABLE_BODY_KEYS = new Set<string>([
   'destination_locality',
   'destination_rate_id',
   'route_distance_km',
-  'operational_distance_km',
   'origin_operational_center_id',
 ]);
 

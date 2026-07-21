@@ -34,15 +34,12 @@ export class ExpensesInsuranceFleetReconcileService {
     if (expense.kind !== 'insurance') {
       return;
     }
-    if (expense.insuranceTarget === 'unit' && expense.relatedUnitId != null) {
-      await this.reconcileUnitInsuranceProfile(expense.relatedUnitId);
+    if (expense.relatedEquipmentId != null) {
+      await this.reconcileEquipmentInsuranceProfile(expense.relatedEquipmentId);
       return;
     }
-    if (
-      expense.insuranceTarget === 'equipment' &&
-      expense.relatedEquipmentId != null
-    ) {
-      await this.reconcileEquipmentInsuranceProfile(expense.relatedEquipmentId);
+    if (expense.relatedUnitId != null) {
+      await this.reconcileUnitInsuranceProfile(expense.relatedUnitId);
     }
   }
 
@@ -143,9 +140,7 @@ export class ExpensesInsuranceFleetReconcileService {
         relatedUnitId: params.relatedUnitId,
       });
     } else {
-      qb.andWhere('e.insuranceTarget = :insuranceTarget', {
-        insuranceTarget: params.insuranceTarget,
-      }).andWhere(
+      qb.andWhere(
         '(e.description ILIKE :paymentPrefix OR e.description ILIKE :initialPrefix)',
         {
           paymentPrefix: `${INSURANCE_PAYMENT_EXPENSE_DESC_PREFIX}%`,

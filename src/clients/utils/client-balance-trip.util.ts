@@ -50,9 +50,6 @@ const TRIP_PROGRAMMED_LEDGER_KINDS = new Set<ClientBalanceExpenseKind>([
 export function mapTripEntityToBalanceRow(trip: Trip): ClientBalanceTripRow {
   const exposedActual = exposeTripActualSchedule(trip);
   const routeDistanceKm = trip.routeDistanceKm ? Number(trip.routeDistanceKm) : null;
-  const storedOperationalKm = trip.operationalDistanceKm
-    ? Number(trip.operationalDistanceKm)
-    : null;
 
   return {
     id: String(trip.id),
@@ -68,11 +65,7 @@ export function mapTripEntityToBalanceRow(trip: Trip): ClientBalanceTripRow {
     casetasAmount: trip.casetasAmount,
     operatorQuota: trip.operatorQuota,
     perDiemAmount: trip.perDiemAmount,
-    operationalDistanceKm: operationalKmFromStoredTrip(
-      routeDistanceKm,
-      storedOperationalKm,
-      trip.isRoundTrip,
-    ),
+    operationalDistanceKm: operationalKmFromStoredTrip(routeDistanceKm),
     returnAt: exposedActual.returnAt?.toISOString() ?? null,
     plannedCompletionAt: trip.plannedCompletionAt?.toISOString() ?? null,
     createdAt: trip.createdAt?.toISOString() ?? null,

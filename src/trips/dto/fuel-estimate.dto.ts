@@ -1,6 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
-  IsBoolean,
   IsIn,
   IsNumber,
   IsOptional,
@@ -14,18 +13,9 @@ export class FuelEstimateRequestDto {
   @Min(0.1)
   distanceKm: number;
 
-  @ApiPropertyOptional({
-    description: 'Si true (default), estima ida y vuelta (distanceKm × 2)',
-    default: true,
-  })
-  @IsOptional()
-  @IsBoolean()
-  isRoundTrip?: boolean;
-
   @ApiProperty({ enum: ['sencillo', 'full'] })
   @IsIn(['sencillo', 'full'])
   configuration: 'sencillo' | 'full';
-
   @ApiProperty({ description: 'Peso aproximado en toneladas' })
   @IsNumber()
   @Min(0)

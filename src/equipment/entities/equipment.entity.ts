@@ -13,6 +13,7 @@ import { TERMINALOPS_SCHEMA } from 'src/common/constants/schema-name';
 import { EquipmentFleetProfile } from 'src/equipment/entities/equipment-fleet-profile.entity';
 import { Unit } from 'src/units/entities/unit.entity';
 import { FleetMaintenanceEntry } from 'src/units/entities/fleet-maintenance-entry.entity';
+import { FleetVerificationEntry } from 'src/units/entities/fleet-verification-entry.entity';
 import { EquipmentFleetDocument } from 'src/equipment/entities/equipment-fleet-document.entity';
 
 @Entity({ schema: TERMINALOPS_SCHEMA, name: 'equipment' })
@@ -35,9 +36,6 @@ export class Equipment {
 
   @Column({ name: 'serial_number' })
   serialNumber: string;
-
-  @Column({ name: 'last_service_date', type: 'date', nullable: true })
-  lastServiceDate?: string;
 
   @Column({ nullable: true })
   plate?: string;
@@ -72,6 +70,9 @@ export class Equipment {
 
   @OneToMany(() => FleetMaintenanceEntry, (e) => e.equipment)
   maintenanceEntries?: FleetMaintenanceEntry[];
+
+  @OneToMany(() => FleetVerificationEntry, (e) => e.equipment)
+  verificationEntries?: FleetVerificationEntry[];
 
   @OneToMany(() => EquipmentFleetDocument, (d) => d.equipment)
   fleetDocuments?: EquipmentFleetDocument[];

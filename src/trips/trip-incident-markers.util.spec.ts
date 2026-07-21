@@ -1,25 +1,56 @@
 import { syncTripIncidentMarkers } from './trip-incident-markers.util';
-import { TripIncident } from './entities/trip-incident.entity';
-import { Trip } from './entities/trip.entity';
+import type { TripIncident } from './entities/trip-incident.entity';
 
 describe('syncTripIncidentMarkers', () => {
-  it('marks hasIncident and open count from isIncident entries only', async () => {
+  it('sets hasIncident when any entry is marked as incident', async () => {
     const tripsRepo = {
-      update: jest.fn().mockResolvedValue(undefined),
-    } as unknown as import('typeorm').Repository<Trip>;
+      update: jest.fn().mockResolvedValue({ affected: 1 }),
+    };
     const incidentsRepo = {
       find: jest.fn().mockResolvedValue([
-        { id: 1, isIncident: true, status: 'open' },
-        { id: 2, isIncident: false, status: 'closed' },
-        { id: 3, isIncident: true, status: 'closed' },
-      ] satisfies Pick<TripIncident, 'id' | 'isIncident' | 'status'>[]),
-    } as unknown as import('typeorm').Repository<TripIncident>;
+        { id: 1, isIncident: true },
+        { id: 2, isIncident: false },
+        { id: 3, isIncident: true },
+      ] satisfies Pick<TripIncident, 'id' | 'isIncident'>[]),
+    };
 
-    await syncTripIncidentMarkers(tripsRepo, incidentsRepo, 9, 2);
+    await syncTripIncidentMarkers(
+      tripsRepo as never,
+      incidentsRepo as never,
+      10,
+      1,
+    );
+
+    expect(incidentsRepo.find).toHaveBeenCalledWith({
+      where: { tripId: 10 },
+      select: ['id', 'isIncident'],
+    });
+    expect(tripsRepo.update).toHaveBeenCalledWith(
+      { id: 10, companyId: 1 },
+      { hasIncident: true },
+    );
+  });
+
+  it('clears hasIncident when no incident-marked entries exist', async () => {
+    const tripsRepo = {
+      update: jest.fn().mockResolvedValue({ affected: 1 }),
+    };
+    const incidentsRepo = {
+      find: jest.fn().mockResolvedValue([
+        { id: 1, isIncident: false },
+      ] satisfies Pick<TripIncident, 'id' | 'isIncident'>[]),
+    };
+
+    await syncTripIncidentMarkers(
+      tripsRepo as never,
+      incidentsRepo as never,
+      10,
+      1,
+    );
 
     expect(tripsRepo.update).toHaveBeenCalledWith(
-      { id: 9, companyId: 2 },
-      { hasIncident: true, openIncidentCount: 0 },
+      { id: 10, companyId: 1 },
+      { hasIncident: false },
     );
   });
 });

@@ -6,6 +6,7 @@ import { Expense } from 'src/expenses/entities/expense.entity';
 import { Operator } from 'src/operators/entities/operator.entity';
 import { Trip } from 'src/trips/entities/trip.entity';
 import { FleetMaintenanceEntry } from 'src/units/entities/fleet-maintenance-entry.entity';
+import { FleetVerificationEntry } from 'src/units/entities/fleet-verification-entry.entity';
 import { Unit } from 'src/units/entities/unit.entity';
 import { UnitFleetProfile } from 'src/units/entities/unit-fleet-profile.entity';
 import { ExpensesController } from './expenses.controller';
@@ -25,6 +26,7 @@ import { ExpensesService } from './expenses.service';
       UnitFleetProfile,
       EquipmentFleetProfile,
       FleetMaintenanceEntry,
+      FleetVerificationEntry,
     ]),
   ],
   controllers: [ExpensesController],

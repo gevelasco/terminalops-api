@@ -29,9 +29,6 @@ export class Operator {
   @Column()
   name: string;
 
-  @Column({ name: 'portal_username', unique: true, nullable: true })
-  portalUsername?: string;
-
   @Column({ name: 'photo_data_url', type: 'text', nullable: true })
   photoDataUrl?: string;
 

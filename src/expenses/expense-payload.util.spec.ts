@@ -4,6 +4,7 @@ import {
   mergeExpenseRelationForNormalize,
   normalizeExpenseOptionalText,
   normalizeExpenseRelationFields,
+  verificationScopeFromExpenseText,
 } from './expense-payload.util';
 
 describe('expense-payload.util', () => {
@@ -25,26 +26,34 @@ describe('expense-payload.util', () => {
     });
   });
 
+  describe('verificationScopeFromExpenseText', () => {
+    it('parses canonical category', () => {
+      expect(
+        verificationScopeFromExpenseText('Verificación - físico-mecánica'),
+      ).toBe('phys_mech');
+      expect(verificationScopeFromExpenseText('Verificación - emisiones')).toBe(
+        'emissions',
+      );
+      expect(
+        verificationScopeFromExpenseText('Verificación - doble articulado'),
+      ).toBe('double_articulated');
+    });
+  });
+
   describe('normalizeExpenseRelationFields', () => {
     it('accepts valid maintenance on unit', () => {
       expect(
         normalizeExpenseRelationFields({
           kind: 'maintenance',
-          maintenanceTarget: 'unit',
           relatedUnitId: 3,
         }),
-      ).toEqual({
-        maintenanceTarget: 'unit',
-        insuranceTarget: null,
-        verificationScope: null,
-      });
+      ).toEqual({});
     });
 
-    it('rejects maintenance without target', () => {
+    it('rejects maintenance without related asset', () => {
       expect(() =>
         normalizeExpenseRelationFields({
           kind: 'maintenance',
-          relatedUnitId: 1,
         }),
       ).toThrow(BadRequestException);
     });
@@ -53,17 +62,12 @@ describe('expense-payload.util', () => {
       expect(
         normalizeExpenseRelationFields({
           kind: 'insurance',
-          insuranceTarget: 'equipment',
           relatedEquipmentId: 9,
         }),
-      ).toEqual({
-        maintenanceTarget: null,
-        insuranceTarget: 'equipment',
-        verificationScope: null,
-      });
+      ).toEqual({});
     });
 
-    it('accepts valid verification', () => {
+    it('accepts valid verification and returns canonical category', () => {
       expect(
         normalizeExpenseRelationFields({
           kind: 'verification',
@@ -71,35 +75,28 @@ describe('expense-payload.util', () => {
           relatedUnitId: 2,
         }),
       ).toEqual({
-        maintenanceTarget: null,
-        insuranceTarget: null,
-        verificationScope: 'phys_mech',
+        category: 'Verificación - físico-mecánica',
+        descriptionHint: 'Pago de verificación - físico-mecánica',
       });
     });
 
-    it('clears targets for other kinds', () => {
+    it('ignores relation flags for other kinds', () => {
       expect(
         normalizeExpenseRelationFields({
           kind: 'fuel',
-          maintenanceTarget: 'unit',
-          insuranceTarget: 'equipment',
-          verificationScope: 'phys_mech',
+          relatedUnitId: 1,
         }),
-      ).toEqual({
-        maintenanceTarget: null,
-        insuranceTarget: null,
-        verificationScope: null,
-      });
+      ).toEqual({});
     });
   });
 
   describe('mergeExpenseRelationForNormalize', () => {
-    it('uses patch kind and clears targets when kind changes to fuel', () => {
+    it('uses patch kind when kind changes to fuel', () => {
       const merged = mergeExpenseRelationForNormalize(
         {
           kind: 'maintenance',
-          maintenanceTarget: 'unit',
           relatedUnitId: 5,
+          category: 'Aceite',
         },
         { kind: 'fuel' },
         {
@@ -108,11 +105,7 @@ describe('expense-payload.util', () => {
           relatedEquipmentIdTouched: false,
         },
       );
-      expect(normalizeExpenseRelationFields(merged)).toEqual({
-        maintenanceTarget: null,
-        insuranceTarget: null,
-        verificationScope: null,
-      });
+      expect(normalizeExpenseRelationFields(merged)).toEqual({});
     });
   });
 });

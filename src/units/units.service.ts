@@ -15,8 +15,8 @@ import {
 } from 'src/fleet/utils/fleet-brand-from-payload.util';
 import { pickUnitUserMutableFields } from 'src/fleet/fleet-resource-user-patch.util';
 import { rejectClientFleetStatusMutation } from 'src/fleet/fleet-status-lock.util';
-import { fleetTenureMapKey } from 'src/fleet/mappers/fleet-asset-tenure.mapper';
 import { FleetMaintenanceEntry } from 'src/units/entities/fleet-maintenance-entry.entity';
+import { FleetVerificationEntry } from 'src/units/entities/fleet-verification-entry.entity';
 import { UnitFleetDocument } from 'src/units/entities/unit-fleet-document.entity';
 import { UnitFleetProfile } from 'src/units/entities/unit-fleet-profile.entity';
 import { Unit } from 'src/units/entities/unit.entity';
@@ -26,7 +26,15 @@ import {
   fleetMetaDtoToDocuments,
   fleetMetaDtoToMaintenanceEntries,
   fleetMetaDtoToProfile,
+  fleetMetaDtoToVerificationEntries,
+  lastMaintenanceScalarsProvided,
+  verificationMetaFromEntries,
 } from './mappers/unit-fleet-meta.mapper';
+import {
+  mergeVerificationHistoryOnScalarSave,
+  resolveVerificationEntriesFromMeta,
+  verificationEntriesToMetaScalars,
+} from 'src/fleet/fleet-verification-entries.util';
 import { UnitTripOdometerService } from './unit-trip-odometer.service';
 import { FleetMaintenanceWorkflowService } from 'src/fleet/fleet-maintenance-workflow.service';
 import { FleetMaintenanceExpenseSyncService } from 'src/fleet/fleet-maintenance-expense-sync.service';
@@ -40,10 +48,19 @@ import {
   unitFleetMetaVerificationTouched,
 } from 'src/fleet/fleet-meta-expense-sync-scope.util';
 
-const UNIT_RELATIONS = [
+const UNIT_DETAIL_RELATIONS = [
   'fleetProfile',
   'maintenanceEntries',
+  'verificationEntries',
   'fleetDocuments',
+  'equipment',
+  'equipment.maintenanceEntries',
+] as const;
+
+const UNIT_LIST_RELATIONS = [
+  'fleetProfile',
+  'maintenanceEntries',
+  'verificationEntries',
   'equipment',
 ] as const;
 
@@ -72,6 +89,8 @@ export class UnitsService {
     private readonly profileRepo: Repository<UnitFleetProfile>,
     @InjectRepository(FleetMaintenanceEntry)
     private readonly maintenanceRepo: Repository<FleetMaintenanceEntry>,
+    @InjectRepository(FleetVerificationEntry)
+    private readonly verificationRepo: Repository<FleetVerificationEntry>,
     @InjectRepository(UnitFleetDocument)
     private readonly documentsRepo: Repository<UnitFleetDocument>,
     private readonly fleetTenureService: FleetTenureService,
@@ -121,19 +140,10 @@ export class UnitsService {
       where: options?.available
         ? { companyId, isActive: true, status: FLEET_ASSIGNABLE_LIST_STATUS }
         : { companyId },
-      relations: [...UNIT_RELATIONS],
+      relations: [...UNIT_LIST_RELATIONS],
       order: { plate: 'ASC' },
     });
-    const tenureByKey = options?.includeTenure
-      ? this.fleetTenureService.buildLookupMap(
-          await this.fleetTenureService.findAllForCompany(companyId),
-        )
-      : null;
-    return rows.map((row) =>
-      serializeUnit(row, {
-        tenure: tenureByKey?.get(fleetTenureMapKey({ unitId: row.id })),
-      }),
-    );
+    return rows.map((row) => serializeUnit(row, { list: true }));
   }
 
   async findLinkOptions(
@@ -185,7 +195,7 @@ export class UnitsService {
   async findOne(companyId: number, unitId: number) {
     const row = await this.repo.findOne({
       where: { companyId, id: unitId },
-      relations: [...UNIT_RELATIONS],
+      relations: [...UNIT_DETAIL_RELATIONS],
     });
     if (!row) {
       throw new NotFoundException(`Unit ${unitId} not found`);
@@ -278,8 +288,7 @@ export class UnitsService {
     if (existing) {
       await this.insuranceExpenseSync.ensureInitialInsurancePremium({
         companyId,
-        insuranceTarget: 'unit',
-        relatedUnitId: unitId,
+                relatedUnitId: unitId,
         previous: existing,
       });
     }
@@ -306,20 +315,62 @@ export class UnitsService {
       }),
     );
 
-    if (unitFleetMetaVerificationTouched(existing, fleetMeta)) {
+    const previousVerificationEntries = await this.verificationRepo.find({
+      where: { unitId },
+      order: { sortOrder: 'ASC' },
+    });
+    const previousVerificationMeta = verificationMetaFromEntries(
+      previousVerificationEntries,
+      existing,
+    );
+
+    if (unitFleetMetaVerificationTouched(previousVerificationMeta, fleetMeta)) {
+      const incomingForSync =
+        fleetMeta.verificationEntries !== undefined
+          ? {
+              ...verificationEntriesToMetaScalars(
+                resolveVerificationEntriesFromMeta({
+                  verificationEntries: fleetMeta.verificationEntries,
+                }),
+              ),
+              verificationDoubleArticulatedApplies:
+                fleetMeta.verificationDoubleArticulatedApplies ??
+                existing?.verificationDoubleArticulatedApplies,
+            }
+          : fleetMeta;
+
       await this.verificationExpenseSync.syncForUnitVerificationSave({
         companyId,
         unitId,
-        previous: existing,
-        incoming: fleetMeta,
+        previous: previousVerificationMeta,
+        incoming: incomingForSync,
       });
+    }
+
+    if (
+      fleetMeta.verificationEntries !== undefined ||
+      unitFleetMetaVerificationTouched(previousVerificationMeta, fleetMeta)
+    ) {
+      let resolvedEntries = resolveVerificationEntriesFromMeta(fleetMeta);
+      if (fleetMeta.verificationEntries === undefined) {
+        resolvedEntries = mergeVerificationHistoryOnScalarSave({
+          previous: previousVerificationEntries,
+          incomingScalars: fleetMeta,
+        });
+      }
+      await this.verificationRepo.delete({ unitId });
+      const verificationRows = fleetMetaDtoToVerificationEntries(unitId, resolvedEntries);
+      if (verificationRows.length > 0) {
+        await this.verificationRepo.save(
+          verificationRows.map((row) => this.verificationRepo.create(row)),
+        );
+      }
     }
 
     if (unitFleetMetaInsuranceTouched(existing, fleetMeta)) {
       await this.insuranceExpenseSync.ensureAllInsuranceInstallments({
         companyId,
-        insuranceTarget: 'unit',
-        relatedUnitId: unitId,
+                relatedUnitId: unitId,
         profile: { ...existing, ...fleetMeta } as any,
       });
     }
@@ -362,7 +413,10 @@ export class UnitsService {
       }
     }
 
-    if (fleetMeta.maintenanceEntries !== undefined) {
+    if (
+      fleetMeta.maintenanceEntries !== undefined ||
+      lastMaintenanceScalarsProvided(fleetMeta)
+    ) {
       const previous = await this.maintenanceRepo.find({
         where: { unitId },
         order: { sortOrder: 'ASC' },
@@ -376,10 +430,16 @@ export class UnitsService {
       }
       await this.maintenanceExpenseSync.syncForMaintenanceSave({
         companyId,
-        maintenanceTarget: 'unit',
-        relatedUnitId: unitId,
+                relatedUnitId: unitId,
         previous,
-        incoming: fleetMeta.maintenanceEntries,
+        incoming:
+          fleetMeta.maintenanceEntries ??
+          maintenanceRows.map((row) => ({
+            date: row.entryDate,
+            type: row.entryType,
+            cost: row.cost != null ? Number(row.cost) : undefined,
+            notes: row.notes,
+          })),
       });
     }
 

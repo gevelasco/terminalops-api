@@ -1,5 +1,5 @@
 import type { AppUser } from 'src/users/entities/app-user.entity';
-import type { Operator } from 'src/operators/entities/operator.entity';
+import { formatPersonShortName } from 'src/common/utils/person-short-name.util';
 
 const ROLE_JOB_TITLES: Record<string, string> = {
   superadmin: 'Super administrador',
@@ -11,7 +11,6 @@ const ROLE_JOB_TITLES: Record<string, string> = {
 
 export type IncidentAuthorLookup = {
   usersByUsername: ReadonlyMap<string, { displayName: string; jobTitle: string }>;
-  operatorsByPortalUsername: ReadonlyMap<string, { name: string }>;
 };
 
 function userJobTitle(user: Pick<AppUser, 'jobTitle' | 'role'>): string {
@@ -24,7 +23,6 @@ function userJobTitle(user: Pick<AppUser, 'jobTitle' | 'role'>): string {
 
 export function buildIncidentAuthorLookup(
   users: readonly Pick<AppUser, 'username' | 'displayName' | 'jobTitle' | 'role'>[],
-  operators: readonly Pick<Operator, 'name' | 'portalUsername'>[],
 ): IncidentAuthorLookup {
   const usersByUsername = new Map<string, { displayName: string; jobTitle: string }>();
   for (const user of users) {
@@ -38,16 +36,7 @@ export function buildIncidentAuthorLookup(
     });
   }
 
-  const operatorsByPortalUsername = new Map<string, { name: string }>();
-  for (const op of operators) {
-    const key = op.portalUsername?.trim().toLowerCase();
-    if (!key) {
-      continue;
-    }
-    operatorsByPortalUsername.set(key, { name: op.name });
-  }
-
-  return { usersByUsername, operatorsByPortalUsername };
+  return { usersByUsername };
 }
 
 export function formatIncidentAuthorLabel(
@@ -60,11 +49,8 @@ export function formatIncidentAuthorLabel(
   }
   const staff = lookup.usersByUsername.get(key);
   if (staff) {
-    return `${staff.displayName} · ${staff.jobTitle}`;
-  }
-  const op = lookup.operatorsByPortalUsername.get(key);
-  if (op) {
-    return `${op.name} · Operador`;
+    const shortName = formatPersonShortName(staff.displayName) || staff.displayName;
+    return `${shortName} · ${staff.jobTitle}`;
   }
   return postedBy.trim();
 }

@@ -10,6 +10,7 @@ import {
 import { TERMINALOPS_SCHEMA } from 'src/common/constants/schema-name';
 import { Equipment } from 'src/equipment/entities/equipment.entity';
 import { FleetMaintenanceEntry } from 'src/units/entities/fleet-maintenance-entry.entity';
+import { FleetVerificationEntry } from 'src/units/entities/fleet-verification-entry.entity';
 import { UnitFleetDocument } from 'src/units/entities/unit-fleet-document.entity';
 import { UnitFleetProfile } from 'src/units/entities/unit-fleet-profile.entity';
 
@@ -42,15 +43,6 @@ export class Unit {
   @Column({ name: 'motor_number', nullable: true })
   motorNumber?: string;
 
-  @Column({
-    name: 'capacity_tons',
-    type: 'numeric',
-    precision: 10,
-    scale: 2,
-    nullable: true,
-  })
-  capacityTons?: string;
-
   @Column({ nullable: true })
   name?: string;
 
@@ -71,6 +63,9 @@ export class Unit {
 
   @OneToMany(() => FleetMaintenanceEntry, (e) => e.unit)
   maintenanceEntries?: FleetMaintenanceEntry[];
+
+  @OneToMany(() => FleetVerificationEntry, (e) => e.unit)
+  verificationEntries?: FleetVerificationEntry[];
 
   @OneToMany(() => UnitFleetDocument, (d) => d.unit)
   fleetDocuments?: UnitFleetDocument[];

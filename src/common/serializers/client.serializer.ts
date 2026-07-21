@@ -31,7 +31,6 @@ export function serializeClient(client: Client): Record<string, unknown> {
           hasCredit: client.paymentTerms.hasCredit,
           creditDays: client.paymentTerms.creditDays,
           approximateCreditAmount: client.paymentTerms.approximateCreditAmount,
-          commercialHealth: client.paymentTerms.commercialHealth,
           defaultPaymentMethod: client.paymentTerms.defaultPaymentMethod ?? undefined,
         }
       : undefined,
@@ -58,14 +57,19 @@ function serializeClientContact(contact: ClientContact): Record<string, unknown>
 function serializeClientDelivery(delivery: ClientDelivery): Record<string, unknown> {
   const lat = delivery.latitude != null ? Number(delivery.latitude) : undefined;
   const lon = delivery.longitude != null ? Number(delivery.longitude) : undefined;
+  const postalCode = delivery.postalCode?.trim() || undefined;
+  const locality = delivery.locality?.trim() || undefined;
+  const destinationRateId = delivery.destinationRateId ?? undefined;
+  const hasDestination = !!(postalCode && locality);
   return {
-    postalCode: delivery.postalCode ?? undefined,
+    postalCode,
     cityMunicipality: delivery.cityMunicipality ?? undefined,
-    locality: delivery.locality ?? undefined,
+    locality,
     settlementConsId: delivery.settlementConsId ?? undefined,
     latitude: lat != null && Number.isFinite(lat) ? lat : undefined,
     longitude: lon != null && Number.isFinite(lon) ? lon : undefined,
-    destinationRateId: delivery.destinationRateId ?? undefined,
-    isUnpricedRoute: delivery.isUnpricedRoute ?? false,
+    destinationRateId,
+    // Derivado: destino capturado sin tarifa de la misma company.
+    isUnpricedRoute: hasDestination && destinationRateId == null,
   };
 }

@@ -5,6 +5,11 @@ import {
   buildExpenseRelatedOperatorLabel,
   buildExpenseRelatedUnitLabel,
 } from 'src/expenses/expense-fleet-relation-label.util';
+import {
+  expenseFleetTargetFromRelatedIds,
+  isOperationalProvisionKind,
+  verificationScopeFromExpenseText,
+} from 'src/expenses/expense-payload.util';
 import { formatOperationalIncurredDateYmd } from 'src/expenses/expenses-incurred-at.util';
 import { toIsoString } from 'src/common/utils/iso-date.util';
 
@@ -13,6 +18,14 @@ export function serializeExpense(expense: Expense): Record<string, unknown> {
   const relatedUnitLabel = buildExpenseRelatedUnitLabel(expense);
   const relatedEquipmentLabel = buildExpenseRelatedEquipmentLabel(expense);
   const relatedOperatorLabel = buildExpenseRelatedOperatorLabel(expense);
+  const fleetTarget = expenseFleetTargetFromRelatedIds({
+    relatedUnitId: expense.relatedUnitId,
+    relatedEquipmentId: expense.relatedEquipmentId,
+  });
+  const verificationScope = verificationScopeFromExpenseText(
+    expense.category,
+    expense.description,
+  );
 
   return {
     id: expense.id,
@@ -32,15 +45,18 @@ export function serializeExpense(expense: Expense): Record<string, unknown> {
     description: expense.description ?? undefined,
     vendor: expense.vendor ?? undefined,
     paymentMethod: expense.paymentMethod ?? undefined,
-    maintenanceTarget: expense.maintenanceTarget ?? undefined,
-    insuranceTarget: expense.insuranceTarget ?? undefined,
-    verificationScope: expense.verificationScope ?? undefined,
+    // Derivados (compat FE): ya no se persisten.
+    maintenanceTarget:
+      expense.kind === 'maintenance' ? (fleetTarget ?? undefined) : undefined,
+    insuranceTarget:
+      expense.kind === 'insurance' ? (fleetTarget ?? undefined) : undefined,
+    verificationScope: verificationScope ?? undefined,
     relatedUnitId: expense.relatedUnit?.id ?? expense.relatedUnitId ?? null,
     relatedEquipmentId:
       expense.relatedEquipment?.id ?? expense.relatedEquipmentId ?? null,
     relatedOperatorId:
       expense.relatedOperator?.id ?? expense.relatedOperatorId ?? null,
-    isOperationalProvision: expense.isOperationalProvision,
+    isOperationalProvision: isOperationalProvisionKind(expense.kind),
     invoiceRequired: expense.invoiceRequired,
     paidAt: expense.paidAt ? toIsoString(expense.paidAt) : null,
     createdAt: toIsoString(expense.createdAt),

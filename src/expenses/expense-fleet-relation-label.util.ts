@@ -3,19 +3,18 @@ import {
   buildUnitOperationalId,
 } from 'src/common/utils/unit-operational-id.util';
 import type { Expense } from 'src/expenses/entities/expense.entity';
+import { verificationScopeFromExpenseText } from 'src/expenses/expense-payload.util';
+import { VERIFICATION_CATEGORY_BY_SCOPE } from 'src/expenses/expense-payload.util';
 
-const VERIFICATION_SCOPE_LABELS: Record<string, string> = {
-  phys_mech: 'Verificación físico-mecánica',
-  emissions: 'Verificación de emisiones',
-  double_articulated: 'Doble articulado (SPP)',
-};
-
-function verificationScopeLabel(scope: string | null | undefined): string {
-  const code = scope?.trim();
-  if (!code) {
-    return '';
+function verificationCategoryLabel(expense: Expense): string {
+  const scope = verificationScopeFromExpenseText(
+    expense.category,
+    expense.description,
+  );
+  if (scope) {
+    return VERIFICATION_CATEGORY_BY_SCOPE[scope];
   }
-  return VERIFICATION_SCOPE_LABELS[code] ?? code;
+  return expense.category?.trim() || '';
 }
 
 /**
@@ -83,7 +82,7 @@ function withVerificationSuffix(
   if (expense.kind !== 'verification') {
     return base;
   }
-  const scopeLabel = verificationScopeLabel(expense.verificationScope);
+  const scopeLabel = verificationCategoryLabel(expense);
   return scopeLabel ? `${base} · ${scopeLabel}` : base;
 }
 
@@ -92,7 +91,10 @@ function tripLinkedUnitLabel(expense: Expense): string | undefined {
   if (direct) {
     return direct;
   }
-  return expense.trip?.unitOperationalCodeSnapshot?.trim() || undefined;
+  if (expense.trip?.unit) {
+    return buildUnitOperationalId(expense.trip.unit);
+  }
+  return undefined;
 }
 
 function tripLinkedOperatorLabel(expense: Expense): string | undefined {
@@ -100,7 +102,7 @@ function tripLinkedOperatorLabel(expense: Expense): string | undefined {
   if (direct) {
     return direct;
   }
-  return expense.trip?.operatorNameSnapshot?.trim() || undefined;
+  return expense.trip?.operator?.name?.trim() || undefined;
 }
 
 /** Etiqueta legible del vínculo operativo para listado y detalle de gastos. */
@@ -115,22 +117,25 @@ export function buildExpenseFleetRelationLabel(expense: Expense): string | undef
     case 'lodging':
       return tripLinkedOperatorLabel(expense) ?? tripLinkedUnitLabel(expense);
     case 'maintenance':
-      if (expense.maintenanceTarget === 'equipment') {
-        return equipmentLabel(expense);
-      }
-      return unitLabel(expense);
+      return expense.relatedEquipmentId != null
+        ? equipmentLabel(expense)
+        : unitLabel(expense);
     case 'tires':
     case 'gps':
     case 'unit_purchase':
     case 'unit_rent':
       return unitLabel(expense);
     case 'insurance':
-      if (expense.insuranceTarget === 'equipment') {
-        return equipmentLabel(expense);
-      }
-      return unitLabel(expense);
+      return expense.relatedEquipmentId != null
+        ? equipmentLabel(expense)
+        : unitLabel(expense);
     case 'verification':
-      return withVerificationSuffix(expense, unitLabel(expense));
+      return withVerificationSuffix(
+        expense,
+        expense.relatedEquipmentId != null
+          ? equipmentLabel(expense)
+          : unitLabel(expense),
+      );
     case 'equipment_purchase':
     case 'equipment_rent':
     case 'trailer_admin_payout':

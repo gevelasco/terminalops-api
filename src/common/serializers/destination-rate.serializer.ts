@@ -49,11 +49,12 @@ export function serializeDestinationRate(
       row.destinationLongitude != null ? Number(row.destinationLongitude) : undefined,
     routeDistanceKm:
       row.routeDistanceKm != null ? Number(row.routeDistanceKm) : undefined,
+    // Siempre ida×2; columnas operational_distance_km / is_round_trip dropeadas.
     operationalDistanceKm:
-      row.operationalDistanceKm != null
-        ? Number(row.operationalDistanceKm)
+      row.routeDistanceKm != null && Number(row.routeDistanceKm) > 0
+        ? Number(row.routeDistanceKm) * 2
         : undefined,
-    isRoundTrip: row.isRoundTrip,
+    isRoundTrip: true,
     distanceCalculatedAt: row.distanceCalculatedAt
       ? toIsoString(row.distanceCalculatedAt)
       : undefined,

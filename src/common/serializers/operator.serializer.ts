@@ -12,7 +12,6 @@ export function serializeOperator(operator: Operator): OperatorApiResponse {
     id: operator.id,
     companyId: operator.companyId,
     name: operator.name,
-    portalUsername: operator.portalUsername ?? null,
     photoDataUrl: operator.photoDataUrl ?? '',
     birthDate: operator.birthDate ?? null,
     curp: operator.curp ?? '',

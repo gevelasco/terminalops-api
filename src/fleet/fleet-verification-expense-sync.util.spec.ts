@@ -12,7 +12,7 @@ describe('fleet-verification-expense-sync.util', () => {
         scope: 'phys_mech',
         date: '2026-06-01',
         cost: 1200,
-        category: 'Verificación físico-mecánica',
+        category: 'Verificación - físico-mecánica',
       },
     ]);
   });

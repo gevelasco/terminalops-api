@@ -87,18 +87,6 @@ export class DestinationRate {
   })
   routeDistanceKm?: string;
 
-  @Column({
-    name: 'operational_distance_km',
-    type: 'numeric',
-    precision: 10,
-    scale: 2,
-    nullable: true,
-  })
-  operationalDistanceKm?: string;
-
-  @Column({ name: 'is_round_trip', default: true })
-  isRoundTrip: boolean;
-
   @Column({ name: 'distance_calculated_at', type: 'timestamptz', nullable: true })
   distanceCalculatedAt?: Date;
 

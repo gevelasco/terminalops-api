@@ -10,8 +10,6 @@ import { TripEquipment } from 'src/trips/entities/trip-equipment.entity';
 import { TripIncident } from 'src/trips/entities/trip-incident.entity';
 import { TripLoadPlace } from 'src/trips/entities/trip-load-place.entity';
 import { TripLoadPlacesService } from 'src/trips/trip-load-places.service';
-import { TripAuditEvent } from 'src/trips/entities/trip-audit-event.entity';
-import { TripAuditService } from './lifecycle/trip-audit.service';
 import { TripLifecycleScheduler } from './lifecycle/trip-lifecycle.scheduler';
 import { TripFleetStatusSyncService } from './lifecycle/trip-fleet-status-sync.service';
 import { TripLifecycleService } from './lifecycle/trip-lifecycle.service';
@@ -37,7 +35,6 @@ import { TripsService } from './trips.service';
       TripEquipment,
       TripIncident,
       TripLoadPlace,
-      TripAuditEvent,
       Equipment,
       Client,
       Company,
@@ -55,7 +52,6 @@ import { TripsService } from './trips.service';
     FuelEstimatorService,
     TripLifecycleService,
     TripFleetStatusSyncService,
-    TripAuditService,
     TripLifecycleScheduler,
   ],
   exports: [

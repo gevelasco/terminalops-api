@@ -157,5 +157,8 @@ export function unitFleetMetaVerificationTouched(
   previous: FleetMetaLike,
   incoming: FleetMetaLike,
 ): boolean {
+  if (fleetMetaFieldProvided(incoming, 'verificationEntries')) {
+    return true;
+  }
   return fleetMetaFieldsTouched(UNIT_VERIFICATION_FIELDS, previous, incoming);
 }

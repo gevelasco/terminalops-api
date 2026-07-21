@@ -94,6 +94,7 @@ export class ClientsService {
    */
   private async computeCommercialHealth(
     companyId: number,
+    clientId?: number,
   ): Promise<Map<number, string>> {
     const DUE_SOON_DAYS = 10;
 
@@ -134,10 +135,11 @@ export class ClientsService {
         WHERE t.company_id = $1
           AND t.deleted_at IS NULL
           AND t.client_id IS NOT NULL
+          AND ($2::int IS NULL OR t.client_id = $2)
       ) sub
       GROUP BY sub.client_id
       `,
-      [companyId],
+      [companyId, clientId ?? null],
     );
 
     const map = new Map<number, string>();
@@ -192,7 +194,11 @@ export class ClientsService {
     if (!client) {
       throw new NotFoundException(`Client ${clientId} not found`);
     }
-    return serializeClient(client);
+    const healthMap = await this.computeCommercialHealth(companyId, clientId);
+    return {
+      ...serializeClient(client),
+      commercialHealth: healthMap.get(clientId) ?? 'not_evaluated',
+    };
   }
 
   async update(
@@ -245,7 +251,13 @@ export class ClientsService {
     }
     if (dto.payment) {
       await this.paymentRepo.save(
-        this.paymentRepo.create({ clientId, ...dto.payment }),
+        this.paymentRepo.create({
+          clientId,
+          hasCredit: dto.payment.hasCredit ?? false,
+          creditDays: dto.payment.creditDays,
+          approximateCreditAmount: dto.payment.approximateCreditAmount,
+          defaultPaymentMethod: dto.payment.defaultPaymentMethod,
+        }),
       );
     }
     if (dto.contacts?.length) {
@@ -287,7 +299,6 @@ export class ClientsService {
               ? String(dto.delivery.longitude)
               : undefined,
           destinationRateId: matchedRate?.id,
-          isUnpricedRoute: hasDestination && !matchedRate,
         }),
       );
     }

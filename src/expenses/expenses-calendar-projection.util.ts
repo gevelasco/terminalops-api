@@ -22,6 +22,8 @@ import { insurancePolicyConceptLabel, buildInsurancePaymentExpenseDescription } 
 import type { FleetAssetTenure } from 'src/fleet/entities/fleet-asset-tenure.entity';
 import { cadenceToMonths } from 'src/fleet/fleet-coverage-payment-period.util';
 import { VERIFICATION_SCOPE_SPECS } from 'src/fleet/fleet-verification-expense-sync.util';
+import { verificationEntriesToMetaScalars } from 'src/fleet/fleet-verification-entries.util';
+import { verificationScopeFromExpenseText } from 'src/expenses/expense-payload.util';
 import { buildOperatorPaymentRows } from 'src/operators/operator-payment-rows.util';
 import {
   normalizeOperatorPaymentSchedule,
@@ -134,6 +136,13 @@ function parseMoney(raw?: string | null): number {
   return Number.isFinite(n) && n >= 0 ? n : 0;
 }
 
+function tripUnitOperationalLabel(trip: Trip | null | undefined): string | undefined {
+  if (!trip?.unit) {
+    return undefined;
+  }
+  return buildUnitOperationalId(trip.unit);
+}
+
 function formatMoney(amount: number): string {
   return amount.toFixed(2);
 }
@@ -168,7 +177,7 @@ function tripPlannedDepartureYmd(trip: Trip): string | null {
 }
 
 function isActiveExpense(expense: Expense): boolean {
-  return expense.discardedAt == null && expense.isOperationalProvision !== true;
+  return expense.discardedAt == null && expense.kind !== 'operational_control';
 }
 
 function tripHasLedgerKind(tripId: number, kind: string, expenses: readonly Expense[]): boolean {
@@ -310,7 +319,9 @@ function hasVerificationExpense(
     if (!isActiveExpense(e) || e.kind !== 'verification') {
       return false;
     }
-    if (e.verificationScope !== params.scope) {
+    if (
+      verificationScopeFromExpenseText(e.category, e.description) !== params.scope
+    ) {
       return false;
     }
     if (params.relatedUnitId != null && e.relatedUnitId !== params.relatedUnitId) {
@@ -366,10 +377,10 @@ function buildTripCommittedProjections(
         relatedUnitId: trip.unitId ?? null,
         relatedEquipmentId: null,
         relatedOperatorId: trip.operatorId ?? null,
-        ...(trip.unitOperationalCodeSnapshot?.trim()
+        ...(tripUnitOperationalLabel(trip)
           ? {
-              fleetRelationLabel: trip.unitOperationalCodeSnapshot.trim(),
-              relatedUnitLabel: trip.unitOperationalCodeSnapshot.trim(),
+              fleetRelationLabel: tripUnitOperationalLabel(trip),
+              relatedUnitLabel: tripUnitOperationalLabel(trip),
             }
           : {}),
         hint: trip.status === 'in_transit' ? 'Maniobra en curso' : 'Maniobra programada',
@@ -670,7 +681,7 @@ function buildVerificationProjections(
     pushForProfile({
       prefix: 'unit',
       entityId: unit.id,
-      profile: unit.fleetProfile as unknown as Record<string, unknown> | undefined,
+      profile: verificationProfileForAsset(unit),
       relatedUnitId: unit.id,
       relatedEquipmentId: null,
       assetOperationalId: buildUnitOperationalId(unit),
@@ -681,7 +692,7 @@ function buildVerificationProjections(
     pushForProfile({
       prefix: 'equipment',
       entityId: item.id,
-      profile: item.fleetProfile as unknown as Record<string, unknown> | undefined,
+      profile: verificationProfileForAsset(item),
       relatedUnitId: null,
       relatedEquipmentId: item.id,
       assetOperationalId: buildEquipmentOperationalId(item),
@@ -689,6 +700,26 @@ function buildVerificationProjections(
   }
 
   return rows;
+}
+
+/** Scalars viven en verification_entries; el perfil solo aporta flags (p.ej. doble articulado). */
+function verificationProfileForAsset(
+  asset: Pick<Unit, 'fleetProfile' | 'verificationEntries'> | Pick<
+    Equipment,
+    'fleetProfile' | 'verificationEntries'
+  >,
+): Record<string, unknown> | undefined {
+  const profile = asset.fleetProfile as unknown as
+    | Record<string, unknown>
+    | undefined;
+  const scalars = verificationEntriesToMetaScalars(asset.verificationEntries);
+  if (!profile && Object.keys(scalars).length === 0) {
+    return undefined;
+  }
+  return {
+    ...(profile ?? {}),
+    ...scalars,
+  };
 }
 
 function buildOperatorPaymentProjections(
@@ -733,8 +764,8 @@ function buildOperatorPaymentProjections(
         relatedUnitId: trip?.unitId ?? null,
         relatedEquipmentId: null,
         relatedOperatorId: operator.id,
-        ...(trip?.unitOperationalCodeSnapshot?.trim()
-          ? { relatedUnitLabel: trip.unitOperationalCodeSnapshot.trim() }
+        ...(tripUnitOperationalLabel(trip)
+          ? { relatedUnitLabel: tripUnitOperationalLabel(trip) }
           : {}),
         relatedOperatorLabel: operatorLabel(operator),
         vendor: operatorVendorLabel(operator),
@@ -783,8 +814,8 @@ function buildOperatorPaymentProjections(
         relatedUnitId: trip.unitId ?? null,
         relatedEquipmentId: null,
         relatedOperatorId: operator.id,
-        ...(trip.unitOperationalCodeSnapshot?.trim()
-          ? { relatedUnitLabel: trip.unitOperationalCodeSnapshot.trim() }
+        ...(tripUnitOperationalLabel(trip)
+          ? { relatedUnitLabel: tripUnitOperationalLabel(trip) }
           : {}),
         relatedOperatorLabel: operatorLabel(operator),
         vendor: operatorVendorLabel(operator),
@@ -986,6 +1017,21 @@ export function buildExpenseCalendarProjection(
   const asOf = input.asOf ?? new Date();
   const projected = [
     ...buildTripCommittedProjections(input.trips, input.expenses, input.from, input.to),
+    ...buildFleetInsuranceProjections(
+      input.units,
+      input.equipment,
+      input.expenses,
+      input.from,
+      input.to,
+      asOf,
+    ),
+    ...buildFleetGpsProjections(
+      input.units,
+      input.expenses,
+      input.from,
+      input.to,
+      asOf,
+    ),
     ...buildVerificationProjections(
       input.units,
       input.equipment,

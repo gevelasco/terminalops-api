@@ -50,13 +50,11 @@ export const EQUIPMENT_USER_MUTABLE_KEYS = [
   'isActive',
   'trailerBrandAbbr',
   'trailerYear',
-  'lastServiceDate',
 ] as const;
 
 /** Campos mutables vía API en `operators` (excluye `status`). */
 export const OPERATOR_USER_MUTABLE_KEYS = [
   'name',
-  'portalUsername',
   'isActive',
   'birthDate',
   'curp',
@@ -79,7 +77,13 @@ export const OPERATOR_USER_MUTABLE_KEYS = [
 export function pickUnitUserMutableFields(
   source: Record<string, unknown>,
 ): Record<string, unknown> {
-  return pickDefinedKeys(source, UNIT_USER_MUTABLE_KEYS);
+  const picked = pickDefinedKeys(source, UNIT_USER_MUTABLE_KEYS);
+  const tons = picked.capacityTons;
+  if (typeof tons === 'number' && Number.isFinite(tons) && tons > 0) {
+    picked.capacityKg = Math.round(tons * 1000);
+  }
+  delete picked.capacityTons;
+  return picked;
 }
 
 export function pickEquipmentUserMutableFields(

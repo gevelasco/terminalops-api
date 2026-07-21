@@ -138,11 +138,6 @@ export class CreateOperatorDto {
   @IsString()
   name: string;
 
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  portalUsername?: string;
-
   @ApiPropertyOptional({ default: true })
   @IsOptional()
   @IsBoolean()

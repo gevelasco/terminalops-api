@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, SelectQueryBuilder } from 'typeorm';
+import { Repository, SelectQueryBuilder, IsNull } from 'typeorm';
 import { Equipment } from 'src/equipment/entities/equipment.entity';
 import { Expense } from 'src/expenses/entities/expense.entity';
 import { FleetAssetTenure } from 'src/fleet/entities/fleet-asset-tenure.entity';
@@ -90,22 +90,22 @@ function parseManeuverCodesList(raw: unknown): string[] {
 
 const DESTINATION_DISPLAY_LABEL_SQL = `COALESCE(
   NULLIF(TRIM(CONCAT_WS(', ', NULLIF(TRIM(trip.destination_locality), ''), NULLIF(TRIM(trip.destination_city_municipality), ''))), ''),
-  NULLIF(TRIM(MAX(trip.destination)), ''),
   NULLIF(TRIM(trip.destination_postal_code), '')
 )`;
 const DESTINATION_HAS_LABEL_SQL = `(
   NULLIF(TRIM(trip.destination_locality), '') IS NOT NULL
   OR NULLIF(TRIM(trip.destination_city_municipality), '') IS NOT NULL
-  OR NULLIF(TRIM(trip.destination), '') IS NOT NULL
   OR NULLIF(TRIM(trip.destination_postal_code), '') IS NOT NULL
 )`;
 
 const ROUTE_DESTINATION_LABEL_SQL = `COALESCE(
   NULLIF(TRIM(CONCAT_WS(', ', NULLIF(TRIM(trip.destination_locality), ''), NULLIF(TRIM(trip.destination_city_municipality), ''))), ''),
-  NULLIF(TRIM(trip.destination), ''),
   NULLIF(TRIM(trip.destination_postal_code), ''),
   'Sin destino'
 )`;
+
+/** Km operativos = route_distance_km × 2 (ida+vuelta siempre). */
+const OPERATIONAL_KM_EXPR = `COALESCE(trip.route_distance_km, 0) * 2`;
 
 function operationDisplayLabel(
   nameSnapshot: string | null | undefined,
@@ -635,7 +635,11 @@ export class ReportsService {
         to: previous.to,
       }),
       this.tripsRepo.count({
-        where: { companyId: scope.companyId, status: 'in_transit' },
+        where: {
+          companyId: scope.companyId,
+          status: 'in_transit',
+          deletedAt: IsNull(),
+        },
       }),
       this.countScheduledInPeriod(scope),
       this.countCancelledInPeriod(scope),
@@ -766,10 +770,30 @@ export class ReportsService {
   }
 
   private countDelayedTripsInPeriod(scope: ReportsScope): Promise<number> {
+    // Retrasos on-the-fly (ya no se persisten is_delayed / delay_*).
     const qb = this.tripsRepo
       .createQueryBuilder('trip')
-      .where('trip.isDelayed = true')
-      .andWhere('trip.status != :cancelled', { cancelled: 'cancelled' })
+      .where('trip.status IN (:...activeStatuses)', {
+        activeStatuses: ['scheduled', 'in_transit'],
+      })
+      .andWhere(
+        `(
+          (trip.status = 'scheduled' AND NOW() > trip.planned_departure_at AND trip.departure_at IS NULL)
+          OR (
+            trip.status IN ('scheduled', 'in_transit')
+            AND NOW() > trip.planned_arrival_at
+            AND trip.arrived_at IS NULL
+          )
+          OR (trip.arrived_at IS NOT NULL AND trip.arrived_at > trip.planned_arrival_at)
+          OR (
+            trip.status = 'in_transit'
+            AND NOW() > trip.planned_completion_at
+            AND trip.return_at IS NULL
+          )
+          OR (trip.return_at IS NOT NULL AND trip.return_at > trip.planned_completion_at)
+          OR (trip.departure_at IS NOT NULL AND trip.departure_at > trip.planned_departure_at)
+        )`,
+      )
       .andWhere(
         `(COALESCE(trip.completed_at, trip.planned_departure_at, trip.created_at) AT TIME ZONE '${OPERATIONAL_TZ}')::date BETWEEN :from AND :to`,
         { from: scope.from, to: scope.to },
@@ -783,7 +807,7 @@ export class ReportsService {
     const qb = this.tripsRepo
       .createQueryBuilder('trip')
       .select(
-        `COALESCE(SUM(COALESCE(trip.operational_distance_km, trip.route_distance_km, 0)), 0)`,
+        `COALESCE(SUM(${OPERATIONAL_KM_EXPR}), 0)`,
         'sum',
       )
       .where('trip.status = :status', { status: 'completed' })
@@ -829,7 +853,7 @@ export class ReportsService {
           AND (trip.created_at AT TIME ZONE '${OPERATIONAL_TZ}')::date BETWEEN $2::date AND $3::date
           AND ${DESTINATION_HAS_LABEL_SQL.replace(/trip\./g, 'trip.')}
           ${filter.sql}
-        GROUP BY trip.destination_postal_code, trip.destination_locality, trip.destination_city_municipality, trip.destination
+        GROUP BY trip.destination_postal_code, trip.destination_locality, trip.destination_city_municipality
       ) grouped
       `,
         params,
@@ -868,8 +892,7 @@ export class ReportsService {
       GROUP BY
         trip.destination_postal_code,
         trip.destination_locality,
-        trip.destination_city_municipality,
-        trip.destination
+        trip.destination_city_municipality
       ORDER BY incident_count DESC, destination ASC
       LIMIT 12
       `,
@@ -889,11 +912,10 @@ export class ReportsService {
         trip.operator_id,
         COALESCE(
           NULLIF(TRIM(MAX(op.name)), ''),
-          NULLIF(TRIM(MAX(trip.operator_name_snapshot)), ''),
           'Sin operador'
         ) AS operator_name,
         COUNT(*)::int AS completed,
-        COALESCE(SUM(COALESCE(trip.operational_distance_km, trip.route_distance_km, 0)), 0)::float AS km
+        COALESCE(SUM(${OPERATIONAL_KM_EXPR}), 0)::float AS km
       FROM ${this.tripsRepo.metadata.schema}.trips trip
       INNER JOIN ${this.tripsRepo.metadata.schema}.operators op ON op.id = trip.operator_id
       WHERE trip.company_id = $1
@@ -973,11 +995,12 @@ export class ReportsService {
         trip.planned_departure_at,
         trip.planned_completion_at,
         trip.planned_arrival_at,
-        COALESCE(NULLIF(TRIM(trip.operator_name_snapshot), ''), 'Sin operador') AS operator_name,
+        COALESCE(NULLIF(TRIM(op.name), ''), 'Sin operador') AS operator_name,
         COALESCE(NULLIF(TRIM(trip.client_name), ''), 'Sin cliente') AS client_name,
         COALESCE(dr.destination_latitude, cd.latitude)::float AS lat,
         COALESCE(dr.destination_longitude, cd.longitude)::float AS lng
       FROM ${schema}.trips trip
+      LEFT JOIN ${schema}.operators op ON op.id = trip.operator_id
       LEFT JOIN ${schema}.destination_rates dr ON dr.id = trip.destination_rate_id
       LEFT JOIN ${schema}.client_delivery cd ON cd.client_id = trip.client_id
       WHERE trip.company_id = $1
@@ -1041,7 +1064,7 @@ export class ReportsService {
         WHERE e.company_id = ${companyIdParam}
           AND e.trip_id IS NOT NULL
           AND e.discarded_at IS NULL
-          AND e.is_operational_provision = false
+          AND e.kind <> 'operational_control'
         GROUP BY e.trip_id
       )`;
   }
@@ -1111,7 +1134,7 @@ export class ReportsService {
       .where('e.companyId = :companyId', { companyId: scope.companyId })
       .andWhere('e.discardedAt IS NULL')
       .andWhere(
-        `(e.isOperationalProvision = true OR e.kind = 'operational_control')`,
+        `(e.kind = 'operational_control')`,
       )
       .andWhere(
         `(e.incurred_at AT TIME ZONE '${OPERATIONAL_TZ}')::date BETWEEN :from AND :to`,
@@ -1127,7 +1150,7 @@ export class ReportsService {
       .createQueryBuilder('e')
       .select('COALESCE(SUM(e.amount), 0)', 'sum')
       .where('e.companyId = :companyId', { companyId: scope.companyId })
-      .andWhere('e.isOperationalProvision = false')
+      .andWhere("e.kind <> 'operational_control'")
       .andWhere(
         `LOWER(TRIM(COALESCE(e.paymentMethod, ''))) IN ('credit', 'credit_card', 'card')`,
       )
@@ -1351,7 +1374,7 @@ export class ReportsService {
         INNER JOIN ${tripSchema}.trips t ON t.id = e.trip_id
         WHERE e.company_id = $1
           AND e.discarded_at IS NULL
-          AND e.is_operational_provision = false
+          AND e.kind <> 'operational_control'
           AND (e.incurred_at AT TIME ZONE '${OPERATIONAL_TZ}')::date BETWEEN $2::date AND $3::date
           AND t.unit_id IS NOT NULL
           AND t.deleted_at IS NULL
@@ -1375,7 +1398,7 @@ export class ReportsService {
           AND e.discarded_at IS NULL
           AND e.related_unit_id IS NOT NULL
           AND e.trip_id IS NULL
-          AND e.is_operational_provision = false
+          AND e.kind <> 'operational_control'
           AND (e.incurred_at AT TIME ZONE '${OPERATIONAL_TZ}')::date BETWEEN $2::date AND $3::date
         GROUP BY e.related_unit_id
       ),
@@ -1425,7 +1448,7 @@ export class ReportsService {
       .addSelect('COALESCE(SUM(e.amount), 0)', 'sum')
       .addSelect('COUNT(*)', 'count')
       .where('e.companyId = :companyId', { companyId: scope.companyId })
-      .andWhere('e.isOperationalProvision = false')
+      .andWhere("e.kind <> 'operational_control'")
       .andWhere('e.discarded_at IS NULL')
       .andWhere(
         `(e.incurred_at AT TIME ZONE '${OPERATIONAL_TZ}')::date BETWEEN :from AND :to`,
@@ -1698,10 +1721,16 @@ export class ReportsService {
   ): Promise<
     Array<{ operationType: string; nameSnapshot: string | null; count: string }>
   > {
+    const schema = this.tripsRepo.metadata.schema;
     const qb = this.tripsRepo
       .createQueryBuilder('trip')
+      .leftJoin(
+        `${schema}.company_operation_configurations`,
+        'cfg',
+        'cfg.id = trip.operation_configuration_id',
+      )
       .select('trip.operationType', 'operationType')
-      .addSelect('trip.operationConfigurationNameSnapshot', 'nameSnapshot')
+      .addSelect('cfg.name', 'nameSnapshot')
       .addSelect('COUNT(*)', 'count')
       .where('trip.status != :cancelled', { cancelled: 'cancelled' })
       .andWhere(
@@ -1709,7 +1738,7 @@ export class ReportsService {
         { from: scope.from, to: scope.to },
       )
       .groupBy('trip.operationType')
-      .addGroupBy('trip.operationConfigurationNameSnapshot')
+      .addGroupBy('cfg.name')
       .orderBy('COUNT(*)', 'DESC');
     return this.applyTripScope(qb, scope).getRawMany();
   }
@@ -1881,7 +1910,7 @@ export class ReportsService {
       SELECT
         ${UNIT_OPERATIONAL_CODE_SQL} AS unit_label,
         COUNT(*)::int AS completed,
-        COALESCE(SUM(COALESCE(trip.operational_distance_km, trip.route_distance_km, 0)), 0)::float AS km,
+        COALESCE(SUM(${OPERATIONAL_KM_EXPR}), 0)::float AS km,
         COALESCE(SUM(COALESCE(trip.diesel_liters, 0)), 0)::float AS diesel_liters
       FROM ${schema}.trips trip
       INNER JOIN ${schema}.units unit ON unit.id = trip.unit_id
@@ -1975,7 +2004,7 @@ export class ReportsService {
       SELECT
         ${UNIT_OPERATIONAL_CODE_SQL} AS unit_code,
         COUNT(*)::int AS trip_count,
-        COALESCE(SUM(COALESCE(trip.operational_distance_km, trip.route_distance_km, 0)), 0)::float AS operational_km,
+        COALESCE(SUM(${OPERATIONAL_KM_EXPR}), 0)::float AS operational_km,
         AVG(
           CASE
             WHEN trip.approximate_weight_tons IS NOT NULL

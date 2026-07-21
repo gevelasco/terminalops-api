@@ -1,10 +1,20 @@
 import { EquipmentFleetDocument } from 'src/equipment/entities/equipment-fleet-document.entity';
 import { EquipmentFleetProfile } from 'src/equipment/entities/equipment-fleet-profile.entity';
 import { FleetMaintenanceEntry } from 'src/units/entities/fleet-maintenance-entry.entity';
+import { FleetVerificationEntry } from 'src/units/entities/fleet-verification-entry.entity';
 import type { CreateEquipmentFleetMetaDto } from 'src/equipment/dto/create-equipment-fleet-meta.dto';
 import { FleetAssetTenure } from 'src/fleet/entities/fleet-asset-tenure.entity';
 import { mergeTenureIntoFleetMeta } from 'src/fleet/mappers/fleet-asset-tenure.mapper';
-import { isSubstantiveMaintenanceEntry } from 'src/fleet/fleet-maintenance-expense-sync.util';
+import {
+  isSubstantiveMaintenanceEntry,
+  recomputeLastMaintenanceFields,
+} from 'src/fleet/fleet-maintenance-expense-sync.util';
+import {
+  isSubstantiveVerificationEntry,
+  verificationEntriesToMetaScalars,
+  type VerificationEntryLike,
+} from 'src/fleet/fleet-verification-entries.util';
+import { fleetMetaFieldProvided } from 'src/fleet/fleet-meta-expense-sync-scope.util';
 
 function emptyDateToUndefined(value?: string): string | undefined {
   const t = value?.trim();
@@ -46,20 +56,7 @@ export function fleetMetaDtoToProfile(
     equipmentAxleCount: meta.equipmentAxleCount,
     equipmentContainerSlotConfig: meta.equipmentContainerSlotConfig?.trim() || undefined,
     equipmentTireCount: meta.equipmentTireCount,
-    lastMaintenanceDate: emptyDateToUndefined(meta.lastMaintenanceDate),
-    lastMaintenanceType: meta.lastMaintenanceType?.trim() || undefined,
-    lastMaintenanceCost: numToDb(meta.lastMaintenanceCost),
-    lastMaintenanceNotes: meta.lastMaintenanceNotes?.trim() || undefined,
     tireCondition: meta.tireCondition?.trim() || undefined,
-    maintenanceAlertByKm: meta.maintenanceAlertByKm,
-    maintenanceNextDateOverride: emptyDateToUndefined(meta.maintenanceNextDateOverride),
-    maintenanceKmInterval: numToDb(meta.maintenanceKmInterval),
-    maintenanceTripKmAtLastService: numToDb(meta.maintenanceTripKmAtLastService),
-    maintenanceKmRemaining: numToDb(meta.maintenanceKmRemaining),
-    verificationPhysMechDate: emptyDateToUndefined(meta.verificationPhysMechDate),
-    verificationPhysMechCost: numToDb(meta.verificationPhysMechCost),
-    equipmentOperatedByAgency: meta.equipmentOperatedByAgency,
-    physMechTwoYearExemptStartDate: emptyDateToUndefined(meta.physMechTwoYearExemptStartDate),
     insurancePolicyNumber: meta.insurancePolicyNumber?.trim() || undefined,
     insuranceCarrierName: meta.insuranceCarrierName?.trim() || undefined,
     insurancePaymentCadence: meta.insurancePaymentCadence?.trim() || undefined,
@@ -96,25 +93,87 @@ export function fleetMetaDtoToDocuments(
   return rows;
 }
 
+export function lastMaintenanceScalarsProvided(
+  meta: CreateEquipmentFleetMetaDto,
+): boolean {
+  return (
+    fleetMetaFieldProvided(meta, 'lastMaintenanceDate') ||
+    fleetMetaFieldProvided(meta, 'lastMaintenanceType') ||
+    fleetMetaFieldProvided(meta, 'lastMaintenanceCost') ||
+    fleetMetaFieldProvided(meta, 'lastMaintenanceNotes')
+  );
+}
+
+export function synthesizeMaintenanceEntriesFromScalars(
+  equipmentId: number,
+  meta: CreateEquipmentFleetMetaDto,
+): Partial<FleetMaintenanceEntry>[] {
+  const date = emptyDateToUndefined(meta.lastMaintenanceDate);
+  if (!date) {
+    return [];
+  }
+  return [
+    {
+      equipmentId,
+      entryDate: date,
+      entryType: meta.lastMaintenanceType?.trim() || undefined,
+      cost: numToDb(meta.lastMaintenanceCost),
+      notes: meta.lastMaintenanceNotes?.trim() || undefined,
+      sortOrder: 0,
+    },
+  ];
+}
+
 export function fleetMetaDtoToMaintenanceEntries(
   equipmentId: number,
   meta: CreateEquipmentFleetMetaDto,
 ): Partial<FleetMaintenanceEntry>[] {
-  if (!meta.maintenanceEntries?.length) {
-    return [];
+  if (meta.maintenanceEntries !== undefined) {
+    if (!meta.maintenanceEntries.length) {
+      return [];
+    }
+    return meta.maintenanceEntries
+      .filter(isSubstantiveMaintenanceEntry)
+      .map((entry, index) => ({
+        equipmentId,
+        entryDate: emptyDateToUndefined(entry.date),
+        entryType: entry.type?.trim() || undefined,
+        cost: numToDb(entry.cost),
+        notes: entry.notes?.trim() || undefined,
+        paymentMethod: entry.paymentMethod?.trim() || undefined,
+        sortOrder: index,
+      }));
   }
-  return meta.maintenanceEntries
-    .filter(isSubstantiveMaintenanceEntry)
+  if (lastMaintenanceScalarsProvided(meta)) {
+    return synthesizeMaintenanceEntriesFromScalars(equipmentId, meta);
+  }
+  return [];
+}
+
+export function fleetMetaDtoToVerificationEntries(
+  equipmentId: number,
+  entries: readonly VerificationEntryLike[],
+): Partial<FleetVerificationEntry>[] {
+  return entries
+    .filter((entry) => entry.scope === 'phys_mech')
+    .filter(isSubstantiveVerificationEntry)
     .map((entry, index) => ({
-    equipmentId,
-    entryDate: emptyDateToUndefined(entry.date),
-    entryType: entry.type?.trim() || undefined,
-    cost: numToDb(entry.cost),
-    notes: entry.notes?.trim() || undefined,
-    paymentMethod: entry.paymentMethod?.trim() || undefined,
-    status: entry.status ?? 'concluido',
-    sortOrder: index,
-  }));
+      equipmentId,
+      scope: 'phys_mech' as const,
+      entryDate: emptyDateToUndefined(
+        (entry.date ?? entry.entryDate) ?? undefined,
+      ),
+      cost: numToDb(
+        dbNumToApi(
+          entry.cost == null || entry.cost === ''
+            ? undefined
+            : String(entry.cost),
+        ),
+      ),
+      notes: entry.notes?.trim() || undefined,
+      paymentMethod: entry.paymentMethod?.trim() || undefined,
+      sortOrder: index,
+    }));
 }
 
 function documentNamesByKind(
@@ -133,8 +192,17 @@ export function profileToFleetMeta(
   maintenanceEntries: FleetMaintenanceEntry[] | undefined,
   documents: EquipmentFleetDocument[] | undefined,
   tenure?: FleetAssetTenure | null,
+  verificationEntries?: FleetVerificationEntry[] | undefined,
+  options?: { includeHistory?: boolean },
 ): Record<string, unknown> | undefined {
-  if (!profile && !maintenanceEntries?.length && !documents?.length) {
+  const includeHistory = options?.includeHistory !== false;
+  if (
+    !profile &&
+    !maintenanceEntries?.length &&
+    !verificationEntries?.length &&
+    !(includeHistory && documents?.length) &&
+    !(includeHistory && tenure)
+  ) {
     return undefined;
   }
 
@@ -147,21 +215,7 @@ export function profileToFleetMeta(
         equipmentAxleCount: profile.equipmentAxleCount ?? undefined,
         equipmentContainerSlotConfig: profile.equipmentContainerSlotConfig ?? undefined,
         equipmentTireCount: profile.equipmentTireCount ?? undefined,
-        lastMaintenanceDate: profile.lastMaintenanceDate ?? undefined,
-        lastMaintenanceType: profile.lastMaintenanceType ?? undefined,
-        lastMaintenanceCost: dbNumToApi(profile.lastMaintenanceCost),
-        lastMaintenanceNotes: profile.lastMaintenanceNotes ?? undefined,
         tireCondition: profile.tireCondition ?? undefined,
-        maintenanceAlertByKm: profile.maintenanceAlertByKm ?? undefined,
-        maintenanceNextDateOverride: profile.maintenanceNextDateOverride ?? undefined,
-        maintenanceKmInterval: dbNumToApi(profile.maintenanceKmInterval),
-        maintenanceTripKmAtLastService: dbNumToApi(profile.maintenanceTripKmAtLastService),
-        maintenanceKmRemaining: dbNumToApi(profile.maintenanceKmRemaining),
-        verificationPhysMechDate: profile.verificationPhysMechDate ?? undefined,
-        verificationPhysMechCost: dbNumToApi(profile.verificationPhysMechCost),
-        equipmentOperatedByAgency: profile.equipmentOperatedByAgency ?? undefined,
-        physMechTwoYearExemptStartDate:
-          profile.physMechTwoYearExemptStartDate ?? undefined,
         insurancePolicyNumber: profile.insurancePolicyNumber ?? undefined,
         insuranceCarrierName: profile.insuranceCarrierName ?? undefined,
         insurancePaymentCadence: profile.insurancePaymentCadence ?? undefined,
@@ -173,33 +227,90 @@ export function profileToFleetMeta(
       }
     : {};
 
-  const entries = (maintenanceEntries ?? [])
-    .slice()
-    .sort((a, b) => a.sortOrder - b.sortOrder)
-    .map((e) => ({
-      date: e.entryDate ?? undefined,
-      type: e.entryType ?? undefined,
-      cost: dbNumToApi(e.cost),
-      notes: e.notes ?? undefined,
-      paymentMethod: e.paymentMethod ?? undefined,
-      status: e.status ?? undefined,
-    }))
-    .filter(isSubstantiveMaintenanceEntry);
-  if (entries.length > 0) {
-    meta['maintenanceEntries'] = entries;
-  }
-
-  for (const [field, kind] of DOCUMENT_KINDS) {
-    const names = documentNamesByKind(documents, kind);
-    if (names) {
-      meta[field] = names;
+  const lastMaint = recomputeLastMaintenanceFields(maintenanceEntries ?? []);
+  if (lastMaint.lastMaintenanceDate) {
+    meta.lastMaintenanceDate = lastMaint.lastMaintenanceDate;
+    meta.lastMaintenanceType = lastMaint.lastMaintenanceType ?? undefined;
+    if (includeHistory) {
+      meta.lastMaintenanceCost = dbNumToApi(lastMaint.lastMaintenanceCost);
+      meta.lastMaintenanceNotes = lastMaint.lastMaintenanceNotes ?? undefined;
     }
   }
 
-  const withTenure = mergeTenureIntoFleetMeta(
-    Object.keys(meta).length > 0 ? meta : undefined,
-    tenure,
-  );
-  return withTenure && Object.keys(withTenure).length > 0 ? withTenure : undefined;
+  if (includeHistory) {
+    const maintenanceRows = (maintenanceEntries ?? [])
+      .slice()
+      .sort((a, b) => a.sortOrder - b.sortOrder)
+      .map((e) => ({
+        date: e.entryDate ?? undefined,
+        type: e.entryType ?? undefined,
+        cost: dbNumToApi(e.cost),
+        notes: e.notes ?? undefined,
+        paymentMethod: e.paymentMethod ?? undefined,
+      }))
+      .filter(isSubstantiveMaintenanceEntry);
+    if (maintenanceRows.length > 0) {
+      meta.maintenanceEntries = maintenanceRows;
+    }
+  }
+
+  const verificationScalars = verificationEntriesToMetaScalars(verificationEntries);
+  Object.assign(meta, verificationScalars);
+
+  if (includeHistory) {
+    const verificationRows = (verificationEntries ?? [])
+      .slice()
+      .sort((a, b) => a.sortOrder - b.sortOrder)
+      .map((e) => ({
+        scope: e.scope,
+        date: e.entryDate ?? undefined,
+        cost: dbNumToApi(e.cost),
+        notes: e.notes ?? undefined,
+        paymentMethod: e.paymentMethod ?? undefined,
+      }))
+      .filter(isSubstantiveVerificationEntry);
+    if (verificationRows.length > 0) {
+      meta.verificationEntries = verificationRows;
+    }
+
+    for (const [field, kind] of DOCUMENT_KINDS) {
+      const names = documentNamesByKind(documents, kind);
+      if (names) {
+        meta[field] = names;
+      }
+    }
+
+    const withTenure = mergeTenureIntoFleetMeta(
+      Object.keys(meta).length > 0 ? meta : undefined,
+      tenure,
+    );
+    return withTenure && Object.keys(withTenure).length > 0 ? withTenure : undefined;
+  }
+
+  const listKeys = [
+    'trailerBrandName',
+    'trailerVersion',
+    'tireCondition',
+    'lastMaintenanceDate',
+    'lastMaintenanceType',
+    'verificationPhysMechDate',
+    'insurancePolicyNumber',
+    'insuranceCarrierName',
+    'insuranceContractDate',
+    'insuranceLastPaymentDate',
+    'insurancePaymentCadence',
+  ] as const;
+  const slim: Record<string, unknown> = {};
+  for (const key of listKeys) {
+    if (meta[key] !== undefined) {
+      slim[key] = meta[key];
+    }
+  }
+  return Object.keys(slim).length > 0 ? slim : undefined;
 }
 
+export function verificationMetaFromEntries(
+  entries: readonly FleetVerificationEntry[] | undefined,
+): Record<string, unknown> {
+  return verificationEntriesToMetaScalars(entries);
+}

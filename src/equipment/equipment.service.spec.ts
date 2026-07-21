@@ -4,6 +4,7 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { FleetBrandsService } from 'src/fleet/fleet-brands.service';
 import { FleetTenureService } from 'src/fleet/fleet-tenure.service';
 import { FleetMaintenanceEntry } from 'src/units/entities/fleet-maintenance-entry.entity';
+import { FleetVerificationEntry } from 'src/units/entities/fleet-verification-entry.entity';
 import { Unit } from 'src/units/entities/unit.entity';
 import { EquipmentFleetDocument } from './entities/equipment-fleet-document.entity';
 import { EquipmentFleetProfile } from './entities/equipment-fleet-profile.entity';
@@ -35,7 +36,11 @@ describe('EquipmentService (A6 fleet status lock)', () => {
         },
         {
           provide: getRepositoryToken(FleetMaintenanceEntry),
-          useValue: { delete: jest.fn(), save: jest.fn() },
+          useValue: { find: jest.fn(), delete: jest.fn(), save: jest.fn(), create: jest.fn() },
+        },
+        {
+          provide: getRepositoryToken(FleetVerificationEntry),
+          useValue: { find: jest.fn(), delete: jest.fn(), save: jest.fn(), create: jest.fn() },
         },
         {
           provide: getRepositoryToken(EquipmentFleetDocument),

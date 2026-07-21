@@ -38,6 +38,10 @@ import { mapOperatorLinkOption } from './operator-link-option.mapper';
 import { ActivityEventsService } from 'src/activity-events/activity-events.service';
 import { COMPANY_ACTIVITY_KIND } from 'src/activity-events/company-activity-event.kinds';
 import type AuthUser from 'src/types/auth-user.type';
+import {
+  OperatorHrHoldWorkflowService,
+  type OperatorHrHoldStatus,
+} from './operator-hr-hold-workflow.service';
 
 export type OperatorsFindAllOptions = FleetListAvailableOptions;
 
@@ -73,6 +77,7 @@ export class OperatorsService {
     @InjectRepository(Unit)
     private readonly unitRepo: Repository<Unit>,
     private readonly activityEvents: ActivityEventsService,
+    private readonly hrHoldWorkflow: OperatorHrHoldWorkflowService,
   ) {}
 
   async create(companyId: number, dto: CreateOperatorDto) {
@@ -306,7 +311,6 @@ export class OperatorsService {
           description: `Pago a operador — maniobra ${maneuverRef}`,
           relatedOperatorId: operatorId,
           relatedUnitId: trip.unitId ?? undefined,
-          isOperationalProvision: false,
           ...(paymentMethod != null ? { paymentMethod } : {}),
         }),
       );
@@ -405,6 +409,20 @@ export class OperatorsService {
     return this.getOperationSummary(companyId, operatorId);
   }
 
+  async startHrHold(
+    companyId: number,
+    operatorId: number,
+    hold: OperatorHrHoldStatus,
+  ) {
+    await this.hrHoldWorkflow.startHold(companyId, operatorId, hold);
+    return this.findOne(companyId, operatorId);
+  }
+
+  async endHrHold(companyId: number, operatorId: number) {
+    await this.hrHoldWorkflow.endHold(companyId, operatorId);
+    return this.findOne(companyId, operatorId);
+  }
+
   async update(
     companyId: number,
     operatorId: number,
@@ -456,7 +474,7 @@ export class OperatorsService {
 
   private async saveNested(
     operatorId: number,
-    dto: OperatorNestedPayload,
+    dto: OperatorNestedPayload & { insuranceKind?: string },
   ): Promise<void> {
     if (dto.emergencyContact) {
       await this.emergencyRepo.save(
@@ -472,38 +490,82 @@ export class OperatorsService {
       );
     }
 
-    if (dto.publicInsurance) {
-      await this.publicInsuranceRepo.save(
-        this.publicInsuranceRepo.create({
-          operatorId,
-          nss: dto.publicInsurance.nss ?? '',
-          imssAltaDate: this.emptyDateToUndefined(
-            dto.publicInsurance.imssAltaDate,
-          ),
-          infonavit: dto.publicInsurance.infonavit ?? false,
-          infonavitCreditNumber:
-            dto.publicInsurance.infonavitCreditNumber ?? '',
-          fonacot: dto.publicInsurance.fonacot ?? false,
-          fonacotCreditNumber: dto.publicInsurance.fonacotCreditNumber ?? '',
-          notes: dto.publicInsurance.notes ?? '',
-        }),
-      );
-    }
+    const kindTouched = dto.insuranceKind !== undefined;
+    const kind = (dto.insuranceKind ?? '').trim().toLowerCase();
 
-    if (dto.privateInsurance) {
-      await this.privateInsuranceRepo.save(
-        this.privateInsuranceRepo.create({
-          operatorId,
-          carrier: dto.privateInsurance.carrier ?? '',
-          policyNumber: dto.privateInsurance.policyNumber ?? '',
-          validFrom: this.emptyDateToUndefined(dto.privateInsurance.validFrom),
-          validTo: this.emptyDateToUndefined(dto.privateInsurance.validTo),
-          premiumAmount: dto.privateInsurance.premiumAmount ?? '',
-          premiumPeriod: dto.privateInsurance.premiumPeriod ?? '',
-          deductibleNotes: dto.privateInsurance.deductibleNotes ?? '',
-          planSummary: dto.privateInsurance.planSummary ?? '',
-        }),
-      );
+    if (kindTouched && kind === 'none') {
+      await this.publicInsuranceRepo.delete({ operatorId });
+      await this.privateInsuranceRepo.delete({ operatorId });
+    } else if (kindTouched && kind === 'public') {
+      await this.privateInsuranceRepo.delete({ operatorId });
+      if (dto.publicInsurance) {
+        await this.publicInsuranceRepo.save(
+          this.publicInsuranceRepo.create({
+            operatorId,
+            nss: dto.publicInsurance.nss ?? '',
+            imssAltaDate: this.emptyDateToUndefined(
+              dto.publicInsurance.imssAltaDate,
+            ),
+            infonavit: dto.publicInsurance.infonavit ?? false,
+            infonavitCreditNumber:
+              dto.publicInsurance.infonavitCreditNumber ?? '',
+            fonacot: dto.publicInsurance.fonacot ?? false,
+            fonacotCreditNumber: dto.publicInsurance.fonacotCreditNumber ?? '',
+            notes: dto.publicInsurance.notes ?? '',
+          }),
+        );
+      }
+    } else if (kindTouched && kind === 'private') {
+      await this.publicInsuranceRepo.delete({ operatorId });
+      if (dto.privateInsurance) {
+        await this.privateInsuranceRepo.save(
+          this.privateInsuranceRepo.create({
+            operatorId,
+            carrier: dto.privateInsurance.carrier ?? '',
+            policyNumber: dto.privateInsurance.policyNumber ?? '',
+            validFrom: this.emptyDateToUndefined(dto.privateInsurance.validFrom),
+            validTo: this.emptyDateToUndefined(dto.privateInsurance.validTo),
+            premiumAmount: dto.privateInsurance.premiumAmount ?? '',
+            premiumPeriod: dto.privateInsurance.premiumPeriod ?? '',
+            deductibleNotes: dto.privateInsurance.deductibleNotes ?? '',
+            planSummary: dto.privateInsurance.planSummary ?? '',
+          }),
+        );
+      }
+    } else {
+      // Compat: si no viene kind, persiste lo enviado sin borrar el otro satélite
+      if (dto.publicInsurance) {
+        await this.publicInsuranceRepo.save(
+          this.publicInsuranceRepo.create({
+            operatorId,
+            nss: dto.publicInsurance.nss ?? '',
+            imssAltaDate: this.emptyDateToUndefined(
+              dto.publicInsurance.imssAltaDate,
+            ),
+            infonavit: dto.publicInsurance.infonavit ?? false,
+            infonavitCreditNumber:
+              dto.publicInsurance.infonavitCreditNumber ?? '',
+            fonacot: dto.publicInsurance.fonacot ?? false,
+            fonacotCreditNumber: dto.publicInsurance.fonacotCreditNumber ?? '',
+            notes: dto.publicInsurance.notes ?? '',
+          }),
+        );
+      }
+      if (dto.privateInsurance) {
+        await this.privateInsuranceRepo.save(
+          this.privateInsuranceRepo.create({
+            operatorId,
+            carrier: dto.privateInsurance.carrier ?? '',
+            policyNumber: dto.privateInsurance.policyNumber ?? '',
+            validFrom: this.emptyDateToUndefined(dto.privateInsurance.validFrom),
+            validTo: this.emptyDateToUndefined(dto.privateInsurance.validTo),
+            premiumAmount: dto.privateInsurance.premiumAmount ?? '',
+            premiumPeriod: dto.privateInsurance.premiumPeriod ?? '',
+            deductibleNotes: dto.privateInsurance.deductibleNotes ?? '',
+            planSummary: dto.privateInsurance.planSummary ?? '',
+          }),
+        );
+      }
     }
 
     if (dto.documents !== undefined) {
@@ -562,7 +624,7 @@ export class OperatorsService {
       return;
     }
     const operatorIds = operators.map((o) => o.id);
-    const [lastTrips, completedTrips, expenses] = await Promise.all([
+    const [lastTrips, completedTrips] = await Promise.all([
       this.loadLastTripsByOperatorId(companyId, operatorIds),
       this.tripRepo.find({
         where: {
@@ -583,11 +645,21 @@ export class OperatorsService {
           'creditDays',
         ],
       }),
-      this.expenseRepo.find({
-        where: { companyId, discardedAt: IsNull() },
-        select: ['tripId', 'kind', 'amount'],
-      }),
     ]);
+
+    const tripIds = completedTrips.map((t) => t.id);
+    const expenses =
+      tripIds.length > 0
+        ? await this.expenseRepo.find({
+            where: {
+              companyId,
+              discardedAt: IsNull(),
+              tripId: In(tripIds),
+              kind: In(['operator_payment', 'operator_commission']),
+            },
+            select: ['tripId', 'kind', 'amount'],
+          })
+        : [];
 
     const lastByOperator = new Map<number, Trip>();
     for (const row of lastTrips) {
@@ -632,8 +704,12 @@ export class OperatorsService {
           t.id,
           t.operator_id AS "operatorId",
           t.maneuver_code AS "maneuverCode",
-          t.origin,
-          t.destination,
+          t.origin_locality AS "originLocality",
+          t.origin_city_municipality AS "originCityMunicipality",
+          t.origin_postal_code AS "originPostalCode",
+          t.destination_locality AS "destinationLocality",
+          t.destination_city_municipality AS "destinationCityMunicipality",
+          t.destination_postal_code AS "destinationPostalCode",
           t.status,
           t.completed_at AS "completedAt",
           t.return_at AS "returnAt",
@@ -661,8 +737,12 @@ export class OperatorsService {
           id: row.id,
           operatorId: row.operatorId,
           maneuverCode: row.maneuverCode,
-          origin: row.origin,
-          destination: row.destination,
+          originLocality: row.originLocality,
+          originCityMunicipality: row.originCityMunicipality,
+          originPostalCode: row.originPostalCode,
+          destinationLocality: row.destinationLocality,
+          destinationCityMunicipality: row.destinationCityMunicipality,
+          destinationPostalCode: row.destinationPostalCode,
           status: row.status,
           completedAt: row.completedAt ? new Date(row.completedAt) : undefined,
           returnAt: row.returnAt ? new Date(row.returnAt) : undefined,
@@ -670,7 +750,7 @@ export class OperatorsService {
           plannedDepartureAt: row.plannedDepartureAt
             ? new Date(row.plannedDepartureAt)
             : undefined,
-        }) as Trip,
+        }) as unknown as Trip,
     );
   }
 }
