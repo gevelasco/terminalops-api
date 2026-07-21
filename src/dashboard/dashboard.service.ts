@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Repository } from 'typeorm';
-import { TERMINALOPS_SCHEMA } from 'src/common/constants/schema-name';
 import { Company } from 'src/companies/entities/company.entity';
 import {
   operationalDateKey,
@@ -13,6 +12,7 @@ import { Expense } from 'src/expenses/entities/expense.entity';
 import { FuelPriceService } from 'src/fuel/fuel-price.service';
 import { TripLifecycleService } from 'src/trips/lifecycle/trip-lifecycle.service';
 import { buildExpensesByRubroFromKindRows } from 'src/reports/reports-expense-rubro.util';
+import { CompanyOperationConfiguration } from 'src/operation-configurations/entities/company-operation-configuration.entity';
 import { Operator } from 'src/operators/entities/operator.entity';
 import { Trip } from 'src/trips/entities/trip.entity';
 import { Unit } from 'src/units/entities/unit.entity';
@@ -434,7 +434,7 @@ export class DashboardService {
       this.tripsRepo
         .createQueryBuilder('trip')
         .leftJoin(
-          `${TERMINALOPS_SCHEMA}.company_operation_configurations`,
+          CompanyOperationConfiguration,
           'cfg',
           'cfg.id = trip.operation_configuration_id',
         )

@@ -5,6 +5,7 @@ import { Equipment } from 'src/equipment/entities/equipment.entity';
 import { Expense } from 'src/expenses/entities/expense.entity';
 import { FleetAssetTenure } from 'src/fleet/entities/fleet-asset-tenure.entity';
 import { FleetOverviewService } from 'src/fleet/fleet-overview.service';
+import { CompanyOperationConfiguration } from 'src/operation-configurations/entities/company-operation-configuration.entity';
 import { Trip } from 'src/trips/entities/trip.entity';
 import { Unit } from 'src/units/entities/unit.entity';
 import { FleetMaintenanceEntry } from 'src/units/entities/fleet-maintenance-entry.entity';
@@ -1721,11 +1722,10 @@ export class ReportsService {
   ): Promise<
     Array<{ operationType: string; nameSnapshot: string | null; count: string }>
   > {
-    const schema = this.tripsRepo.metadata.schema;
     const qb = this.tripsRepo
       .createQueryBuilder('trip')
       .leftJoin(
-        `${schema}.company_operation_configurations`,
+        CompanyOperationConfiguration,
         'cfg',
         'cfg.id = trip.operation_configuration_id',
       )

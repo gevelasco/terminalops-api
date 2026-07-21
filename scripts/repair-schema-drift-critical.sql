@@ -9,6 +9,23 @@
 BEGIN;
 
 -- ---------------------------------------------------------------------------
+-- Columnas ADD IF NOT EXISTS frecuentes (pre-PRD / drift)
+-- ---------------------------------------------------------------------------
+ALTER TABLE terminalops.units
+  ADD COLUMN IF NOT EXISTS transport_type text NULL;
+
+ALTER TABLE terminalops.companies
+  ADD COLUMN IF NOT EXISTS tagline varchar NULL;
+
+ALTER TABLE terminalops.expenses
+  ADD COLUMN IF NOT EXISTS paid_at timestamptz NULL;
+
+ALTER TABLE terminalops.fleet_asset_tenure
+  ADD COLUMN IF NOT EXISTS recurring_payment_cadence varchar NULL,
+  ADD COLUMN IF NOT EXISTS recurring_last_payment_date date NULL,
+  ADD COLUMN IF NOT EXISTS tenure_beneficiary TEXT;
+
+-- ---------------------------------------------------------------------------
 -- 174800: load_date / load_place + catálogo (desbloquea TripLifecycle cron)
 -- ---------------------------------------------------------------------------
 ALTER TABLE terminalops.trips
