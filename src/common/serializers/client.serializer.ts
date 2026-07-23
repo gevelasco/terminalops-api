@@ -11,11 +11,6 @@ export function serializeClient(client: Client): Record<string, unknown> {
     rfc: client.rfc ?? undefined,
     relationshipStartedOn: client.relationshipStartedOn ?? undefined,
     notes: client.notes ?? undefined,
-    maneuverCount:
-      typeof (client as Client & { maneuverCount?: number }).maneuverCount ===
-      'number'
-        ? (client as Client & { maneuverCount?: number }).maneuverCount
-        : undefined,
     billing: client.billing
       ? {
           invoiceLegalName: client.billing.invoiceLegalName,

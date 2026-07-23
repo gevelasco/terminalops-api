@@ -1,6 +1,6 @@
 export type MaintenanceEntryLike = {
-  date?: string;
-  entryDate?: string;
+  date?: string | Date | null;
+  entryDate?: string | Date | null;
   type?: string;
   entryType?: string;
   cost?: number | string | null;
@@ -16,6 +16,35 @@ export type MaintenanceExpenseLike = {
   description?: string | null;
 };
 
+/** pg `date` / entity values may arrive as Date; normalize to YYYY-MM-DD. */
+export function maintenanceEntryDateYmd(
+  value: string | Date | null | undefined,
+): string {
+  if (value == null || value === '') {
+    return '';
+  }
+  if (value instanceof Date) {
+    if (Number.isNaN(value.getTime())) {
+      return '';
+    }
+    const y = value.getUTCFullYear();
+    const m = String(value.getUTCMonth() + 1).padStart(2, '0');
+    const d = String(value.getUTCDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+  const raw = String(value).trim();
+  if (!raw) {
+    return '';
+  }
+  // Accept ISO timestamps by taking the date part.
+  const match = /^(\d{4}-\d{2}-\d{2})/.exec(raw);
+  return match ? match[1] : raw;
+}
+
+function entryYmd(entry: MaintenanceEntryLike): string {
+  return maintenanceEntryDateYmd(entry.date ?? entry.entryDate);
+}
+
 export function maintenanceExpenseExpectedDescription(
   entryType: string,
   notes?: string | null,
@@ -26,7 +55,7 @@ export function maintenanceExpenseExpectedDescription(
 }
 
 export function maintenanceEntryFingerprint(entry: MaintenanceEntryLike): string {
-  const date = (entry.date ?? entry.entryDate ?? '').trim();
+  const date = entryYmd(entry);
   const type = (entry.type ?? entry.entryType ?? '').trim();
   const rawCost = entry.cost;
   const cost =
@@ -47,8 +76,7 @@ export function isBillableMaintenanceEntry(entry: MaintenanceEntryLike): boolean
 
 /** Historial real: requiere fecha, costo, notas o documentos; el tipo solo no basta. */
 export function isSubstantiveMaintenanceEntry(entry: MaintenanceEntryLike): boolean {
-  const date = (entry.date ?? entry.entryDate ?? '').trim();
-  if (date) {
+  if (entryYmd(entry)) {
     return true;
   }
   const notes = (entry.notes ?? '').trim();
@@ -81,7 +109,7 @@ export function maintenanceEntryMatchesExpense(
   expense: MaintenanceExpenseLike,
   incurredYmd: string,
 ): boolean {
-  const entryDate = (entry.date ?? entry.entryDate ?? '').trim();
+  const entryDate = entryYmd(entry);
   if (!entryDate || entryDate !== incurredYmd) {
     return false;
   }
@@ -121,7 +149,7 @@ export function recomputeLastMaintenanceFields(
   const dated = entries
     .map((entry) => ({
       entry,
-      date: (entry.date ?? entry.entryDate ?? '').trim(),
+      date: entryYmd(entry),
     }))
     .filter(({ date }) => date.length > 0)
     .sort((a, b) => b.date.localeCompare(a.date));
@@ -136,7 +164,7 @@ export function recomputeLastMaintenanceFields(
     };
   }
 
-  const date = (latest.date ?? latest.entryDate ?? '').trim();
+  const date = entryYmd(latest);
   const type = (latest.type ?? latest.entryType ?? '').trim();
   const rawCost = latest.cost;
   const cost =

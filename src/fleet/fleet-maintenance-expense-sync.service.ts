@@ -3,6 +3,7 @@ import { ExpensesService } from 'src/expenses/expenses.service';
 import type { ExpenseMaintenanceTarget } from 'src/expenses/expense-payload.util';
 import {
   findNewBillableMaintenanceEntries,
+  maintenanceEntryDateYmd,
   type MaintenanceEntryLike,
 } from './fleet-maintenance-expense-sync.util';
 
@@ -24,7 +25,7 @@ export class FleetMaintenanceExpenseSyncService {
       params.incoming,
     );
     for (const entry of newEntries) {
-      const date = (entry.date ?? entry.entryDate ?? '').trim();
+      const date = maintenanceEntryDateYmd(entry.date ?? entry.entryDate);
       if (!date) {
         continue;
       }

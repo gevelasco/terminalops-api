@@ -58,9 +58,6 @@ export class Client {
   @OneToMany(() => Trip, (trip) => trip.client)
   trips?: Trip[];
 
-  /** Conteo de maniobras (solo en listados; no es columna persistida). */
-  maneuverCount?: number;
-
   @ManyToOne(() => Company, (c) => c.clients, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'company_id' })
   company?: Company;

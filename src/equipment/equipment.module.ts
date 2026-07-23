@@ -7,6 +7,7 @@ import { Equipment } from 'src/equipment/entities/equipment.entity';
 import { FleetMaintenanceEntry } from 'src/units/entities/fleet-maintenance-entry.entity';
 import { FleetVerificationEntry } from 'src/units/entities/fleet-verification-entry.entity';
 import { Unit } from 'src/units/entities/unit.entity';
+import { TripEquipment } from 'src/trips/entities/trip-equipment.entity';
 import { EquipmentController } from './equipment.controller';
 import { EquipmentService } from './equipment.service';
 
@@ -20,6 +21,7 @@ import { EquipmentService } from './equipment.service';
       FleetMaintenanceEntry,
       FleetVerificationEntry,
       EquipmentFleetDocument,
+      TripEquipment,
     ]),
   ],
   controllers: [EquipmentController],

@@ -28,6 +28,7 @@ import {
   type ReportsScope,
 } from './reports-filter.util';
 import { computeManiobraDurationDays } from './reports-maniobras-duration.util';
+import { buildManiobraRalentiReport } from './reports-maniobras-ralenti.util';
 import { containerTypeLabelMx } from '../trips/trip-container-type.util';
 import {
   buildReportsFleetComplianceUnits,
@@ -36,7 +37,6 @@ import {
 } from './reports-fleet.util';
 import {
   EQUIPMENT_OPERATIONAL_CODE_SQL,
-  normalizeMaintenanceEntryStatus,
   UNIT_OPERATIONAL_CODE_SQL,
 } from './reports-fleet-code.util';
 import {
@@ -617,7 +617,6 @@ export class ReportsService {
       tripsInTransit,
       tripsScheduledInPeriod,
       cancelledTripsCount,
-      delayedTripsCount,
       totalKmRow,
       uniqueDestinationsRow,
       avgDurationRow,
@@ -628,6 +627,7 @@ export class ReportsService {
       clientRows,
       destinationRows,
       geoRows,
+      ralentiTripRows,
     ] = await Promise.all([
       this.countCompletedTrips(scope),
       this.countCompletedTrips({
@@ -644,7 +644,6 @@ export class ReportsService {
       }),
       this.countScheduledInPeriod(scope),
       this.countCancelledInPeriod(scope),
-      this.countDelayedTripsInPeriod(scope),
       this.sumOperationalKm(scope),
       this.countUniqueDestinations(scope),
       this.queryAvgManeuverDurationDays(scope),
@@ -655,6 +654,7 @@ export class ReportsService {
       this.queryTopClients(scope),
       this.queryTopDestinations(scope),
       this.queryGeoMapTrips(scope),
+      this.queryManiobraRalentiTrips(scope),
     ]);
 
     const totalOperationalKm =
@@ -663,6 +663,24 @@ export class ReportsService {
       completedTripsCount > 0
         ? Math.round((totalOperationalKm / completedTripsCount) * 10) / 10
         : 0;
+
+    const ralenti = buildManiobraRalentiReport(
+      ralentiTripRows.map((row) => ({
+        tripId: Number(row.trip_id) || 0,
+        maneuverCode: String(row.maneuver_code ?? ''),
+        clientName: String(row.client_name ?? 'Sin cliente'),
+        destination: String(row.destination ?? 'Sin destino'),
+        plannedDepartureAt: row.planned_departure_at,
+        plannedArrivalAt: row.planned_arrival_at,
+        plannedCompletionAt: row.planned_completion_at,
+        departureAt: row.departure_at,
+        arrivedAt: row.arrived_at,
+        returnAt: row.return_at,
+        estimatedArrivalTimeValue: row.estimated_arrival_time_value,
+        estimatedReturnTimeValue: row.estimated_return_time_value,
+        estimatedTimeUnit: row.estimated_time_unit,
+      })),
+    );
 
     const recurringIncidentRoutes = (
       recurringIncidentRows as Array<{
@@ -692,7 +710,7 @@ export class ReportsService {
         tripsInTransit,
         tripsScheduledInPeriod,
         cancelledTripsCount,
-        delayedTripsCount,
+        ralentiHoursTotal: ralenti.totalHours,
         totalOperationalKm,
         avgKmPerTrip,
         avgManeuverDurationDays:
@@ -750,6 +768,14 @@ export class ReportsService {
             };
           })
           .filter((trip) => trip.tripId > 0),
+        ralenti: {
+          salidaClienteHours: ralenti.salidaClienteHours,
+          clienteRegresoHours: ralenti.clienteRegresoHours,
+          tripsEvaluated: ralenti.tripsEvaluated,
+          tripsWithRalenti: ralenti.tripsWithRalenti,
+          byClient: ralenti.byClient,
+          events: ralenti.events,
+        },
       },
     };
   }
@@ -770,36 +796,60 @@ export class ReportsService {
     return this.applyTripScope(qb, scope).getCount();
   }
 
-  private countDelayedTripsInPeriod(scope: ReportsScope): Promise<number> {
-    // Retrasos on-the-fly (ya no se persisten is_delayed / delay_*).
-    const qb = this.tripsRepo
-      .createQueryBuilder('trip')
-      .where('trip.status IN (:...activeStatuses)', {
-        activeStatuses: ['scheduled', 'in_transit'],
-      })
-      .andWhere(
-        `(
-          (trip.status = 'scheduled' AND NOW() > trip.planned_departure_at AND trip.departure_at IS NULL)
-          OR (
-            trip.status IN ('scheduled', 'in_transit')
-            AND NOW() > trip.planned_arrival_at
-            AND trip.arrived_at IS NULL
-          )
-          OR (trip.arrived_at IS NOT NULL AND trip.arrived_at > trip.planned_arrival_at)
-          OR (
-            trip.status = 'in_transit'
-            AND NOW() > trip.planned_completion_at
-            AND trip.return_at IS NULL
-          )
-          OR (trip.return_at IS NOT NULL AND trip.return_at > trip.planned_completion_at)
-          OR (trip.departure_at IS NOT NULL AND trip.departure_at > trip.planned_departure_at)
-        )`,
-      )
-      .andWhere(
-        `(COALESCE(trip.completed_at, trip.planned_departure_at, trip.created_at) AT TIME ZONE '${OPERATIONAL_TZ}')::date BETWEEN :from AND :to`,
-        { from: scope.from, to: scope.to },
-      );
-    return this.applyTripScope(qb, scope).getCount();
+  private queryManiobraRalentiTrips(scope: ReportsScope): Promise<
+    Array<{
+      trip_id: number;
+      maneuver_code: string | null;
+      client_name: string | null;
+      destination: string;
+      planned_departure_at: Date | string | null;
+      planned_arrival_at: Date | string | null;
+      planned_completion_at: Date | string | null;
+      departure_at: Date | string | null;
+      arrived_at: Date | string | null;
+      return_at: Date | string | null;
+      estimated_arrival_time_value: string | null;
+      estimated_return_time_value: string | null;
+      estimated_time_unit: string | null;
+    }>
+  > {
+    const filter = tripScopeSql('trip', scope, 4);
+    const params = [scope.companyId, scope.from, scope.to, ...filter.params];
+    const schema = this.tripsRepo.metadata.schema;
+
+    return this.tripsRepo.query(
+      `
+      SELECT
+        trip.id AS trip_id,
+        trip.maneuver_code,
+        COALESCE(NULLIF(TRIM(trip.client_name), ''), 'Sin cliente') AS client_name,
+        ${ROUTE_DESTINATION_LABEL_SQL} AS destination,
+        trip.planned_departure_at,
+        trip.planned_arrival_at,
+        trip.planned_completion_at,
+        trip.departure_at,
+        trip.arrived_at,
+        trip.return_at,
+        rate.estimated_arrival_time_value,
+        rate.estimated_return_time_value,
+        rate.estimated_time_unit
+      FROM ${schema}.trips trip
+      LEFT JOIN ${schema}.destination_rates rate
+        ON rate.id = trip.destination_rate_id
+      WHERE trip.company_id = $1
+        AND trip.deleted_at IS NULL
+        AND trip.status = 'completed'
+        AND trip.completed_at IS NOT NULL
+        AND (trip.completed_at AT TIME ZONE '${OPERATIONAL_TZ}')::date BETWEEN $2::date AND $3::date
+        AND (
+          (trip.departure_at IS NOT NULL AND trip.arrived_at IS NOT NULL)
+          OR (trip.arrived_at IS NOT NULL AND trip.return_at IS NOT NULL)
+        )
+        ${filter.sql}
+      ORDER BY trip.completed_at DESC, trip.id DESC
+      `,
+      params,
+    );
   }
 
   private sumOperationalKm(
@@ -880,7 +930,7 @@ export class ReportsService {
         ${ROUTE_DESTINATION_LABEL_SQL} AS destination,
         COUNT(DISTINCT trip.id)::int AS incident_count,
         string_agg(DISTINCT trip.maneuver_code, ', ' ORDER BY trip.maneuver_code) AS maneuver_codes,
-        MAX(inc.occurred_at) AS last_incident_at
+        MAX(inc.created_at) AS last_incident_at
       FROM ${schema}.trips trip
       INNER JOIN ${schema}.trip_incidents inc ON inc.trip_id = trip.id
         AND inc.is_incident = true
@@ -1811,7 +1861,8 @@ export class ReportsService {
           assetKind: row.equipment_id != null ? 'equipment' : 'unit',
           entryDate: row.entry_date ? String(row.entry_date) : null,
           entryType: String(row.entry_type ?? '—'),
-          status: normalizeMaintenanceEntryStatus(row.status),
+          // status ya no vive en fleet_maintenance_entries (PRD slim).
+          status: 'Registrado',
           cost: Math.round(parseMoneySum(row.cost) * 100) / 100,
         })),
         complianceUnits,
@@ -1955,7 +2006,6 @@ export class ReportsService {
       equipment_id: number | null;
       entry_date: string | null;
       entry_type: string | null;
-      status: string | null;
       cost: string | null;
     }>
   > {
@@ -1972,7 +2022,6 @@ export class ReportsService {
         me.equipment_id,
         me.entry_date::text AS entry_date,
         me.entry_type,
-        me.status,
         me.cost
       FROM ${schema}.fleet_maintenance_entries me
       LEFT JOIN ${schema}.units unit ON unit.id = me.unit_id

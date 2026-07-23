@@ -7,6 +7,7 @@ import { FleetAssetTenure } from 'src/fleet/entities/fleet-asset-tenure.entity';
 import { mergeTenureIntoFleetMeta } from 'src/fleet/mappers/fleet-asset-tenure.mapper';
 import {
   isSubstantiveMaintenanceEntry,
+  maintenanceEntryDateYmd,
   recomputeLastMaintenanceFields,
 } from 'src/fleet/fleet-maintenance-expense-sync.util';
 import {
@@ -16,9 +17,11 @@ import {
 } from 'src/fleet/fleet-verification-entries.util';
 import { fleetMetaFieldProvided } from 'src/fleet/fleet-meta-expense-sync-scope.util';
 
-function emptyDateToUndefined(value?: string): string | undefined {
-  const t = value?.trim();
-  return t ? t : undefined;
+function emptyDateToUndefined(
+  value?: string | Date | null,
+): string | undefined {
+  const t = maintenanceEntryDateYmd(value);
+  return t || undefined;
 }
 
 function numToDb(value?: number | null): string | undefined {

@@ -9,6 +9,7 @@ import { Unit } from 'src/units/entities/unit.entity';
 import { EquipmentFleetDocument } from './entities/equipment-fleet-document.entity';
 import { EquipmentFleetProfile } from './entities/equipment-fleet-profile.entity';
 import { Equipment } from './entities/equipment.entity';
+import { TripEquipment } from 'src/trips/entities/trip-equipment.entity';
 import { UpdateEquipmentDto } from './dto/update-equipment.dto';
 import { EquipmentService } from './equipment.service';
 import { FleetMaintenanceWorkflowService } from 'src/fleet/fleet-maintenance-workflow.service';
@@ -45,6 +46,10 @@ describe('EquipmentService (A6 fleet status lock)', () => {
         {
           provide: getRepositoryToken(EquipmentFleetDocument),
           useValue: { delete: jest.fn(), save: jest.fn() },
+        },
+        {
+          provide: getRepositoryToken(TripEquipment),
+          useValue: { count: jest.fn().mockResolvedValue(0) },
         },
         {
           provide: FleetTenureService,

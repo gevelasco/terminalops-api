@@ -7,7 +7,7 @@ export const TRIP_LIFECYCLE_STATUSES = [
 
 export type TripLifecycleStatus = (typeof TRIP_LIFECYCLE_STATUSES)[number];
 
-/** Maniobras que el motor puede transicionar o recalcular retrasos (excluye completed/cancelled). */
+/** Maniobras que el motor puede transicionar (excluye completed/cancelled). */
 export const ACTIVE_TRIP_LIFECYCLE_STATUSES = [
   'scheduled',
   'in_transit',
@@ -15,15 +15,6 @@ export const ACTIVE_TRIP_LIFECYCLE_STATUSES = [
 
 export type ActiveTripLifecycleStatus =
   (typeof ACTIVE_TRIP_LIFECYCLE_STATUSES)[number];
-
-export const TRIP_DELAY_PHASES = [
-  'none',
-  'departure',
-  'arrival',
-  'completion',
-] as const;
-
-export type TripDelayPhase = (typeof TRIP_DELAY_PHASES)[number];
 
 export interface TripLifecycleEvaluationInput {
   status: TripLifecycleStatus;

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { serializeEquipment } from 'src/common/serializers/equipment.serializer';
@@ -19,6 +19,7 @@ import { Equipment } from 'src/equipment/entities/equipment.entity';
 import { EquipmentFleetProfile } from 'src/equipment/entities/equipment-fleet-profile.entity';
 import { FleetMaintenanceEntry } from 'src/units/entities/fleet-maintenance-entry.entity';
 import { FleetVerificationEntry } from 'src/units/entities/fleet-verification-entry.entity';
+import { TripEquipment } from 'src/trips/entities/trip-equipment.entity';
 import { CreateEquipmentDto } from './dto/create-equipment.dto';
 import { UpdateEquipmentDto } from './dto/update-equipment.dto';
 import {
@@ -72,6 +73,8 @@ export class EquipmentService {
     private readonly verificationRepo: Repository<FleetVerificationEntry>,
     @InjectRepository(EquipmentFleetDocument)
     private readonly documentsRepo: Repository<EquipmentFleetDocument>,
+    @InjectRepository(TripEquipment)
+    private readonly tripEquipmentRepo: Repository<TripEquipment>,
     private readonly fleetTenureService: FleetTenureService,
     private readonly fleetBrandsService: FleetBrandsService,
     private readonly maintenanceWorkflow: FleetMaintenanceWorkflowService,
@@ -256,6 +259,14 @@ export class EquipmentService {
 
   async remove(companyId: number, equipmentId: number) {
     await this.findOne(companyId, equipmentId);
+    const linkedManeuvers = await this.tripEquipmentRepo.count({
+      where: { equipmentId },
+    });
+    if (linkedManeuvers > 0) {
+      throw new ConflictException(
+        `No se puede eliminar: el equipo está vinculado a ${linkedManeuvers} maniobra(s). Márcalo como inactivo en su lugar.`,
+      );
+    }
     await this.repo.delete({ id: equipmentId, companyId });
     return { id: equipmentId, deleted: true };
   }

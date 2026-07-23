@@ -103,4 +103,21 @@ describe('fleet-maintenance-expense-sync.util', () => {
       lastMaintenanceNotes: 'Taller',
     });
   });
+
+  it('accepts pg Date objects for entryDate', () => {
+    expect(
+      recomputeLastMaintenanceFields([
+        {
+          entryDate: new Date(Date.UTC(2026, 5, 1)),
+          entryType: 'Aceite',
+          cost: 900,
+        },
+      ]),
+    ).toEqual({
+      lastMaintenanceDate: '2026-06-01',
+      lastMaintenanceType: 'Aceite',
+      lastMaintenanceCost: '900',
+      lastMaintenanceNotes: null,
+    });
+  });
 });

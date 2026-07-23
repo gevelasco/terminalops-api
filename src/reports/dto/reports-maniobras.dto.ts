@@ -6,7 +6,8 @@ export type ReportsManiobrasSummaryDto = {
   tripsInTransit: number;
   tripsScheduledInPeriod: number;
   cancelledTripsCount: number;
-  delayedTripsCount: number;
+  /** Horas totales de ralenti (exceso vs baseline plan/tarifa). */
+  ralentiHoursTotal: number;
   totalOperationalKm: number;
   avgKmPerTrip: number;
   avgManeuverDurationDays: number;
@@ -69,6 +70,37 @@ export type ReportsManiobrasGeoMapTripDto = {
   lng: number | null;
 };
 
+export type ReportsManiobrasRalentiLeg = 'salida_cliente' | 'cliente_regreso';
+
+export type ReportsManiobrasRalentiByClientDto = {
+  clientName: string;
+  salidaClienteHours: number;
+  clienteRegresoHours: number;
+  totalHours: number;
+};
+
+export type ReportsManiobrasRalentiEventDto = {
+  tripId: number;
+  maneuverCode: string;
+  clientName: string;
+  destination: string;
+  leg: ReportsManiobrasRalentiLeg;
+  plannedHours: number;
+  actualHours: number;
+  baselineHours: number;
+  baselineSource: 'rate' | 'planned';
+  ralentiHours: number;
+};
+
+export type ReportsManiobrasRalentiDto = {
+  salidaClienteHours: number;
+  clienteRegresoHours: number;
+  tripsEvaluated: number;
+  tripsWithRalenti: number;
+  byClient: ReportsManiobrasRalentiByClientDto[];
+  events: ReportsManiobrasRalentiEventDto[];
+};
+
 export type ReportsManiobrasInsightsDto = {
   recurringIncidentRoutes: ReportsManiobrasRecurringIncidentRouteDto[];
   topOperators: ReportsManiobrasOperatorRowDto[];
@@ -77,6 +109,7 @@ export type ReportsManiobrasInsightsDto = {
   containerTypeMix: ReportsManiobrasContainerTypeRowDto[];
   cargoWeightByContainer: ReportsManiobrasCargoWeightRowDto[];
   geoMapTrips: ReportsManiobrasGeoMapTripDto[];
+  ralenti: ReportsManiobrasRalentiDto;
 };
 
 export type ReportsManiobrasDto = {
