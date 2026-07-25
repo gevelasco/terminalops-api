@@ -21,20 +21,87 @@ export type UploadedFileResult = {
   extension: string;
 };
 
+type StorageConfig = {
+  bucket: string;
+  region: string;
+  endpoint?: string;
+  accessKeyId: string;
+  secretAccessKey: string;
+};
+
 @Injectable()
 export class FileService {
   private readonly logger = new Logger(FileService.name);
-  private s3: AWS.S3;
-  private readonly bucket: string;
+  private s3: AWS.S3 | undefined;
+  private resolved: StorageConfig | undefined;
 
-  constructor(private readonly configService: ConfigService<EnvConfig>) {
-    this.bucket = this.configService.get('RW_S3_BUCKET', { infer: true }) ?? '';
-    if (!this.bucket) {
+  constructor(private readonly configService: ConfigService<EnvConfig>) {}
+
+  private getConfig(): StorageConfig {
+    if (this.resolved) {
+      return this.resolved;
+    }
+
+    const bucket = this.firstConfig(
+      'RW_S3_BUCKET',
+      'AWS_S3_BUCKET',
+      'BUCKET',
+    );
+    const accessKeyId = this.firstConfig(
+      'RW_ACCESS_KEY_ID',
+      'AWS_ACCESS_KEY_ID',
+      'ACCESS_KEY_ID',
+    );
+    const secretAccessKey = this.firstConfig(
+      'RW_SECRET_ACCESS_KEY',
+      'AWS_SECRET_ACCESS_KEY',
+      'SECRET_ACCESS_KEY',
+    );
+    const region =
+      this.firstConfig('RW_REGION', 'AWS_REGION', 'AWS_DEFAULT_REGION', 'REGION') ||
+      'auto';
+    const endpoint = this.firstConfig(
+      'RW_URL',
+      'AWS_S3_ENDPOINT',
+      'AWS_ENDPOINT_URL',
+      'ENDPOINT',
+    );
+
+    if (!bucket || !accessKeyId || !secretAccessKey) {
+      this.logger.error(
+        'Object storage env missing. Set RW_S3_BUCKET, RW_ACCESS_KEY_ID, RW_SECRET_ACCESS_KEY, RW_URL, RW_REGION (or Railway bucket vars).',
+      );
       throw new HttpException(
-        'Missing bucket configuration (RW_S3_BUCKET)',
-        HttpStatus.INTERNAL_SERVER_ERROR,
+        'Object storage is not configured',
+        HttpStatus.SERVICE_UNAVAILABLE,
       );
     }
+
+    this.resolved = {
+      bucket,
+      region,
+      endpoint: endpoint || undefined,
+      accessKeyId,
+      secretAccessKey,
+    };
+    return this.resolved;
+  }
+
+  private firstConfig(...keys: string[]): string {
+    for (const key of keys) {
+      const value = this.configService.get(key as keyof EnvConfig, {
+        infer: true,
+      });
+      if (typeof value === 'string' && value.trim()) {
+        return value.trim();
+      }
+      // ConfigModule also exposes process.env for undeclared keys.
+      const fromEnv = process.env[key];
+      if (typeof fromEnv === 'string' && fromEnv.trim()) {
+        return fromEnv.trim();
+      }
+    }
+    return '';
   }
 
   private getS3Instance(): AWS.S3 {
@@ -42,14 +109,7 @@ export class FileService {
       return this.s3;
     }
 
-    const accessKeyId = this.configService.get('RW_ACCESS_KEY_ID', {
-      infer: true,
-    });
-    const secretAccessKey = this.configService.get('RW_SECRET_ACCESS_KEY', {
-      infer: true,
-    });
-    const region = this.configService.get('RW_REGION', { infer: true });
-    const endpoint = this.configService.get('RW_URL', { infer: true });
+    const { endpoint, region, accessKeyId, secretAccessKey } = this.getConfig();
 
     // Railway/Tigris (y LocalStack) son S3-compatible: endpoint + path-style.
     this.s3 = new AWS.S3(
@@ -73,8 +133,9 @@ export class FileService {
   }
 
   async presignedUrl(file: string, expiration?: number) {
+    const { bucket } = this.getConfig();
     const params = {
-      Bucket: this.bucket,
+      Bucket: bucket,
       Key: file,
       Expires: expiration ?? 60 * 5,
     };
@@ -106,9 +167,10 @@ export class FileService {
   }
 
   remove(url: string) {
+    const { bucket } = this.getConfig();
     return this.getS3Instance()
       .deleteObject({
-        Bucket: this.bucket,
+        Bucket: bucket,
         Key: url,
       })
       .promise();
@@ -134,8 +196,9 @@ export class FileService {
   }
 
   private async s3Upload(file: Buffer, name: string, mimetype: string) {
+    const { bucket } = this.getConfig();
     const params = {
-      Bucket: this.bucket,
+      Bucket: bucket,
       Key: name,
       Body: file,
       ContentType: mimetype,

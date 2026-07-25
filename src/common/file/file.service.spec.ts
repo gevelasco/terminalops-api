@@ -74,4 +74,21 @@ describe('FileService', () => {
     await expect(service.remove('folder/file.txt')).resolves.toBeDefined();
     expect(mockS3Instance.deleteObject).toHaveBeenCalled();
   });
+
+  it('should construct without bucket and fail lazily on use', async () => {
+    const emptyConfig = {
+      get: jest.fn().mockReturnValue(''),
+    };
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        FileService,
+        { provide: ConfigService, useValue: emptyConfig },
+      ],
+    }).compile();
+    const lazy = module.get<FileService>(FileService);
+    expect(lazy).toBeDefined();
+    await expect(lazy.presignedUrl('x')).rejects.toThrow(
+      'Object storage is not configured',
+    );
+  });
 });

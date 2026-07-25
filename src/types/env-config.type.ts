@@ -21,12 +21,12 @@ type EnvConfig = {
   OIL_PRICE_API_DIESEL_CODE?: string;
   /** CSV CRE/CNE en datos.gob.mx (fallback). */
   DATOS_GOB_MX_FUEL_CSV_URL?: string;
-  /** Railway/Tigris S3-compatible object storage. */
-  RW_URL: string;
-  RW_REGION: string;
-  RW_S3_BUCKET: string;
-  RW_ACCESS_KEY_ID: string;
-  RW_SECRET_ACCESS_KEY: string;
+  /** Railway/Tigris S3-compatible object storage (optional until uploads are used). */
+  RW_URL?: string;
+  RW_REGION?: string;
+  RW_S3_BUCKET?: string;
+  RW_ACCESS_KEY_ID?: string;
+  RW_SECRET_ACCESS_KEY?: string;
 };
 
 export default EnvConfig;
