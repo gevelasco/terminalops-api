@@ -32,10 +32,14 @@ export class CreateUnitDto {
   @IsIn(UNIT_TRANSPORT_TYPES)
   transportType?: (typeof UNIT_TRANSPORT_TYPES)[number];
 
-  @ApiProperty()
+  @ApiPropertyOptional({
+    default: 0,
+    description: 'Opcional en alta; si se omite se persiste 0.',
+  })
+  @IsOptional()
   @IsNumber()
   @Min(0)
-  capacityKg: number;
+  capacityKg?: number;
 
   @ApiPropertyOptional({ default: true })
   @IsOptional()

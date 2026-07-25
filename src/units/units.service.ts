@@ -129,6 +129,10 @@ export class UnitsService {
           ...core,
           companyId,
           status: 'available',
+          capacityKg:
+            typeof core.capacityKg === 'number' && Number.isFinite(core.capacityKg)
+              ? core.capacityKg
+              : 0,
         } as Partial<Unit>),
       );
     } catch (error) {
