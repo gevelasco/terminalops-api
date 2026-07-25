@@ -19,7 +19,12 @@ export class TripDocuments1750100000000 implements MigrationInterface {
         size_bytes bigint NULL,
         sort_order smallint NOT NULL DEFAULT 0,
         CONSTRAINT trip_documents_kind_chk CHECK (
-          document_kind IN ('load', 'operational_costs', 'billing')
+          document_kind IN (
+            'load',
+            'operational_costs',
+            'billing',
+            'empty_delivery'
+          )
         )
       );
     `);

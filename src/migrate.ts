@@ -83,6 +83,40 @@ async function main() {
           WHERE storage_key IS NOT NULL;
       `);
       console.log('Schema ensure: trip_documents OK');
+      // Hard ensure: empty_delivery kind on trip_documents CHECK.
+      await dataSource.query(`
+        ALTER TABLE terminalops.trip_documents
+          DROP CONSTRAINT IF EXISTS trip_documents_kind_chk
+      `);
+      await dataSource.query(`
+        ALTER TABLE terminalops.trip_documents
+          ADD CONSTRAINT trip_documents_kind_chk CHECK (
+            document_kind IN (
+              'load',
+              'operational_costs',
+              'billing',
+              'empty_delivery'
+            )
+          )
+      `);
+      console.log('Schema ensure: trip_documents empty_delivery kind OK');
+      // Hard ensure: expense documents table (covers migrations_list drift).
+      await dataSource.query(`
+        CREATE TABLE IF NOT EXISTS terminalops.expense_documents (
+          id serial PRIMARY KEY,
+          expense_id integer NOT NULL
+            REFERENCES terminalops.expenses(id) ON DELETE CASCADE,
+          file_name text NOT NULL,
+          slot text NOT NULL CHECK (slot IN ('receipt')),
+          added_at date NOT NULL,
+          sort_order smallint NOT NULL DEFAULT 0
+        );
+      `);
+      await dataSource.query(`
+        CREATE INDEX IF NOT EXISTS expense_documents_expense_id_idx
+          ON terminalops.expense_documents (expense_id);
+      `);
+      console.log('Schema ensure: expense_documents OK');
     } finally {
       await dataSource.query(`SELECT pg_advisory_unlock($1)`, [
         MIGRATION_LOCK_KEY,

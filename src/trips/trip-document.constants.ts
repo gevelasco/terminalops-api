@@ -2,6 +2,7 @@ export const TRIP_DOCUMENT_KINDS = [
   'load',
   'operational_costs',
   'billing',
+  'empty_delivery',
 ] as const;
 
 export type TripDocumentKind = (typeof TRIP_DOCUMENT_KINDS)[number];
