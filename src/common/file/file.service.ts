@@ -45,6 +45,7 @@ export class FileService {
     const bucket = this.firstConfig(
       'RW_S3_BUCKET',
       'AWS_S3_BUCKET',
+      'AWS_S3_BUCKET_NAME',
       'BUCKET',
     );
     const accessKeyId = this.firstConfig(
@@ -68,8 +69,28 @@ export class FileService {
     );
 
     if (!bucket || !accessKeyId || !secretAccessKey) {
+      const probe = [
+        'RW_S3_BUCKET',
+        'AWS_S3_BUCKET',
+        'AWS_S3_BUCKET_NAME',
+        'BUCKET',
+        'RW_ACCESS_KEY_ID',
+        'AWS_ACCESS_KEY_ID',
+        'ACCESS_KEY_ID',
+        'RW_SECRET_ACCESS_KEY',
+        'AWS_SECRET_ACCESS_KEY',
+        'SECRET_ACCESS_KEY',
+        'RW_URL',
+        'AWS_ENDPOINT_URL',
+        'ENDPOINT',
+        'RW_REGION',
+        'AWS_REGION',
+        'REGION',
+      ]
+        .map((key) => `${key}=${this.hasEnv(key) ? 'set' : 'missing'}`)
+        .join(', ');
       this.logger.error(
-        'Object storage env missing. Set RW_S3_BUCKET, RW_ACCESS_KEY_ID, RW_SECRET_ACCESS_KEY, RW_URL, RW_REGION (or Railway bucket vars).',
+        `Object storage env missing on this service (bucket=${Boolean(bucket)}, key=${Boolean(accessKeyId)}, secret=${Boolean(secretAccessKey)}). Probe: ${probe}. Link the Railway Bucket credentials into the API service Variables (AWS SDK preset or RW_*).`,
       );
       throw new HttpException(
         'Object storage is not configured',
@@ -87,21 +108,63 @@ export class FileService {
     return this.resolved;
   }
 
+  private hasEnv(key: string): boolean {
+    return Boolean(this.readRawEnv(key));
+  }
+
+  private readRawEnv(key: string): string {
+    // Prefer process.env (Railway injects service variables here).
+    const fromProcess = process.env[key];
+    if (typeof fromProcess === 'string' && fromProcess.trim()) {
+      return this.stripEnvQuotes(fromProcess);
+    }
+    const fromConfig = this.configService.get(key as keyof EnvConfig, {
+      infer: true,
+    });
+    if (typeof fromConfig === 'string' && fromConfig.trim()) {
+      return this.stripEnvQuotes(fromConfig);
+    }
+    return '';
+  }
+
   private firstConfig(...keys: string[]): string {
     for (const key of keys) {
-      const value = this.configService.get(key as keyof EnvConfig, {
-        infer: true,
-      });
-      if (typeof value === 'string' && value.trim()) {
-        return value.trim();
-      }
-      // ConfigModule also exposes process.env for undeclared keys.
-      const fromEnv = process.env[key];
-      if (typeof fromEnv === 'string' && fromEnv.trim()) {
-        return fromEnv.trim();
+      const value = this.readRawEnv(key);
+      if (value) {
+        return value;
       }
     }
     return '';
+  }
+
+  private stripEnvQuotes(raw: string): string {
+    const trimmed = raw.trim();
+    if (
+      (trimmed.startsWith("'") && trimmed.endsWith("'")) ||
+      (trimmed.startsWith('"') && trimmed.endsWith('"'))
+    ) {
+      return trimmed.slice(1, -1).trim();
+    }
+    return trimmed;
+  }
+
+  /** LocalStack needs path-style; Railway Buckets require virtual-hosted style. */
+  private shouldForcePathStyle(endpoint: string | undefined): boolean {
+    const explicit = this.firstConfig('AWS_S3_FORCE_PATH_STYLE', 'S3_FORCE_PATH_STYLE');
+    if (explicit === 'true' || explicit === '1') {
+      return true;
+    }
+    if (explicit === 'false' || explicit === '0') {
+      return false;
+    }
+    if (!endpoint) {
+      return false;
+    }
+    return (
+      endpoint.includes('localhost') ||
+      endpoint.includes('127.0.0.1') ||
+      endpoint.includes(':4566')
+    );
   }
 
   private getS3Instance(): AWS.S3 {
@@ -110,8 +173,13 @@ export class FileService {
     }
 
     const { endpoint, region, accessKeyId, secretAccessKey } = this.getConfig();
+    const s3ForcePathStyle = this.shouldForcePathStyle(endpoint);
 
-    // Railway/Tigris (y LocalStack) son S3-compatible: endpoint + path-style.
+    this.logger.log(
+      `S3 client ready (endpoint=${endpoint ?? 'default'}, region=${region}, pathStyle=${s3ForcePathStyle})`,
+    );
+
+    // Railway Bucket credentials: AWS_S3_URL_STYLE=virtual → pathStyle false.
     this.s3 = new AWS.S3(
       endpoint
         ? {
@@ -119,7 +187,7 @@ export class FileService {
             region,
             accessKeyId,
             secretAccessKey,
-            s3ForcePathStyle: true,
+            s3ForcePathStyle,
             signatureVersion: 'v4',
           }
         : {

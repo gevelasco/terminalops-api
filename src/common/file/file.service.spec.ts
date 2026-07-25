@@ -91,4 +91,15 @@ describe('FileService', () => {
       'Object storage is not configured',
     );
   });
+
+  it('should use virtual-hosted style for Railway endpoints', async () => {
+    const AWS = jest.requireMock('aws-sdk') as { S3: jest.Mock };
+    await service.presignedUrl('folder/a.txt');
+    expect(AWS.S3).toHaveBeenCalledWith(
+      expect.objectContaining({
+        endpoint: 'https://t3.storageapi.dev',
+        s3ForcePathStyle: false,
+      }),
+    );
+  });
 });
