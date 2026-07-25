@@ -92,7 +92,6 @@ export class FleetGpsExpenseSyncService {
       const provider = (profile.gpsProviderBrand ?? '').trim() || undefined;
       const paymentMethod =
         (profile.gpsPaymentMethod ?? '').trim() || undefined;
-      const invoiceRequired = profile.gpsInvoiceRequired === true;
       const category = gpsServiceConceptLabel(cadence);
 
       const drafts: Array<CreateExpenseDto & { paidAt?: string | null }> = [];
@@ -111,7 +110,7 @@ export class FleetGpsExpenseSyncService {
           description,
           vendor: provider,
           paymentMethod,
-          invoiceRequired,
+          invoiceRequired: false,
           paidAt: null,
         });
       }

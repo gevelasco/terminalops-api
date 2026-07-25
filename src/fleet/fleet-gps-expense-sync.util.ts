@@ -34,7 +34,6 @@ export type GpsProfileLike = {
   gpsLastPaymentDate?: string | null;
   gpsPrice?: string | number | null;
   gpsPaymentMethod?: string | null;
-  gpsInvoiceRequired?: boolean | null;
 };
 
 export type GpsPaymentCandidate = {
@@ -107,7 +106,6 @@ export function mergeGpsProfile(
       incoming.gpsLastPaymentDate ?? previous?.gpsLastPaymentDate ?? undefined,
     gpsPrice: incoming.gpsPrice ?? previous?.gpsPrice ?? undefined,
     gpsPaymentMethod: incoming.gpsPaymentMethod ?? previous?.gpsPaymentMethod ?? undefined,
-    gpsInvoiceRequired: incoming.gpsInvoiceRequired ?? previous?.gpsInvoiceRequired ?? undefined,
   };
 }
 
@@ -167,7 +165,7 @@ function buildGpsPaymentCandidate(
     ),
     vendor: provider || undefined,
     paymentMethod: normalizePaymentMethod(merged.gpsPaymentMethod),
-    invoiceRequired: merged.gpsInvoiceRequired === true,
+    invoiceRequired: false,
   };
 }
 

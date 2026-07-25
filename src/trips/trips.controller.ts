@@ -8,10 +8,19 @@ import {
   Patch,
   Post,
   Req,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import type { Request } from 'express';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiConsumes,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 import { TenantContextService } from '../common/tenant/tenant-context.service';
 import { LoggedUser } from '../decorators/logged-user.decorator';
 import { AuthGuard } from '../guards/auth/auth.guard';
@@ -20,9 +29,11 @@ import { AddIncidentDto } from './dto/add-incident.dto';
 import { CancelTripDto } from './dto/cancel-trip.dto';
 import { UpdateActualScheduleDto } from './dto/update-actual-schedule.dto';
 import { UpdateTripDto } from './dto/update-trip.dto';
+import { UploadTripDocumentDto } from './dto/upload-trip-document.dto';
 import { rejectClientTripStatusMutation } from './trip-status-lock.util';
 import { APP_MODULE_CODES } from '../common/constants/app-modules';
 import { assertModuleWrite } from '../common/utils/module-permission.util';
+import { TRIP_DOCUMENT_KINDS } from './trip-document.constants';
 import { TripsService } from './trips.service';
 
 @ApiTags('trips')
@@ -107,6 +118,59 @@ export class TripsController {
     assertModuleWrite(user, APP_MODULE_CODES.TRIPS);
     const companyId = await this.tenantContext.resolveInternalIdFromAuthUser(user);
     return this.service.setClientCollected(companyId, tripId, collected, user);
+  }
+
+  @Post(':tripId/documents')
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['file', 'documentKind'],
+      properties: {
+        file: { type: 'string', format: 'binary' },
+        documentKind: {
+          type: 'string',
+          enum: [...TRIP_DOCUMENT_KINDS],
+        },
+      },
+    },
+  })
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadDocument(
+    @Param('tripId', ParseIntPipe) tripId: number,
+    @Body() dto: UploadTripDocumentDto,
+    @UploadedFile() file: Express.Multer.File,
+    @LoggedUser() user: AuthUser,
+  ) {
+    assertModuleWrite(user, APP_MODULE_CODES.TRIPS);
+    const companyId = await this.tenantContext.resolveInternalIdFromAuthUser(user);
+    return this.service.uploadDocument(
+      companyId,
+      tripId,
+      dto.documentKind,
+      file,
+    );
+  }
+
+  @Get(':tripId/documents/:documentId/download')
+  async downloadDocument(
+    @Param('tripId', ParseIntPipe) tripId: number,
+    @Param('documentId', ParseIntPipe) documentId: number,
+    @LoggedUser() user: AuthUser,
+  ) {
+    const companyId = await this.tenantContext.resolveInternalIdFromAuthUser(user);
+    return this.service.downloadDocument(companyId, tripId, documentId);
+  }
+
+  @Delete(':tripId/documents/:documentId')
+  async removeDocument(
+    @Param('tripId', ParseIntPipe) tripId: number,
+    @Param('documentId', ParseIntPipe) documentId: number,
+    @LoggedUser() user: AuthUser,
+  ) {
+    assertModuleWrite(user, APP_MODULE_CODES.TRIPS);
+    const companyId = await this.tenantContext.resolveInternalIdFromAuthUser(user);
+    return this.service.removeDocument(companyId, tripId, documentId);
   }
 
   @Delete(':tripId')

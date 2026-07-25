@@ -53,6 +53,7 @@ export class CreateCompanyUserDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
+  @MaxLength(2_500_000)
   photoDataUrl?: string;
 
   @ApiProperty({ enum: ['admin', 'staff'] })

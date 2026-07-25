@@ -11,6 +11,7 @@ import {
 import { Client } from 'src/clients/entities/client.entity';
 import { DestinationRate } from 'src/destination-rates/entities/destination-rate.entity';
 import { TERMINALOPS_SCHEMA } from 'src/common/constants/schema-name';
+import { TripDocument } from 'src/trips/entities/trip-document.entity';
 import { TripEquipment } from 'src/trips/entities/trip-equipment.entity';
 import { TripIncident } from 'src/trips/entities/trip-incident.entity';
 import { Operator } from 'src/operators/entities/operator.entity';
@@ -215,4 +216,7 @@ export class Trip {
 
   @OneToMany(() => TripIncident, (i) => i.trip)
   incidents?: TripIncident[];
+
+  @OneToMany(() => TripDocument, (d) => d.trip)
+  documents?: TripDocument[];
 }

@@ -1,6 +1,7 @@
 import { Client } from 'src/clients/entities/client.entity';
 import { ClientContact } from 'src/clients/entities/client-contact.entity';
 import { ClientDelivery } from 'src/clients/entities/client-delivery.entity';
+import { ClientDocument } from 'src/clients/entities/client-document.entity';
 import { toIsoString } from 'src/common/utils/iso-date.util';
 
 export function serializeClient(client: Client): Record<string, unknown> {
@@ -33,8 +34,19 @@ export function serializeClient(client: Client): Record<string, unknown> {
       ? serializeClientDelivery(client.delivery)
       : undefined,
     contacts: (client.contacts ?? []).map(serializeClientContact),
+    documents: (client.documents ?? []).map(serializeClientDocument),
     createdAt: toIsoString(client.createdAt),
     updatedAt: toIsoString(client.updatedAt),
+  };
+}
+
+function serializeClientDocument(doc: ClientDocument): Record<string, unknown> {
+  return {
+    id: doc.id,
+    fileName: doc.fileName,
+    slot: doc.slot,
+    addedAt: doc.addedAt,
+    sortOrder: doc.sortOrder,
   };
 }
 

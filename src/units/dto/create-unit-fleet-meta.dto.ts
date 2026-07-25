@@ -331,11 +331,6 @@ export class CreateUnitFleetMetaDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsBoolean()
-  insuranceInvoiceRequired?: boolean;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsBoolean()
   hasGps?: boolean;
 
   @ApiPropertyOptional()
@@ -366,11 +361,6 @@ export class CreateUnitFleetMetaDto {
   @IsOptional()
   @IsString()
   gpsPaymentMethod?: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsBoolean()
-  gpsInvoiceRequired?: boolean;
 
   @ApiPropertyOptional()
   @IsOptional()

@@ -82,9 +82,6 @@ export class UnitFleetProfile {
   @Column({ name: 'insurance_payment_method', type: 'text', nullable: true })
   insurancePaymentMethod?: string | null;
 
-  @Column({ name: 'insurance_invoice_required', default: false })
-  insuranceInvoiceRequired: boolean;
-
   @Column({ name: 'has_gps', nullable: true })
   hasGps?: boolean;
 
@@ -111,9 +108,6 @@ export class UnitFleetProfile {
 
   @Column({ name: 'gps_payment_method', type: 'text', nullable: true })
   gpsPaymentMethod?: string | null;
-
-  @Column({ name: 'gps_invoice_required', default: false })
-  gpsInvoiceRequired: boolean;
 
   @Column({ name: 'gps_tracking_portal_url', nullable: true })
   gpsTrackingPortalUrl?: string;

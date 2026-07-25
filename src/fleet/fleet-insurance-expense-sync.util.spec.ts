@@ -13,7 +13,6 @@ describe('fleet-insurance-expense-sync.util', () => {
         insurancePaymentCadence: 'Mensual',
         insuranceCost: 6500,
         insurancePaymentMethod: 'transfer',
-        insuranceInvoiceRequired: true,
       }),
     ).toEqual({
       date: '2026-06-01',
@@ -22,7 +21,7 @@ describe('fleet-insurance-expense-sync.util', () => {
       description: 'Contratación de póliza · 000987345 (Mensualidad 1/12)',
       vendor: 'GNP',
       paymentMethod: 'transfer',
-      invoiceRequired: true,
+      invoiceRequired: false,
     });
   });
 

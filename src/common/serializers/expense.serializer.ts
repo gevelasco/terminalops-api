@@ -1,4 +1,5 @@
 import { Expense } from 'src/expenses/entities/expense.entity';
+import { ExpenseDocument } from 'src/expenses/entities/expense-document.entity';
 import {
   buildExpenseFleetRelationLabel,
   buildExpenseRelatedEquipmentLabel,
@@ -12,6 +13,15 @@ import {
 } from 'src/expenses/expense-payload.util';
 import { formatOperationalIncurredDateYmd } from 'src/expenses/expenses-incurred-at.util';
 import { toIsoString } from 'src/common/utils/iso-date.util';
+
+function serializeExpenseDocument(doc: ExpenseDocument): Record<string, unknown> {
+  return {
+    id: doc.id,
+    fileName: doc.fileName,
+    slot: doc.slot,
+    addedAt: doc.addedAt,
+  };
+}
 
 export function serializeExpense(expense: Expense): Record<string, unknown> {
   const fleetRelationLabel = buildExpenseFleetRelationLabel(expense);
@@ -58,6 +68,10 @@ export function serializeExpense(expense: Expense): Record<string, unknown> {
       expense.relatedOperator?.id ?? expense.relatedOperatorId ?? null,
     isOperationalProvision: isOperationalProvisionKind(expense.kind),
     invoiceRequired: expense.invoiceRequired,
+    documents: (expense.documents ?? [])
+      .slice()
+      .sort((a, b) => a.sortOrder - b.sortOrder)
+      .map(serializeExpenseDocument),
     paidAt: expense.paidAt ? toIsoString(expense.paidAt) : null,
     createdAt: toIsoString(expense.createdAt),
     updatedAt: toIsoString(expense.updatedAt),

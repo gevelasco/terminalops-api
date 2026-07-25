@@ -1,14 +1,42 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Transform, Type } from 'class-transformer';
 import {
+  IsArray,
   IsBoolean,
   IsDateString,
   IsIn,
+  IsInt,
   IsNumber,
   IsOptional,
   IsString,
   Min,
+  ValidateNested,
 } from 'class-validator';
+import { OptionalIsoDate } from 'src/common/decorators/optional-iso-date.decorator';
 import { EXPENSE_VERIFICATION_SCOPES } from '../expense-payload.util';
+
+export class CreateExpenseDocumentDto {
+  @ApiPropertyOptional({ description: 'ID numérico del documento (si ya existe)' })
+  @IsOptional()
+  @Transform(({ value }) => {
+    const n = Number(value);
+    return Number.isInteger(n) && n > 0 ? n : undefined;
+  })
+  @IsInt()
+  id?: number;
+
+  @ApiProperty()
+  @IsString()
+  fileName: string;
+
+  @ApiProperty({ enum: ['receipt'] })
+  @IsIn(['receipt'])
+  slot: string;
+
+  @ApiPropertyOptional({ description: 'ISO date YYYY-MM-DD' })
+  @OptionalIsoDate()
+  addedAt?: string;
+}
 
 export class CreateExpenseDto {
   @ApiProperty()
@@ -83,4 +111,11 @@ export class CreateExpenseDto {
   @IsOptional()
   @IsDateString()
   paidAt?: string | null;
+
+  @ApiPropertyOptional({ type: [CreateExpenseDocumentDto] })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CreateExpenseDocumentDto)
+  documents?: CreateExpenseDocumentDto[];
 }

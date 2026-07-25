@@ -4,11 +4,13 @@ import {
   Entity,
   JoinColumn,
   ManyToOne,
+  OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
 import { TERMINALOPS_SCHEMA } from 'src/common/constants/schema-name';
 import { Equipment } from 'src/equipment/entities/equipment.entity';
+import { ExpenseDocument } from 'src/expenses/entities/expense-document.entity';
 import { Operator } from 'src/operators/entities/operator.entity';
 import { Trip } from 'src/trips/entities/trip.entity';
 import { Unit } from 'src/units/entities/unit.entity';
@@ -87,4 +89,7 @@ export class Expense {
   @ManyToOne(() => Operator, { onDelete: 'SET NULL' })
   @JoinColumn({ name: 'related_operator_id' })
   relatedOperator?: Operator;
+
+  @OneToMany(() => ExpenseDocument, (d) => d.expense)
+  documents?: ExpenseDocument[];
 }

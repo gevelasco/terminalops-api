@@ -23,7 +23,6 @@ const UNIT_INSURANCE_FIELDS = [
   'insuranceLastPaymentDate',
   'insuranceCost',
   'insurancePaymentMethod',
-  'insuranceInvoiceRequired',
 ] as const;
 
 const UNIT_INSURANCE_CONFIG_FIELDS = UNIT_INSURANCE_FIELDS.filter(
@@ -38,7 +37,6 @@ const UNIT_GPS_FIELDS = [
   'gpsContractDate',
   'gpsLastPaymentDate',
   'gpsPaymentMethod',
-  'gpsInvoiceRequired',
   'gpsTrackingPortalUrl',
   'gpsCoveredByInsuranceEndorsement',
 ] as const;

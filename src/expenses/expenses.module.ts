@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Equipment } from 'src/equipment/entities/equipment.entity';
 import { EquipmentFleetProfile } from 'src/equipment/entities/equipment-fleet-profile.entity';
 import { Expense } from 'src/expenses/entities/expense.entity';
+import { ExpenseDocument } from 'src/expenses/entities/expense-document.entity';
 import { Operator } from 'src/operators/entities/operator.entity';
 import { Trip } from 'src/trips/entities/trip.entity';
 import { FleetMaintenanceEntry } from 'src/units/entities/fleet-maintenance-entry.entity';
@@ -19,6 +20,7 @@ import { ExpensesService } from './expenses.service';
   imports: [
     TypeOrmModule.forFeature([
       Expense,
+      ExpenseDocument,
       Trip,
       Unit,
       Equipment,

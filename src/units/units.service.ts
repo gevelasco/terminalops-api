@@ -136,7 +136,10 @@ export class UnitsService {
         } as Partial<Unit>),
       );
     } catch (error) {
-      if (this.isUniqueViolation(error, 'units_company_plate_uniq')) {
+      if (
+        this.isUniqueViolation(error, 'units_company_plate_uniq') ||
+        this.isUniqueViolation(error, 'units_company_plate_active_uniq')
+      ) {
         throw new ConflictException(
           'Ya existe una unidad con esa placa en la empresa.',
         );
@@ -181,7 +184,7 @@ export class UnitsService {
     const rows = await this.repo.find({
       where: options?.available
         ? { companyId, isActive: true, status: FLEET_ASSIGNABLE_LIST_STATUS }
-        : { companyId },
+        : { companyId, isActive: true },
       relations: [...UNIT_LIST_RELATIONS],
       order: { plate: 'ASC' },
     });
@@ -219,6 +222,7 @@ export class UnitsService {
         'unit.isActive',
       ])
       .where('unit.companyId = :companyId', { companyId })
+      .andWhere('unit.isActive = :isActive', { isActive: true })
       .andWhere(
         `(
           unit.plate ILIKE :q OR
@@ -308,30 +312,13 @@ export class UnitsService {
     }
   }
 
+  /** Soft delete lógico: oculta de flota/asignaciones y conserva historial en maniobras. */
   async remove(companyId: number, unitId: number) {
-    await this.assertUnitExists(companyId, unitId);
-    // Raw SQL: entity find() would 500 if storage_key column is missing (schema drift).
-    try {
-      const rows = (await this.documentsRepo.query(
-        `SELECT storage_key AS "storageKey"
-         FROM terminalops.unit_fleet_documents
-         WHERE unit_id = $1 AND storage_key IS NOT NULL`,
-        [unitId],
-      )) as Array<{ storageKey: string }>;
-      for (const row of rows) {
-        try {
-          await this.fileService.remove(row.storageKey);
-        } catch {
-          // Best-effort S3 cleanup.
-        }
-      }
-    } catch (error) {
-      this.logger.warn(
-        `Skipping document storage cleanup for unit ${unitId}`,
-        error instanceof Error ? error.message : error,
-      );
+    const row = await this.assertUnitExists(companyId, unitId);
+    if (row.isActive === false) {
+      return { id: unitId, deleted: true };
     }
-    await this.repo.delete({ id: unitId, companyId });
+    await this.repo.update({ id: unitId, companyId }, { isActive: false });
     return { id: unitId, deleted: true };
   }
 

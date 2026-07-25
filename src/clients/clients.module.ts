@@ -6,6 +6,7 @@ import { Client } from 'src/clients/entities/client.entity';
 import { ClientBilling } from 'src/clients/entities/client-billing.entity';
 import { ClientContact } from 'src/clients/entities/client-contact.entity';
 import { ClientDelivery } from 'src/clients/entities/client-delivery.entity';
+import { ClientDocument } from 'src/clients/entities/client-document.entity';
 import { ClientPaymentTerms } from 'src/clients/entities/client-payment-terms.entity';
 import { Expense } from 'src/expenses/entities/expense.entity';
 import { Trip } from 'src/trips/entities/trip.entity';
@@ -21,6 +22,7 @@ import { ClientsService } from './clients.service';
       ClientPaymentTerms,
       ClientContact,
       ClientDelivery,
+      ClientDocument,
       Trip,
       Expense,
     ]),

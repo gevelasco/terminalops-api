@@ -1,15 +1,25 @@
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { assertRequiredTypeOrmEntities } from './database/assert-typeorm-entities';
 import EnvConfig from './types/env-config.type';
 
+/** Avatares van como data URL en JSON (perfil/login); el default de Express (~100kb) los rechaza. */
+const JSON_BODY_LIMIT = '5mb';
+
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    // Evita el parser default (~100kb) para poder subir fotos de perfil en JSON.
+    bodyParser: false,
+  });
   assertRequiredTypeOrmEntities(app);
   const configService = app.get(ConfigService<EnvConfig>);
+
+  app.useBodyParser('json', { limit: JSON_BODY_LIMIT });
+  app.useBodyParser('urlencoded', { limit: JSON_BODY_LIMIT, extended: true });
 
   const origin = configService.get<string>('ORIGIN') ?? 'http://localhost:4200';
   app.enableCors({

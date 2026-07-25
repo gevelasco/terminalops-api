@@ -301,11 +301,6 @@ export class CreateEquipmentFleetMetaDto {
   @IsString()
   insurancePaymentMethod?: string;
 
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsBoolean()
-  insuranceInvoiceRequired?: boolean;
-
   @ApiPropertyOptional({ type: [String] })
   @IsOptional()
   @IsArray()

@@ -36,8 +36,10 @@ export class UpdateUserProfileDto {
   @MaxLength(120)
   jobTitle?: string;
 
+  /** Data URL JPEG/PNG comprimida del avatar (vacío = quitar foto). */
   @IsOptional()
   @IsString()
+  @MaxLength(2_500_000)
   photoDataUrl?: string;
 
   @IsOptional()

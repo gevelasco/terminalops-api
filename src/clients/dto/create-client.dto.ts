@@ -4,6 +4,7 @@ import {
   IsBoolean,
   IsDateString,
   IsEmail,
+  IsIn,
   IsInt,
   IsNumber,
   IsOptional,
@@ -11,7 +12,8 @@ import {
   Min,
   ValidateNested,
 } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
+import { OptionalIsoDate } from 'src/common/decorators/optional-iso-date.decorator';
 
 export class CreateClientBillingDto {
   @ApiPropertyOptional()
@@ -121,6 +123,29 @@ export class CreateClientDeliveryDto {
   longitude?: number;
 }
 
+export class CreateClientDocumentDto {
+  @ApiPropertyOptional({ description: 'ID numérico del documento (si ya existe)' })
+  @IsOptional()
+  @Transform(({ value }) => {
+    const n = Number(value);
+    return Number.isInteger(n) && n > 0 ? n : undefined;
+  })
+  @IsInt()
+  id?: number;
+
+  @ApiProperty()
+  @IsString()
+  fileName: string;
+
+  @ApiProperty({ enum: ['fiscal'] })
+  @IsIn(['fiscal'])
+  slot: string;
+
+  @ApiPropertyOptional({ description: 'ISO date YYYY-MM-DD' })
+  @OptionalIsoDate()
+  addedAt?: string;
+}
+
 export class CreateClientDto {
   @ApiProperty()
   @IsString()
@@ -165,4 +190,11 @@ export class CreateClientDto {
   @ValidateNested()
   @Type(() => CreateClientDeliveryDto)
   delivery?: CreateClientDeliveryDto;
+
+  @ApiPropertyOptional({ type: [CreateClientDocumentDto] })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CreateClientDocumentDto)
+  documents?: CreateClientDocumentDto[];
 }

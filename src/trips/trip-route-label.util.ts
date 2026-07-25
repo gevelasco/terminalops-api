@@ -41,6 +41,27 @@ export function buildTripDestinationLabel(trip: {
   });
 }
 
+/** Ciudad/municipio · CP (sin asentamiento); útil en cards compactas. */
+export function buildTripOriginCityPostalLabel(trip: {
+  originCityMunicipality?: string | null;
+  originPostalCode?: string | null;
+}): string {
+  return buildTripRouteEndpointLabel({
+    cityMunicipality: trip.originCityMunicipality,
+    postalCode: trip.originPostalCode,
+  });
+}
+
+export function buildTripDestinationCityPostalLabel(trip: {
+  destinationCityMunicipality?: string | null;
+  destinationPostalCode?: string | null;
+}): string {
+  return buildTripRouteEndpointLabel({
+    cityMunicipality: trip.destinationCityMunicipality,
+    postalCode: trip.destinationPostalCode,
+  });
+}
+
 export function buildTripRouteLabel(trip: {
   originLocality?: string | null;
   originCityMunicipality?: string | null;

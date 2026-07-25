@@ -65,9 +65,6 @@ export class EquipmentFleetProfile {
   @Column({ name: 'insurance_payment_method', type: 'text', nullable: true })
   insurancePaymentMethod?: string | null;
 
-  @Column({ name: 'insurance_invoice_required', default: false })
-  insuranceInvoiceRequired: boolean;
-
   @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
   updatedAt: Date;
 

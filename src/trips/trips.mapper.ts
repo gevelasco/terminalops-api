@@ -108,6 +108,14 @@ export function mapTripToResponse(
     falseManeuver: trip.falseManeuver,
     cancellationNote: trip.cancellationNote,
     clientCollectedAt: trip.clientCollectedAt?.toISOString() ?? null,
+    tripDocuments: (trip.documents ?? [])
+      .slice()
+      .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.id - b.id)
+      .map((d) => ({
+        id: d.id,
+        fileName: d.fileName,
+        documentKind: d.documentKind,
+      })),
   };
 }
 

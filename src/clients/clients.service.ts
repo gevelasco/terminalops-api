@@ -6,6 +6,7 @@ import { Client } from 'src/clients/entities/client.entity';
 import { ClientBilling } from 'src/clients/entities/client-billing.entity';
 import { ClientContact } from 'src/clients/entities/client-contact.entity';
 import { ClientDelivery } from 'src/clients/entities/client-delivery.entity';
+import { ClientDocument } from 'src/clients/entities/client-document.entity';
 import { ClientPaymentTerms } from 'src/clients/entities/client-payment-terms.entity';
 import { DestinationRatesService } from 'src/destination-rates/destination-rates.service';
 import { ActivityEventsService } from 'src/activity-events/activity-events.service';
@@ -15,7 +16,13 @@ import { CreateClientDto } from './dto/create-client.dto';
 import { UpdateClientDto } from './dto/update-client.dto';
 import type { ClientPickerOptionDto } from './dto/client-picker-option.dto';
 
-const CLIENT_RELATIONS = ['billing', 'paymentTerms', 'delivery', 'contacts'] as const;
+const CLIENT_RELATIONS = [
+  'billing',
+  'paymentTerms',
+  'delivery',
+  'contacts',
+  'documents',
+] as const;
 
 @Injectable()
 export class ClientsService {
@@ -30,6 +37,8 @@ export class ClientsService {
     private readonly contactsRepo: Repository<ClientContact>,
     @InjectRepository(ClientDelivery)
     private readonly deliveryRepo: Repository<ClientDelivery>,
+    @InjectRepository(ClientDocument)
+    private readonly documentsRepo: Repository<ClientDocument>,
     private readonly destinationRatesService: DestinationRatesService,
     private readonly activityEvents: ActivityEventsService,
   ) {}
@@ -63,9 +72,11 @@ export class ClientsService {
       .leftJoinAndSelect('client.paymentTerms', 'paymentTerms')
       .leftJoinAndSelect('client.delivery', 'delivery')
       .leftJoinAndSelect('client.contacts', 'contacts')
+      .leftJoinAndSelect('client.documents', 'documents')
       .where('client.companyId = :companyId', { companyId })
       .orderBy('client.name', 'ASC')
       .addOrderBy('contacts.sortOrder', 'ASC')
+      .addOrderBy('documents.sortOrder', 'ASC')
       .getMany();
 
     return rows.map((row) => serializeClient(row));
@@ -110,7 +121,13 @@ export class ClientsService {
       relationshipStartedOn: dto.relationshipStartedOn,
       notes: dto.notes,
     });
-    if (dto.billing || dto.payment || dto.contacts || dto.delivery) {
+    if (
+      dto.billing ||
+      dto.payment ||
+      dto.contacts ||
+      dto.delivery ||
+      dto.documents !== undefined
+    ) {
       await this.saveNested(companyId, clientId, dto);
     }
     const name =
@@ -138,7 +155,10 @@ export class ClientsService {
   private async saveNested(
     companyId: number,
     clientId: number,
-    dto: Pick<CreateClientDto, 'billing' | 'payment' | 'contacts' | 'delivery'>,
+    dto: Pick<
+      CreateClientDto,
+      'billing' | 'payment' | 'contacts' | 'delivery' | 'documents'
+    >,
   ) {
     if (dto.billing) {
       await this.billingRepo.save(
@@ -198,5 +218,43 @@ export class ClientsService {
         }),
       );
     }
+    if (dto.documents !== undefined) {
+      await this.documentsRepo.delete({ clientId });
+      if (dto.documents.length > 0) {
+        await this.documentsRepo.save(
+          await Promise.all(
+            dto.documents.map(async (doc, index) => {
+              const existingDocId = await this.resolveDocumentId(clientId, doc.id);
+              return this.documentsRepo.create({
+                ...(existingDocId ? { id: existingDocId } : {}),
+                clientId,
+                fileName: doc.fileName,
+                slot: doc.slot,
+                addedAt: doc.addedAt ?? new Date().toISOString().slice(0, 10),
+                sortOrder: index,
+              });
+            }),
+          ),
+        );
+      }
+    }
+  }
+
+  private async resolveDocumentId(
+    clientId: number,
+    ref?: string | number,
+  ): Promise<number | undefined> {
+    if (ref == null || ref === '') {
+      return undefined;
+    }
+    const id = typeof ref === 'number' ? ref : Number(ref);
+    if (!Number.isInteger(id) || id < 1) {
+      return undefined;
+    }
+    const row = await this.documentsRepo.findOne({
+      where: { clientId, id },
+      select: ['id'],
+    });
+    return row?.id;
   }
 }

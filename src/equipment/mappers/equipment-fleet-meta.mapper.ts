@@ -67,7 +67,6 @@ export function fleetMetaDtoToProfile(
     insuranceLastPaymentDate: emptyDateToUndefined(meta.insuranceLastPaymentDate),
     insuranceCost: numToDb(meta.insuranceCost),
     insurancePaymentMethod: meta.insurancePaymentMethod?.trim() || undefined,
-    insuranceInvoiceRequired: meta.insuranceInvoiceRequired === true,
   };
 }
 
@@ -242,7 +241,6 @@ export function profileToFleetMeta(
         insuranceLastPaymentDate: profile.insuranceLastPaymentDate ?? undefined,
         insuranceCost: dbNumToApi(profile.insuranceCost),
         insurancePaymentMethod: profile.insurancePaymentMethod ?? undefined,
-        insuranceInvoiceRequired: profile.insuranceInvoiceRequired === true,
       }
     : {};
 

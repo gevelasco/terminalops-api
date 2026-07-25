@@ -9,6 +9,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, IsNull, In, type EntityManager } from 'typeorm';
 import { isAdminRole } from 'src/common/constants/app-modules';
+import { FileService } from 'src/common/file/file.service';
 import { assertTripBitacoraAccess } from 'src/common/utils/module-permission.util';
 import type AuthUser from 'src/types/auth-user.type';
 import {
@@ -25,9 +26,15 @@ import { assertFleetResourceAssignableForTrip } from 'src/fleet/fleet-resource-a
 import { ExpensesService } from 'src/expenses/expenses.service';
 import { Operator } from 'src/operators/entities/operator.entity';
 import { Trip } from 'src/trips/entities/trip.entity';
+import { TripDocument } from 'src/trips/entities/trip-document.entity';
 import { TripEquipment } from 'src/trips/entities/trip-equipment.entity';
 import { TripIncident } from 'src/trips/entities/trip-incident.entity';
 import { Unit } from 'src/units/entities/unit.entity';
+import {
+  TRIP_DOCUMENT_KINDS,
+  TRIP_DOCUMENT_STORAGE_FOLDER,
+  type TripDocumentKind,
+} from './trip-document.constants';
 import { AddIncidentDto } from './dto/add-incident.dto';
 import { CancelTripDto } from './dto/cancel-trip.dto';
 import { CreateTripDto } from './dto/create-trip.dto';
@@ -103,6 +110,8 @@ export class TripsService {
   constructor(
     @InjectRepository(Trip)
     private readonly tripsRepo: Repository<Trip>,
+    @InjectRepository(TripDocument)
+    private readonly documentsRepo: Repository<TripDocument>,
     @InjectRepository(TripEquipment)
     private readonly tripEquipmentRepo: Repository<TripEquipment>,
     @InjectRepository(TripIncident)
@@ -128,6 +137,7 @@ export class TripsService {
     private readonly expensesService: ExpensesService,
     private readonly activityEvents: ActivityEventsService,
     private readonly tripLoadPlaces: TripLoadPlacesService,
+    private readonly fileService: FileService,
   ) {}
 
   private tripRelations = [
@@ -136,6 +146,7 @@ export class TripsService {
     'operator',
     'tripEquipment',
     'incidents',
+    'documents',
   ] as const;
 
   async findAll(
@@ -410,6 +421,113 @@ export class TripsService {
       this.loadAuthorLookup(companyId),
     ]);
     return mapTripToResponse(trip, equipment, authorLookup);
+  }
+
+  async uploadDocument(
+    companyId: number,
+    tripId: number,
+    documentKind: TripDocumentKind,
+    file: Express.Multer.File,
+  ) {
+    if (!file?.buffer?.length) {
+      throw new BadRequestException('file is required');
+    }
+    if (!(TRIP_DOCUMENT_KINDS as readonly string[]).includes(documentKind)) {
+      throw new BadRequestException('Invalid documentKind');
+    }
+    await this.assertTripExists(companyId, tripId);
+
+    const uploaded = await this.fileService.upload(
+      TRIP_DOCUMENT_STORAGE_FOLDER,
+      file,
+    );
+    const maxSort = await this.documentsRepo
+      .createQueryBuilder('d')
+      .select('MAX(d.sort_order)', 'max')
+      .where('d.trip_id = :tripId', { tripId })
+      .getRawOne<{ max: string | null }>();
+    const sortOrder = Number(maxSort?.max ?? -1) + 1;
+
+    const saved = await this.documentsRepo.save(
+      this.documentsRepo.create({
+        tripId,
+        documentKind,
+        fileName: uploaded.originalName,
+        storageKey: uploaded.url,
+        contentType: file.mimetype || null,
+        sizeBytes: String(file.size),
+        sortOrder: Number.isFinite(sortOrder) ? sortOrder : 0,
+      }),
+    );
+
+    return {
+      id: saved.id,
+      tripId: saved.tripId,
+      documentKind: saved.documentKind,
+      fileName: saved.fileName,
+      sortOrder: saved.sortOrder,
+    };
+  }
+
+  async downloadDocument(
+    companyId: number,
+    tripId: number,
+    documentId: number,
+  ) {
+    const document = await this.findDocumentForTrip(
+      companyId,
+      tripId,
+      documentId,
+    );
+    if (!document.storageKey) {
+      throw new NotFoundException(`Document ${documentId} has no stored file`);
+    }
+    return this.fileService.presignedUrl(document.storageKey);
+  }
+
+  async removeDocument(
+    companyId: number,
+    tripId: number,
+    documentId: number,
+  ) {
+    const document = await this.findDocumentForTrip(
+      companyId,
+      tripId,
+      documentId,
+    );
+    if (document.storageKey) {
+      await this.fileService.remove(document.storageKey);
+    }
+    await this.documentsRepo.delete({ id: documentId, tripId });
+    return { id: documentId, deleted: true };
+  }
+
+  private async findDocumentForTrip(
+    companyId: number,
+    tripId: number,
+    documentId: number,
+  ): Promise<TripDocument> {
+    await this.assertTripExists(companyId, tripId);
+    const document = await this.documentsRepo.findOne({
+      where: { id: documentId, tripId },
+    });
+    if (!document) {
+      throw new NotFoundException(`Document ${documentId} not found`);
+    }
+    return document;
+  }
+
+  private async assertTripExists(
+    companyId: number,
+    tripId: number,
+  ): Promise<void> {
+    const row = await this.tripsRepo.findOne({
+      where: { companyId, id: tripId, deletedAt: IsNull() },
+      select: ['id'],
+    });
+    if (!row) {
+      throw new NotFoundException(`Trip ${tripId} not found`);
+    }
   }
 
   async findClientCargoHistory(

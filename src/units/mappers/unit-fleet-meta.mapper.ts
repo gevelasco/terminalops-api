@@ -70,7 +70,6 @@ export function fleetMetaDtoToProfile(
     insuranceLastPaymentDate: emptyDateToUndefined(meta.insuranceLastPaymentDate),
     insuranceCost: numToDb(meta.insuranceCost),
     insurancePaymentMethod: meta.insurancePaymentMethod?.trim() || undefined,
-    insuranceInvoiceRequired: meta.insuranceInvoiceRequired === true,
     hasGps: meta.hasGps,
     gpsProviderBrand: meta.gpsProviderBrand?.trim() || undefined,
     gpsPrice: numToDb(meta.gpsPrice),
@@ -78,7 +77,6 @@ export function fleetMetaDtoToProfile(
     gpsContractDate: emptyDateToUndefined(meta.gpsContractDate),
     gpsLastPaymentDate: emptyDateToUndefined(meta.gpsLastPaymentDate),
     gpsPaymentMethod: meta.gpsPaymentMethod?.trim() || undefined,
-    gpsInvoiceRequired: meta.gpsInvoiceRequired === true,
     gpsTrackingPortalUrl: meta.gpsTrackingPortalUrl?.trim() || undefined,
     gpsCoveredByInsuranceEndorsement: meta.gpsCoveredByInsuranceEndorsement,
   };
@@ -258,7 +256,6 @@ export function profileToFleetMeta(
         insuranceLastPaymentDate: profile.insuranceLastPaymentDate ?? undefined,
         insuranceCost: dbNumToApi(profile.insuranceCost),
         insurancePaymentMethod: profile.insurancePaymentMethod ?? undefined,
-        insuranceInvoiceRequired: profile.insuranceInvoiceRequired === true,
         hasGps: profile.hasGps ?? undefined,
         gpsProviderBrand: profile.gpsProviderBrand ?? undefined,
         gpsPrice: dbNumToApi(profile.gpsPrice),
@@ -266,7 +263,6 @@ export function profileToFleetMeta(
         gpsContractDate: profile.gpsContractDate ?? undefined,
         gpsLastPaymentDate: profile.gpsLastPaymentDate ?? undefined,
         gpsPaymentMethod: profile.gpsPaymentMethod ?? undefined,
-        gpsInvoiceRequired: profile.gpsInvoiceRequired === true,
         gpsTrackingPortalUrl: profile.gpsTrackingPortalUrl ?? undefined,
         gpsCoveredByInsuranceEndorsement:
           profile.gpsCoveredByInsuranceEndorsement ?? undefined,

@@ -241,7 +241,6 @@ function insurancePaymentFieldsFromProfile(
     | {
         insuranceCarrierName?: string | null;
         insurancePaymentMethod?: string | null;
-        insuranceInvoiceRequired?: boolean | null;
       }
     | null
     | undefined,
@@ -249,7 +248,7 @@ function insurancePaymentFieldsFromProfile(
   return {
     vendor: profile?.insuranceCarrierName?.trim() || undefined,
     paymentMethod: normalizeOptionalPaymentMethod(profile?.insurancePaymentMethod),
-    invoiceRequired: profile?.insuranceInvoiceRequired === true,
+    invoiceRequired: false,
   };
 }
 
@@ -258,7 +257,6 @@ function gpsPaymentFieldsFromProfile(
     | {
         gpsProviderBrand?: string | null;
         gpsPaymentMethod?: string | null;
-        gpsInvoiceRequired?: boolean | null;
       }
     | null
     | undefined,
@@ -266,7 +264,7 @@ function gpsPaymentFieldsFromProfile(
   return {
     vendor: profile?.gpsProviderBrand?.trim() || undefined,
     paymentMethod: normalizeOptionalPaymentMethod(profile?.gpsPaymentMethod),
-    invoiceRequired: profile?.gpsInvoiceRequired === true,
+    invoiceRequired: false,
   };
 }
 

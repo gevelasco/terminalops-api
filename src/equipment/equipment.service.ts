@@ -1,6 +1,5 @@
 import {
   BadRequestException,
-  ConflictException,
   Injectable,
   Logger,
   NotFoundException,
@@ -26,7 +25,10 @@ import { Equipment } from 'src/equipment/entities/equipment.entity';
 import { EquipmentFleetProfile } from 'src/equipment/entities/equipment-fleet-profile.entity';
 import { FleetMaintenanceEntry } from 'src/units/entities/fleet-maintenance-entry.entity';
 import { FleetVerificationEntry } from 'src/units/entities/fleet-verification-entry.entity';
-import { TripEquipment } from 'src/trips/entities/trip-equipment.entity';
+import {
+  FLEET_ASSIGNABLE_LIST_STATUS,
+  type FleetListAvailableOptions,
+} from 'src/fleet/fleet-available-list.util';
 import { CreateEquipmentDto } from './dto/create-equipment.dto';
 import { UpdateEquipmentDto } from './dto/update-equipment.dto';
 import {
@@ -67,7 +69,9 @@ import { COMPANY_ACTIVITY_KIND } from 'src/activity-events/company-activity-even
 import { buildEquipmentOperationalId } from 'src/common/utils/unit-operational-id.util';
 import type AuthUser from 'src/types/auth-user.type';
 
-export type EquipmentFindAllOptions = { includeTenure?: boolean };
+export type EquipmentFindAllOptions = FleetListAvailableOptions & {
+  includeTenure?: boolean;
+};
 
 @Injectable()
 export class EquipmentService {
@@ -86,8 +90,6 @@ export class EquipmentService {
     private readonly verificationRepo: Repository<FleetVerificationEntry>,
     @InjectRepository(EquipmentFleetDocument)
     private readonly documentsRepo: Repository<EquipmentFleetDocument>,
-    @InjectRepository(TripEquipment)
-    private readonly tripEquipmentRepo: Repository<TripEquipment>,
     private readonly fleetTenureService: FleetTenureService,
     private readonly fleetBrandsService: FleetBrandsService,
     private readonly maintenanceWorkflow: FleetMaintenanceWorkflowService,
@@ -140,7 +142,9 @@ export class EquipmentService {
 
   async findAll(companyId: number, options?: EquipmentFindAllOptions) {
     const rows = await this.repo.find({
-      where: { companyId },
+      where: options?.available
+        ? { companyId, isActive: true, status: FLEET_ASSIGNABLE_LIST_STATUS }
+        : { companyId, isActive: true },
       relations: ['fleetProfile', 'maintenanceEntries', 'verificationEntries'],
       order: { name: 'ASC' },
     });
@@ -178,6 +182,7 @@ export class EquipmentService {
         'equipment.isActive',
       ])
       .where('equipment.companyId = :companyId', { companyId })
+      .andWhere('equipment.isActive = :isActive', { isActive: true })
       .andWhere(
         `(
           equipment.plate ILIKE :q OR
@@ -271,38 +276,13 @@ export class EquipmentService {
     return this.findOne(companyId, equipmentId);
   }
 
+  /** Soft delete lógico: oculta de flota/asignaciones y conserva historial en maniobras. */
   async remove(companyId: number, equipmentId: number) {
-    await this.assertEquipmentExists(companyId, equipmentId);
-    const linkedManeuvers = await this.tripEquipmentRepo.count({
-      where: { equipmentId },
-    });
-    if (linkedManeuvers > 0) {
-      throw new ConflictException(
-        `No se puede eliminar: el equipo está vinculado a ${linkedManeuvers} maniobra(s). Márcalo como inactivo en su lugar.`,
-      );
+    const row = await this.assertEquipmentExists(companyId, equipmentId);
+    if (row.isActive === false) {
+      return { id: equipmentId, deleted: true };
     }
-    // Raw SQL: entity find() would 500 if storage_key column is missing (schema drift).
-    try {
-      const rows = (await this.documentsRepo.query(
-        `SELECT storage_key AS "storageKey"
-         FROM terminalops.equipment_fleet_documents
-         WHERE equipment_id = $1 AND storage_key IS NOT NULL`,
-        [equipmentId],
-      )) as Array<{ storageKey: string }>;
-      for (const row of rows) {
-        try {
-          await this.fileService.remove(row.storageKey);
-        } catch {
-          // Best-effort S3 cleanup.
-        }
-      }
-    } catch (error) {
-      this.logger.warn(
-        `Skipping document storage cleanup for equipment ${equipmentId}`,
-        error instanceof Error ? error.message : error,
-      );
-    }
-    await this.repo.delete({ id: equipmentId, companyId });
+    await this.repo.update({ id: equipmentId, companyId }, { isActive: false });
     return { id: equipmentId, deleted: true };
   }
 

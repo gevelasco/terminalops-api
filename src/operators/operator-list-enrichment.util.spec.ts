@@ -38,6 +38,24 @@ describe('operator-list-enrichment.util', () => {
     expect(snap.occurredOn).toBe('2026-03-10');
   });
 
+  it('buildOperatorLastManeuverSnapshot omits locality from route labels', () => {
+    const snap = buildOperatorLastManeuverSnapshot(
+      trip({
+        id: 11,
+        operatorId: 2,
+        originLocality: 'Barrio 5',
+        originCityMunicipality: 'Manzanillo, Colima',
+        originPostalCode: '28219',
+        destinationLocality: 'Loma de Canteras (Lomas de Cantera)',
+        destinationCityMunicipality: 'Naucalpan de Juárez, México',
+        destinationPostalCode: '53470',
+        completedAt: new Date('2026-07-23T15:00:00Z'),
+      }),
+    );
+    expect(snap.origin).toBe('Manzanillo, Colima · 28219');
+    expect(snap.destination).toBe('Naucalpan de Juárez, México · 53470');
+  });
+
   it('buildNextPayDueByOperatorId picks earliest completion for maneuver schedule', () => {
     const trips = [
       trip({

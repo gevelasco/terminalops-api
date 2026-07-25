@@ -114,6 +114,8 @@ export class OperatorsService {
         'operator.status = :status',
         { status: FLEET_ASSIGNABLE_LIST_STATUS },
       );
+    } else {
+      qb.andWhere('operator.isActive = :isActive', { isActive: true });
     }
 
     const rows = await qb
@@ -156,6 +158,7 @@ export class OperatorsService {
         'operator.isActive',
       ])
       .where('operator.companyId = :companyId', { companyId })
+      .andWhere('operator.isActive = :isActive', { isActive: true })
       .andWhere(
         `(
           operator.name ILIKE :q OR
@@ -453,9 +456,19 @@ export class OperatorsService {
     return this.findOne(companyId, operatorId);
   }
 
+  /** Soft delete lógico: oculta de listados/asignaciones y conserva historial en maniobras. */
   async remove(companyId: number, operatorId: number) {
-    await this.findOne(companyId, operatorId);
-    await this.repo.delete({ id: operatorId, companyId });
+    const row = await this.repo.findOne({
+      where: { companyId, id: operatorId },
+      select: ['id', 'isActive'],
+    });
+    if (!row) {
+      throw new NotFoundException(`Operator ${operatorId} not found`);
+    }
+    if (row.isActive === false) {
+      return { id: operatorId, deleted: true };
+    }
+    await this.repo.update({ id: operatorId, companyId }, { isActive: false });
     return { id: operatorId, deleted: true };
   }
 

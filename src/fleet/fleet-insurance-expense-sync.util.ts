@@ -37,7 +37,6 @@ export type InsuranceProfileLike = {
   insuranceLastPaymentDate?: string | null;
   insuranceCost?: string | number | null;
   insurancePaymentMethod?: string | null;
-  insuranceInvoiceRequired?: boolean | null;
 };
 
 export type InsurancePaymentCandidate = {
@@ -68,8 +67,6 @@ export function mergeInsuranceProfile(
     insuranceCost: incoming.insuranceCost ?? previous?.insuranceCost ?? undefined,
     insurancePaymentMethod:
       incoming.insurancePaymentMethod ?? previous?.insurancePaymentMethod ?? undefined,
-    insuranceInvoiceRequired:
-      incoming.insuranceInvoiceRequired ?? previous?.insuranceInvoiceRequired ?? undefined,
   };
 }
 
@@ -142,7 +139,7 @@ function buildInsurancePaymentCandidate(
     ),
     vendor: carrier || undefined,
     paymentMethod: normalizePaymentMethod(merged.insurancePaymentMethod),
-    invoiceRequired: merged.insuranceInvoiceRequired === true,
+    invoiceRequired: false,
   };
 }
 

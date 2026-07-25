@@ -12,6 +12,7 @@ import {
 import { ClientBilling } from 'src/clients/entities/client-billing.entity';
 import { ClientContact } from 'src/clients/entities/client-contact.entity';
 import { ClientDelivery } from 'src/clients/entities/client-delivery.entity';
+import { ClientDocument } from 'src/clients/entities/client-document.entity';
 import { ClientPaymentTerms } from 'src/clients/entities/client-payment-terms.entity';
 import { Company } from 'src/companies/entities/company.entity';
 import { Trip } from 'src/trips/entities/trip.entity';
@@ -54,6 +55,9 @@ export class Client {
 
   @OneToMany(() => ClientContact, (c) => c.client)
   contacts?: ClientContact[];
+
+  @OneToMany(() => ClientDocument, (d) => d.client)
+  documents?: ClientDocument[];
 
   @OneToMany(() => Trip, (trip) => trip.client)
   trips?: Trip[];

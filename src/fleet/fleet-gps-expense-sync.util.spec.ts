@@ -19,7 +19,6 @@ describe('fleet-gps-expense-sync.util', () => {
       gpsPrice: 450,
       gpsPaymentCadence: 'Mensual',
       gpsPaymentMethod: 'transfer',
-      gpsInvoiceRequired: true,
     });
 
     expect(initial).toEqual({
@@ -29,7 +28,7 @@ describe('fleet-gps-expense-sync.util', () => {
       description: 'Contratación de GPS · SkyBitz (Mensualidad 1/12)',
       vendor: 'SkyBitz',
       paymentMethod: 'transfer',
-      invoiceRequired: true,
+      invoiceRequired: false,
     });
   });
 

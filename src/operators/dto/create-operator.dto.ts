@@ -6,9 +6,10 @@ import {
   IsInt,
   IsOptional,
   IsString,
+  MaxLength,
   ValidateNested,
 } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import { OptionalIsoDate } from 'src/common/decorators/optional-iso-date.decorator';
 
 export class CreateOperatorEmergencyContactDto {
@@ -117,6 +118,10 @@ export class CreateOperatorPrivateInsuranceDto {
 export class CreateOperatorDocumentDto {
   @ApiPropertyOptional({ description: 'ID público numérico del documento (si ya existe)' })
   @IsOptional()
+  @Transform(({ value }) => {
+    const n = Number(value);
+    return Number.isInteger(n) && n > 0 ? n : undefined;
+  })
   @IsInt()
   id?: number;
 
@@ -191,9 +196,12 @@ export class CreateOperatorDto {
   @IsString()
   address?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({
+    description: 'Data URL JPEG comprimida del avatar (vacío = sin foto).',
+  })
   @IsOptional()
   @IsString()
+  @MaxLength(2_500_000)
   photoDataUrl?: string;
 
   @ApiPropertyOptional()

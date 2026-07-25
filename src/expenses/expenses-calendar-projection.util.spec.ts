@@ -70,7 +70,6 @@ describe('expenses-calendar-projection.util', () => {
             gpsPrice: '500',
             gpsProviderBrand: 'SkyBitz',
             gpsPaymentMethod: 'transfer',
-            gpsInvoiceRequired: true,
           },
         } as never,
       ],
@@ -86,7 +85,7 @@ describe('expenses-calendar-projection.util', () => {
     expect(gpsRow?.relatedUnitLabel).toBe('FRE-2022-233-SDCV-34');
     expect(gpsRow?.vendor).toBe('SkyBitz');
     expect(gpsRow?.paymentMethod).toBe('transfer');
-    expect(gpsRow?.invoiceRequired).toBe(true);
+    expect(gpsRow?.invoiceRequired).toBe(false);
     expect(gpsRow?.hint).toMatch(/^Pago de GPS · SkyBitz \(Mensualidad \d+\/12\)$/);
   });
 
@@ -152,7 +151,6 @@ describe('expenses-calendar-projection.util', () => {
             insuranceCarrierName: 'Qualitas',
             insurancePolicyNumber: '0008345312',
             insurancePaymentMethod: 'check',
-            insuranceInvoiceRequired: true,
           },
         } as never,
       ],
@@ -167,7 +165,7 @@ describe('expenses-calendar-projection.util', () => {
     expect(insuranceRow?.relatedEquipmentLabel).toBe('HYT-2020-EQ-99');
     expect(insuranceRow?.vendor).toBe('Qualitas');
     expect(insuranceRow?.paymentMethod).toBe('check');
-    expect(insuranceRow?.invoiceRequired).toBe(true);
+    expect(insuranceRow?.invoiceRequired).toBe(false);
     expect(insuranceRow?.hint).toMatch(/^Pago de póliza · /);
     expect(insuranceRow?.hint).toMatch(/\(Mensualidad \d+\/12\)$/);
   });

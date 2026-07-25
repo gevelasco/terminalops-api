@@ -102,7 +102,6 @@ export class FleetInsuranceExpenseSyncService {
       const carrier = (profile.insuranceCarrierName ?? '').trim() || undefined;
       const paymentMethod =
         (profile.insurancePaymentMethod ?? '').trim() || undefined;
-      const invoiceRequired = profile.insuranceInvoiceRequired === true;
       const category = insurancePolicyConceptLabel(cadence);
 
       const drafts: Array<CreateExpenseDto & { paidAt?: string | null }> = [];
@@ -127,7 +126,7 @@ export class FleetInsuranceExpenseSyncService {
           description,
           vendor: carrier,
           paymentMethod,
-          invoiceRequired,
+          invoiceRequired: false,
           paidAt: null,
         });
       }

@@ -1,8 +1,8 @@
 import type { Expense } from 'src/expenses/entities/expense.entity';
 import type { Trip } from 'src/trips/entities/trip.entity';
 import {
-  buildTripDestinationLabel,
-  buildTripOriginLabel,
+  buildTripDestinationCityPostalLabel,
+  buildTripOriginCityPostalLabel,
 } from 'src/trips/trip-route-label.util';
 import {
   normalizeOperatorPaymentSchedule,
@@ -67,8 +67,8 @@ export function buildOperatorLastManeuverSnapshot(
   return {
     tripId: trip.id,
     maneuverCode: trip.maneuverCode,
-    origin: buildTripOriginLabel(trip),
-    destination: buildTripDestinationLabel(trip),
+    origin: buildTripOriginCityPostalLabel(trip),
+    destination: buildTripDestinationCityPostalLabel(trip),
     status: trip.status,
     occurredOn: activity ? localYmd(activity) : undefined,
   };

@@ -11,6 +11,7 @@ import { parseOptionalNumericId } from 'src/common/utils/tenant.util';
 import type AuthUser from 'src/types/auth-user.type';
 import { Equipment } from 'src/equipment/entities/equipment.entity';
 import { Expense } from 'src/expenses/entities/expense.entity';
+import { ExpenseDocument } from 'src/expenses/entities/expense-document.entity';
 import {
   expenseTextColumn,
   mergeExpenseRelationForNormalize,
@@ -19,7 +20,10 @@ import {
 import { Operator } from 'src/operators/entities/operator.entity';
 import { Trip } from 'src/trips/entities/trip.entity';
 import { Unit } from 'src/units/entities/unit.entity';
-import { CreateExpenseDto } from './dto/create-expense.dto';
+import {
+  CreateExpenseDocumentDto,
+  CreateExpenseDto,
+} from './dto/create-expense.dto';
 import { UpdateExpenseDto } from './dto/update-expense.dto';
 import { ListExpensesQueryDto } from './dto/list-expenses-query.dto';
 import { ExpensesCalendarQueryDto } from './dto/expenses-calendar-query.dto';
@@ -81,6 +85,8 @@ export class ExpensesService {
   constructor(
     @InjectRepository(Expense)
     private readonly repo: Repository<Expense>,
+    @InjectRepository(ExpenseDocument)
+    private readonly documentsRepo: Repository<ExpenseDocument>,
     @InjectRepository(Trip)
     private readonly tripsRepo: Repository<Trip>,
     @InjectRepository(Unit)
@@ -96,16 +102,17 @@ export class ExpensesService {
   ) {}
 
   async create(companyId: number, dto: CreateExpenseDto, actor?: AuthUser) {
-    const relatedUnitId = dto.relatedUnitId
-      ? await this.resolveUnitId(companyId, dto.relatedUnitId)
+    const { documents, ...expenseDto } = dto;
+    const relatedUnitId = expenseDto.relatedUnitId
+      ? await this.resolveUnitId(companyId, expenseDto.relatedUnitId)
       : undefined;
-    const relatedEquipmentId = dto.relatedEquipmentId
-      ? await this.resolveEquipmentId(companyId, dto.relatedEquipmentId)
+    const relatedEquipmentId = expenseDto.relatedEquipmentId
+      ? await this.resolveEquipmentId(companyId, expenseDto.relatedEquipmentId)
       : undefined;
     const relationFields = normalizeExpenseRelationFields({
-      kind: dto.kind,
-      verificationScope: dto.verificationScope,
-      category: dto.category,
+      kind: expenseDto.kind,
+      verificationScope: expenseDto.verificationScope,
+      category: expenseDto.category,
       relatedUnitId: relatedUnitId ?? null,
       relatedEquipmentId: relatedEquipmentId ?? null,
     });
@@ -113,30 +120,34 @@ export class ExpensesService {
     const saved = await this.repo.save(
       this.repo.create({
         companyId,
-        category: relationFields.category ?? dto.category,
-        amount: String(dto.amount),
-        currency: dto.currency ?? 'MXN',
-        incurredAt: parseOperationalIncurredAt(dto.incurredAt),
-        kind: dto.kind,
-        tripId: dto.tripId
-          ? await this.resolveTripId(companyId, dto.tripId)
+        category: relationFields.category ?? expenseDto.category,
+        amount: String(expenseDto.amount),
+        currency: expenseDto.currency ?? 'MXN',
+        incurredAt: parseOperationalIncurredAt(expenseDto.incurredAt),
+        kind: expenseDto.kind,
+        tripId: expenseDto.tripId
+          ? await this.resolveTripId(companyId, expenseDto.tripId)
           : undefined,
         relatedUnitId,
         relatedEquipmentId,
-        relatedOperatorId: dto.relatedOperatorId
-          ? await this.resolveOperatorId(companyId, dto.relatedOperatorId)
+        relatedOperatorId: expenseDto.relatedOperatorId
+          ? await this.resolveOperatorId(companyId, expenseDto.relatedOperatorId)
           : undefined,
-        description: dto.description?.trim() || relationFields.descriptionHint,
-        vendor: expenseTextColumn(dto.vendor),
-        paymentMethod: expenseTextColumn(dto.paymentMethod),
-        invoiceRequired: dto.invoiceRequired ?? false,
-        paidAt: dto.paidAt
-          ? parseOperationalIncurredAt(dto.paidAt)
-          : dto.paidAt === null
+        description:
+          expenseDto.description?.trim() || relationFields.descriptionHint,
+        vendor: expenseTextColumn(expenseDto.vendor),
+        paymentMethod: expenseTextColumn(expenseDto.paymentMethod),
+        invoiceRequired: expenseDto.invoiceRequired ?? false,
+        paidAt: expenseDto.paidAt
+          ? parseOperationalIncurredAt(expenseDto.paidAt)
+          : expenseDto.paidAt === null
             ? null
             : undefined,
       }),
     );
+    if (documents !== undefined) {
+      await this.replaceExpenseDocuments(saved.id, documents);
+    }
     const activity = expenseActivityOnCreate(saved);
     if (activity) {
       await this.activityEvents.record({
@@ -266,6 +277,7 @@ export class ExpensesService {
     }
 
     const rows = await rowsQb.getMany();
+    await this.attachDocuments(rows);
 
     return {
       items: rows.map((row) => serializeExpense(row)),
@@ -552,7 +564,14 @@ export class ExpensesService {
   async findOne(companyId: number, expenseId: number) {
     const row = await this.repo.findOne({
       where: { companyId, id: expenseId, discardedAt: IsNull() },
-      relations: ['trip', 'relatedUnit', 'relatedEquipment', 'relatedOperator'],
+      relations: [
+        'trip',
+        'relatedUnit',
+        'relatedEquipment',
+        'relatedOperator',
+        'documents',
+      ],
+      order: { documents: { sortOrder: 'ASC' } },
     });
     if (!row) {
       throw new NotFoundException(`Expense ${expenseId} not found`);
@@ -866,6 +885,7 @@ export class ExpensesService {
       category,
       description,
       paidAt,
+      documents,
       ...rest
     } = dto;
 
@@ -957,6 +977,9 @@ export class ExpensesService {
         paidAt: paidAt ? parseOperationalIncurredAt(paidAt) : null,
       }),
     } as Parameters<Repository<Expense>['update']>[1]);
+    if (documents !== undefined) {
+      await this.replaceExpenseDocuments(expenseId, documents);
+    }
     const updated = await this.repo.findOne({
       where: { companyId, id: expenseId },
     });
@@ -980,6 +1003,68 @@ export class ExpensesService {
       }
     }
     return this.findOne(companyId, expenseId);
+  }
+
+  private async attachDocuments(rows: Expense[]): Promise<void> {
+    if (rows.length === 0) {
+      return;
+    }
+    const docs = await this.documentsRepo.find({
+      where: { expenseId: In(rows.map((r) => r.id)) },
+      order: { sortOrder: 'ASC' },
+    });
+    const byExpense = new Map<number, ExpenseDocument[]>();
+    for (const doc of docs) {
+      const list = byExpense.get(doc.expenseId) ?? [];
+      list.push(doc);
+      byExpense.set(doc.expenseId, list);
+    }
+    for (const row of rows) {
+      row.documents = byExpense.get(row.id) ?? [];
+    }
+  }
+
+  private async replaceExpenseDocuments(
+    expenseId: number,
+    documents: CreateExpenseDocumentDto[],
+  ): Promise<void> {
+    await this.documentsRepo.delete({ expenseId });
+    if (documents.length === 0) {
+      return;
+    }
+    await this.documentsRepo.save(
+      await Promise.all(
+        documents.map(async (doc, index) => {
+          const existingDocId = await this.resolveDocumentId(expenseId, doc.id);
+          return this.documentsRepo.create({
+            ...(existingDocId ? { id: existingDocId } : {}),
+            expenseId,
+            fileName: doc.fileName,
+            slot: doc.slot,
+            addedAt: doc.addedAt ?? new Date().toISOString().slice(0, 10),
+            sortOrder: index,
+          });
+        }),
+      ),
+    );
+  }
+
+  private async resolveDocumentId(
+    expenseId: number,
+    ref?: string | number,
+  ): Promise<number | undefined> {
+    if (ref == null || ref === '') {
+      return undefined;
+    }
+    const id = typeof ref === 'number' ? ref : Number(ref);
+    if (!Number.isInteger(id) || id < 1) {
+      return undefined;
+    }
+    const row = await this.documentsRepo.findOne({
+      where: { expenseId, id },
+      select: ['id'],
+    });
+    return row?.id;
   }
 
   async remove(companyId: number, expenseId: number, actor: AuthUser) {

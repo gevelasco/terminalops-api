@@ -50,6 +50,7 @@ export class UpdateCompanyUserDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
+  @MaxLength(2_500_000)
   photoDataUrl?: string;
 
   @ApiPropertyOptional({ minLength: 8 })

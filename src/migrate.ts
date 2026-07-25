@@ -60,6 +60,29 @@ async function main() {
           WHERE storage_key IS NOT NULL;
       `);
       console.log('Schema ensure: equipment_fleet_documents storage columns OK');
+      // Hard ensure: trip documents table (covers migrations_list drift).
+      await dataSource.query(`
+        CREATE TABLE IF NOT EXISTS terminalops.trip_documents (
+          id serial PRIMARY KEY,
+          trip_id integer NOT NULL REFERENCES terminalops.trips(id) ON DELETE CASCADE,
+          document_kind text NOT NULL,
+          file_name text NOT NULL,
+          storage_key text NULL,
+          content_type text NULL,
+          size_bytes bigint NULL,
+          sort_order smallint NOT NULL DEFAULT 0
+        );
+      `);
+      await dataSource.query(`
+        CREATE INDEX IF NOT EXISTS trip_documents_trip_id_idx
+          ON terminalops.trip_documents (trip_id);
+      `);
+      await dataSource.query(`
+        CREATE INDEX IF NOT EXISTS trip_documents_storage_key_idx
+          ON terminalops.trip_documents (storage_key)
+          WHERE storage_key IS NOT NULL;
+      `);
+      console.log('Schema ensure: trip_documents OK');
     } finally {
       await dataSource.query(`SELECT pg_advisory_unlock($1)`, [
         MIGRATION_LOCK_KEY,
