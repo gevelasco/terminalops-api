@@ -1,6 +1,13 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { FileService } from 'src/common/file/file.service';
 import { serializeEquipment } from 'src/common/serializers/equipment.serializer';
 import { parseOptionalNumericId } from 'src/common/utils/tenant.util';
 import { FleetTenureService } from 'src/fleet/fleet-tenure.service';
@@ -23,7 +30,11 @@ import { TripEquipment } from 'src/trips/entities/trip-equipment.entity';
 import { CreateEquipmentDto } from './dto/create-equipment.dto';
 import { UpdateEquipmentDto } from './dto/update-equipment.dto';
 import {
-  fleetMetaDtoToDocuments,
+  EQUIPMENT_FLEET_DOCUMENT_KINDS,
+  EQUIPMENT_FLEET_DOCUMENT_STORAGE_FOLDER,
+  type EquipmentFleetDocumentKind,
+} from './equipment-fleet-document.constants';
+import {
   fleetMetaDtoToMaintenanceEntries,
   fleetMetaDtoToProfile,
   fleetMetaDtoToVerificationEntries,
@@ -60,6 +71,8 @@ export type EquipmentFindAllOptions = { includeTenure?: boolean };
 
 @Injectable()
 export class EquipmentService {
+  private readonly logger = new Logger(EquipmentService.name);
+
   constructor(
     @InjectRepository(Equipment)
     private readonly repo: Repository<Equipment>,
@@ -83,6 +96,7 @@ export class EquipmentService {
     private readonly insuranceExpenseSync: FleetInsuranceExpenseSyncService,
     private readonly tenureExpenseSync: FleetTenureExpenseSyncService,
     private readonly activityEvents: ActivityEventsService,
+    private readonly fileService: FileService,
   ) {}
 
   async create(companyId: number, dto: CreateEquipmentDto, actor?: AuthUser) {
@@ -258,7 +272,7 @@ export class EquipmentService {
   }
 
   async remove(companyId: number, equipmentId: number) {
-    await this.findOne(companyId, equipmentId);
+    await this.assertEquipmentExists(companyId, equipmentId);
     const linkedManeuvers = await this.tripEquipmentRepo.count({
       where: { equipmentId },
     });
@@ -267,8 +281,143 @@ export class EquipmentService {
         `No se puede eliminar: el equipo está vinculado a ${linkedManeuvers} maniobra(s). Márcalo como inactivo en su lugar.`,
       );
     }
+    // Raw SQL: entity find() would 500 if storage_key column is missing (schema drift).
+    try {
+      const rows = (await this.documentsRepo.query(
+        `SELECT storage_key AS "storageKey"
+         FROM terminalops.equipment_fleet_documents
+         WHERE equipment_id = $1 AND storage_key IS NOT NULL`,
+        [equipmentId],
+      )) as Array<{ storageKey: string }>;
+      for (const row of rows) {
+        try {
+          await this.fileService.remove(row.storageKey);
+        } catch {
+          // Best-effort S3 cleanup.
+        }
+      }
+    } catch (error) {
+      this.logger.warn(
+        `Skipping document storage cleanup for equipment ${equipmentId}`,
+        error instanceof Error ? error.message : error,
+      );
+    }
     await this.repo.delete({ id: equipmentId, companyId });
     return { id: equipmentId, deleted: true };
+  }
+
+  async uploadDocument(
+    companyId: number,
+    equipmentId: number,
+    documentKind: EquipmentFleetDocumentKind,
+    file: Express.Multer.File,
+  ) {
+    if (!file?.buffer?.length) {
+      throw new BadRequestException('file is required');
+    }
+    if (
+      !(EQUIPMENT_FLEET_DOCUMENT_KINDS as readonly string[]).includes(
+        documentKind,
+      )
+    ) {
+      throw new BadRequestException('Invalid documentKind');
+    }
+    await this.assertEquipmentExists(companyId, equipmentId);
+
+    const uploaded = await this.fileService.upload(
+      EQUIPMENT_FLEET_DOCUMENT_STORAGE_FOLDER,
+      file,
+    );
+    const maxSort = await this.documentsRepo
+      .createQueryBuilder('d')
+      .select('MAX(d.sort_order)', 'max')
+      .where('d.equipment_id = :equipmentId', { equipmentId })
+      .getRawOne<{ max: string | null }>();
+    const sortOrder = Number(maxSort?.max ?? -1) + 1;
+
+    const saved = await this.documentsRepo.save(
+      this.documentsRepo.create({
+        equipmentId,
+        documentKind,
+        fileName: uploaded.originalName,
+        storageKey: uploaded.url,
+        contentType: file.mimetype || null,
+        sizeBytes: String(file.size),
+        sortOrder: Number.isFinite(sortOrder) ? sortOrder : 0,
+      }),
+    );
+
+    return {
+      id: saved.id,
+      equipmentId: saved.equipmentId,
+      documentKind: saved.documentKind,
+      fileName: saved.fileName,
+      sortOrder: saved.sortOrder,
+    };
+  }
+
+  async downloadDocument(
+    companyId: number,
+    equipmentId: number,
+    documentId: number,
+  ) {
+    const document = await this.findDocumentForEquipment(
+      companyId,
+      equipmentId,
+      documentId,
+    );
+    if (!document.storageKey) {
+      throw new NotFoundException(
+        `Document ${documentId} has no stored file`,
+      );
+    }
+    return this.fileService.presignedUrl(document.storageKey);
+  }
+
+  async removeDocument(
+    companyId: number,
+    equipmentId: number,
+    documentId: number,
+  ) {
+    const document = await this.findDocumentForEquipment(
+      companyId,
+      equipmentId,
+      documentId,
+    );
+    if (document.storageKey) {
+      await this.fileService.remove(document.storageKey);
+    }
+    await this.documentsRepo.delete({ id: documentId, equipmentId });
+    return { id: documentId, deleted: true };
+  }
+
+  private async findDocumentForEquipment(
+    companyId: number,
+    equipmentId: number,
+    documentId: number,
+  ): Promise<EquipmentFleetDocument> {
+    await this.assertEquipmentExists(companyId, equipmentId);
+    const document = await this.documentsRepo.findOne({
+      where: { id: documentId, equipmentId },
+    });
+    if (!document) {
+      throw new NotFoundException(`Document ${documentId} not found`);
+    }
+    return document;
+  }
+
+  /** Existence/tenant check without loading fleetDocuments (avoids schema-drift 500s). */
+  private async assertEquipmentExists(
+    companyId: number,
+    equipmentId: number,
+  ): Promise<Equipment> {
+    const row = await this.repo.findOne({
+      where: { companyId, id: equipmentId },
+    });
+    if (!row) {
+      throw new NotFoundException(`Equipment ${equipmentId} not found`);
+    }
+    return row;
   }
 
   async startMaintenance(companyId: number, equipmentId: number) {
@@ -390,14 +539,21 @@ export class EquipmentService {
       fleetMeta.verificationEntries !== undefined ||
       unitFleetMetaVerificationTouched(previousVerificationMeta, fleetMeta)
     ) {
+      const equipmentVerificationScopes = [
+        'phys_mech',
+        'double_articulated',
+      ] as const;
       let resolvedEntries = resolveVerificationEntriesFromMeta(fleetMeta).filter(
-        (entry) => entry.scope === 'phys_mech',
+        (entry) =>
+          (equipmentVerificationScopes as readonly string[]).includes(
+            entry.scope ?? '',
+          ),
       );
       if (fleetMeta.verificationEntries === undefined) {
         resolvedEntries = mergeVerificationHistoryOnScalarSave({
           previous: previousVerificationEntries,
           incomingScalars: fleetMeta,
-          scopes: ['phys_mech'],
+          scopes: [...equipmentVerificationScopes],
         });
       }
       await this.verificationRepo.delete({ equipmentId });
@@ -480,20 +636,8 @@ export class EquipmentService {
       });
     }
 
-    const hasDocumentPayload =
-      fleetMeta.documentMaintenanceNames !== undefined ||
-      fleetMeta.documentVerificationNames !== undefined ||
-      fleetMeta.documentPolicyNames !== undefined ||
-      fleetMeta.documentOwnershipNames !== undefined;
-    if (hasDocumentPayload) {
-      await this.documentsRepo.delete({ equipmentId });
-      const documentRows = fleetMetaDtoToDocuments(equipmentId, fleetMeta);
-      if (documentRows.length > 0) {
-        await this.documentsRepo.save(
-          documentRows.map((row) => this.documentsRepo.create(row)),
-        );
-      }
-    }
+    // Document files are managed via POST/DELETE /equipment/:equipmentId/documents.
+    // Ignoring legacy document*Names arrays avoids wiping stored S3 objects.
   }
 
   private async ensureEquipmentBrand(

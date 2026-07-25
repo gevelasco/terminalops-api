@@ -185,9 +185,25 @@ function documentNamesByKind(
 ): string[] | undefined {
   const names = (documents ?? [])
     .filter((d) => d.documentKind === kind)
+    .sort((a, b) => a.sortOrder - b.sortOrder)
     .map((d) => d.fileName)
     .filter(Boolean);
   return names.length > 0 ? names : undefined;
+}
+
+function fleetDocumentsForApi(
+  documents: EquipmentFleetDocument[] | undefined,
+): Array<{ id: number; fileName: string; documentKind: string }> | undefined {
+  const rows = (documents ?? [])
+    .slice()
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+    .map((d) => ({
+      id: d.id,
+      fileName: d.fileName,
+      documentKind: d.documentKind,
+    }))
+    .filter((d) => d.id > 0 && Boolean(d.fileName));
+  return rows.length > 0 ? rows : undefined;
 }
 
 export function profileToFleetMeta(
@@ -281,6 +297,11 @@ export function profileToFleetMeta(
       if (names) {
         meta[field] = names;
       }
+    }
+
+    const fleetDocuments = fleetDocumentsForApi(documents);
+    if (fleetDocuments) {
+      meta.fleetDocuments = fleetDocuments;
     }
 
     const withTenure = mergeTenureIntoFleetMeta(

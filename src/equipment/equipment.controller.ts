@@ -7,11 +7,19 @@ import {
   ParseIntPipe,
   Patch,
   Post,
-  UseGuards,
   Req,
+  UploadedFile,
+  UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import type { Request } from 'express';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiConsumes,
+  ApiTags,
+} from '@nestjs/swagger';
 import { rejectClientFleetStatusMutation } from 'src/fleet/fleet-status-lock.util';
 import { TenantContextService } from '../common/tenant/tenant-context.service';
 import { APP_MODULE_CODES } from '../common/constants/app-modules';
@@ -21,6 +29,7 @@ import { AuthGuard } from '../guards/auth/auth.guard';
 import type AuthUser from '../types/auth-user.type';
 import { PlanEnforcementService } from '../common/billing/plan-enforcement.service';
 import { UpdateEquipmentDto } from './dto/update-equipment.dto';
+import { UploadEquipmentFleetDocumentDto } from './dto/upload-equipment-fleet-document.dto';
 import { EquipmentService } from './equipment.service';
 
 @ApiTags('equipment')
@@ -99,5 +108,58 @@ export class EquipmentController {
     assertModuleWrite(user, APP_MODULE_CODES.FLEET);
     const companyId = await this.tenantContext.resolveInternalIdFromAuthUser(user);
     return this.service.syncInsuranceExpenses(companyId, equipmentId);
+  }
+
+  @Post(':equipmentId/documents')
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['file', 'documentKind'],
+      properties: {
+        file: { type: 'string', format: 'binary' },
+        documentKind: {
+          type: 'string',
+          enum: ['maintenance', 'verification', 'policy', 'ownership'],
+        },
+      },
+    },
+  })
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadDocument(
+    @Param('equipmentId', ParseIntPipe) equipmentId: number,
+    @Body() dto: UploadEquipmentFleetDocumentDto,
+    @UploadedFile() file: Express.Multer.File,
+    @LoggedUser() user: AuthUser,
+  ) {
+    assertModuleWrite(user, APP_MODULE_CODES.FLEET);
+    const companyId = await this.tenantContext.resolveInternalIdFromAuthUser(user);
+    return this.service.uploadDocument(
+      companyId,
+      equipmentId,
+      dto.documentKind,
+      file,
+    );
+  }
+
+  @Get(':equipmentId/documents/:documentId/download')
+  async downloadDocument(
+    @Param('equipmentId', ParseIntPipe) equipmentId: number,
+    @Param('documentId', ParseIntPipe) documentId: number,
+    @LoggedUser() user: AuthUser,
+  ) {
+    const companyId = await this.tenantContext.resolveInternalIdFromAuthUser(user);
+    return this.service.downloadDocument(companyId, equipmentId, documentId);
+  }
+
+  @Delete(':equipmentId/documents/:documentId')
+  async removeDocument(
+    @Param('equipmentId', ParseIntPipe) equipmentId: number,
+    @Param('documentId', ParseIntPipe) documentId: number,
+    @LoggedUser() user: AuthUser,
+  ) {
+    assertModuleWrite(user, APP_MODULE_CODES.FLEET);
+    const companyId = await this.tenantContext.resolveInternalIdFromAuthUser(user);
+    return this.service.removeDocument(companyId, equipmentId, documentId);
   }
 }

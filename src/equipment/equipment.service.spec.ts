@@ -1,6 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
+import { FileService } from 'src/common/file/file.service';
 import { FleetBrandsService } from 'src/fleet/fleet-brands.service';
 import { FleetTenureService } from 'src/fleet/fleet-tenure.service';
 import { FleetMaintenanceEntry } from 'src/units/entities/fleet-maintenance-entry.entity';
@@ -89,6 +90,14 @@ describe('EquipmentService (A6 fleet status lock)', () => {
         {
           provide: ActivityEventsService,
           useValue: { record: jest.fn() },
+        },
+        {
+          provide: FileService,
+          useValue: {
+            upload: jest.fn(),
+            presignedUrl: jest.fn(),
+            remove: jest.fn(),
+          },
         },
       ],
     }).compile();

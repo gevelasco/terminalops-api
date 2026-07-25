@@ -254,6 +254,21 @@ export class CreateEquipmentFleetMetaDto {
 
   @ApiPropertyOptional()
   @IsOptional()
+  @IsBoolean()
+  verificationDoubleArticulatedApplies?: boolean;
+
+  @ApiPropertyOptional()
+  @OptionalIsoDate()
+  verificationDoubleArticulatedDate?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  verificationDoubleArticulatedCost?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsString()
   insurancePolicyNumber?: string;
 

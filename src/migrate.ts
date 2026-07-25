@@ -41,6 +41,25 @@ async function main() {
           WHERE storage_key IS NOT NULL;
       `);
       console.log('Schema ensure: unit_fleet_documents storage columns OK');
+      // Hard ensure: equipment document storage columns (covers migrations_list drift).
+      await dataSource.query(`
+        ALTER TABLE terminalops.equipment_fleet_documents
+          ADD COLUMN IF NOT EXISTS storage_key text NULL;
+      `);
+      await dataSource.query(`
+        ALTER TABLE terminalops.equipment_fleet_documents
+          ADD COLUMN IF NOT EXISTS content_type text NULL;
+      `);
+      await dataSource.query(`
+        ALTER TABLE terminalops.equipment_fleet_documents
+          ADD COLUMN IF NOT EXISTS size_bytes bigint NULL;
+      `);
+      await dataSource.query(`
+        CREATE INDEX IF NOT EXISTS equipment_fleet_documents_storage_key_idx
+          ON terminalops.equipment_fleet_documents (storage_key)
+          WHERE storage_key IS NOT NULL;
+      `);
+      console.log('Schema ensure: equipment_fleet_documents storage columns OK');
     } finally {
       await dataSource.query(`SELECT pg_advisory_unlock($1)`, [
         MIGRATION_LOCK_KEY,

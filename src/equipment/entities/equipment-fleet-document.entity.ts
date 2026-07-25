@@ -16,6 +16,19 @@ export class EquipmentFleetDocument {
   @Column({ name: 'file_name' })
   fileName: string;
 
+  /** S3 object key (`folder/uuid.ext`). Null for legacy name-only rows. */
+  @Column({ name: 'storage_key', type: 'text', nullable: true })
+  storageKey: string | null;
+
+  @Column({ name: 'content_type', type: 'text', nullable: true })
+  contentType: string | null;
+
+  @Column({ name: 'size_bytes', type: 'bigint', nullable: true })
+  sizeBytes: string | null;
+
+  @Column({ name: 'sort_order', type: 'smallint', default: 0 })
+  sortOrder: number;
+
   @ManyToOne(() => Equipment, (e) => e.fleetDocuments, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'equipment_id' })
   equipment?: Equipment;
