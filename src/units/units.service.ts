@@ -1,10 +1,12 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { QueryFailedError, Repository } from 'typeorm';
 import { FileService } from 'src/common/file/file.service';
 import { serializeUnit } from 'src/common/serializers/unit.serializer';
 import { FleetTenureService } from 'src/fleet/fleet-tenure.service';
@@ -87,6 +89,8 @@ export type UnitsFindAllOptions = FleetListAvailableOptions & {
 
 @Injectable()
 export class UnitsService {
+  private readonly logger = new Logger(UnitsService.name);
+
   constructor(
     @InjectRepository(Unit)
     private readonly repo: Repository<Unit>,
@@ -118,13 +122,23 @@ export class UnitsService {
       rawCore as unknown as Record<string, unknown>,
     );
     await this.ensureUnitBrand(companyId, fleetMeta);
-    const saved = await this.repo.save(
-      this.repo.create({
-        ...core,
-        companyId,
-        status: 'available',
-      } as Partial<Unit>),
-    );
+    let saved: Unit;
+    try {
+      saved = await this.repo.save(
+        this.repo.create({
+          ...core,
+          companyId,
+          status: 'available',
+        } as Partial<Unit>),
+      );
+    } catch (error) {
+      if (this.isUniqueViolation(error, 'units_company_plate_uniq')) {
+        throw new ConflictException(
+          'Ya existe una unidad con esa placa en la empresa.',
+        );
+      }
+      throw error;
+    }
     if (fleetMeta) {
       await this.saveFleetMeta(companyId, saved.id, fleetMeta);
     }
@@ -138,7 +152,25 @@ export class UnitsService {
       title: 'Alta de unidad',
       actor,
     });
-    return this.findOne(companyId, saved.id);
+    // Detail can fail under schema drift (e.g. missing document storage columns).
+    // Unit is already persisted — return a list-shaped payload so the client
+    // does not retry create with the same plate.
+    try {
+      return await this.findOne(companyId, saved.id);
+    } catch (error) {
+      this.logger.warn(
+        `Unit ${saved.id} created but detail load failed; returning list payload`,
+        error instanceof Error ? error.message : error,
+      );
+      const row = await this.repo.findOne({
+        where: { companyId, id: saved.id },
+        relations: [...UNIT_LIST_RELATIONS],
+      });
+      if (!row) {
+        throw error;
+      }
+      return serializeUnit(row, { list: true });
+    }
   }
 
   async findAll(companyId: number, options?: UnitsFindAllOptions) {
@@ -273,16 +305,27 @@ export class UnitsService {
   }
 
   async remove(companyId: number, unitId: number) {
-    await this.findOne(companyId, unitId);
-    const docs = await this.documentsRepo.find({ where: { unitId } });
-    for (const doc of docs) {
-      if (doc.storageKey) {
+    await this.assertUnitExists(companyId, unitId);
+    // Raw SQL: entity find() would 500 if storage_key column is missing (schema drift).
+    try {
+      const rows = (await this.documentsRepo.query(
+        `SELECT storage_key AS "storageKey"
+         FROM terminalops.unit_fleet_documents
+         WHERE unit_id = $1 AND storage_key IS NOT NULL`,
+        [unitId],
+      )) as Array<{ storageKey: string }>;
+      for (const row of rows) {
         try {
-          await this.fileService.remove(doc.storageKey);
+          await this.fileService.remove(row.storageKey);
         } catch {
-          // Best-effort: DB cascade still removes the row.
+          // Best-effort S3 cleanup.
         }
       }
+    } catch (error) {
+      this.logger.warn(
+        `Skipping document storage cleanup for unit ${unitId}`,
+        error instanceof Error ? error.message : error,
+      );
     }
     await this.repo.delete({ id: unitId, companyId });
     return { id: unitId, deleted: true };
@@ -302,7 +345,7 @@ export class UnitsService {
     ) {
       throw new BadRequestException('Invalid documentKind');
     }
-    await this.findOne(companyId, unitId);
+    await this.assertUnitExists(companyId, unitId);
 
     const uploaded = await this.fileService.upload(
       UNIT_FLEET_DOCUMENT_STORAGE_FOLDER,
@@ -376,7 +419,7 @@ export class UnitsService {
     unitId: number,
     documentId: number,
   ): Promise<UnitFleetDocument> {
-    await this.findOne(companyId, unitId);
+    await this.assertUnitExists(companyId, unitId);
     const document = await this.documentsRepo.findOne({
       where: { id: documentId, unitId },
     });
@@ -384,6 +427,30 @@ export class UnitsService {
       throw new NotFoundException(`Document ${documentId} not found`);
     }
     return document;
+  }
+
+  /** Existence/tenant check without loading fleetDocuments (avoids schema-drift 500s). */
+  private async assertUnitExists(
+    companyId: number,
+    unitId: number,
+  ): Promise<Unit> {
+    const row = await this.repo.findOne({ where: { companyId, id: unitId } });
+    if (!row) {
+      throw new NotFoundException(`Unit ${unitId} not found`);
+    }
+    return row;
+  }
+
+  private isUniqueViolation(error: unknown, constraint: string): boolean {
+    if (!(error instanceof QueryFailedError)) {
+      return false;
+    }
+    const driverError = error.driverError as
+      | { code?: string; constraint?: string }
+      | undefined;
+    return (
+      driverError?.code === '23505' && driverError.constraint === constraint
+    );
   }
 
   async startMaintenance(companyId: number, unitId: number) {
