@@ -9,6 +9,7 @@ import { Unit } from 'src/units/entities/unit.entity';
 import { TripDocument } from 'src/trips/entities/trip-document.entity';
 import { TripEquipment } from 'src/trips/entities/trip-equipment.entity';
 import { TripIncident } from 'src/trips/entities/trip-incident.entity';
+import { TripIncidentImage } from 'src/trips/entities/trip-incident-image.entity';
 import { TripLoadPlace } from 'src/trips/entities/trip-load-place.entity';
 import { TripLoadPlacesService } from 'src/trips/trip-load-places.service';
 import { TripLifecycleScheduler } from './lifecycle/trip-lifecycle.scheduler';
@@ -36,6 +37,7 @@ import { TripsService } from './trips.service';
       TripDocument,
       TripEquipment,
       TripIncident,
+      TripIncidentImage,
       TripLoadPlace,
       Equipment,
       Client,

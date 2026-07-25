@@ -29,12 +29,18 @@ import { Trip } from 'src/trips/entities/trip.entity';
 import { TripDocument } from 'src/trips/entities/trip-document.entity';
 import { TripEquipment } from 'src/trips/entities/trip-equipment.entity';
 import { TripIncident } from 'src/trips/entities/trip-incident.entity';
+import { TripIncidentImage } from 'src/trips/entities/trip-incident-image.entity';
 import { Unit } from 'src/units/entities/unit.entity';
 import {
   TRIP_DOCUMENT_KINDS,
   TRIP_DOCUMENT_STORAGE_FOLDER,
   type TripDocumentKind,
 } from './trip-document.constants';
+import {
+  TRIP_INCIDENT_IMAGE_MIME_TYPES,
+  TRIP_INCIDENT_IMAGE_STORAGE_FOLDER,
+} from './trip-incident-image.constants';
+import { isTripFollowUpLocked } from './trip-post-completion-lock.util';
 import { AddIncidentDto } from './dto/add-incident.dto';
 import { CancelTripDto } from './dto/cancel-trip.dto';
 import { CreateTripDto } from './dto/create-trip.dto';
@@ -116,6 +122,8 @@ export class TripsService {
     private readonly tripEquipmentRepo: Repository<TripEquipment>,
     @InjectRepository(TripIncident)
     private readonly incidentsRepo: Repository<TripIncident>,
+    @InjectRepository(TripIncidentImage)
+    private readonly incidentImagesRepo: Repository<TripIncidentImage>,
     @InjectRepository(Equipment)
     private readonly equipmentRepo: Repository<Equipment>,
     @InjectRepository(Client)
@@ -146,6 +154,7 @@ export class TripsService {
     'operator',
     'tripEquipment',
     'incidents',
+    'incidents.images',
     'documents',
   ] as const;
 
@@ -515,6 +524,37 @@ export class TripsService {
       throw new NotFoundException(`Document ${documentId} not found`);
     }
     return document;
+  }
+
+  private async findIncidentForTrip(
+    companyId: number,
+    tripId: number,
+    incidentId: number,
+  ): Promise<TripIncident> {
+    await this.assertTripExists(companyId, tripId);
+    const incident = await this.incidentsRepo.findOne({
+      where: { id: incidentId, tripId },
+    });
+    if (!incident) {
+      throw new NotFoundException(`Incident ${incidentId} not found`);
+    }
+    return incident;
+  }
+
+  private async findIncidentImageForTrip(
+    companyId: number,
+    tripId: number,
+    incidentId: number,
+    imageId: number,
+  ): Promise<TripIncidentImage> {
+    await this.findIncidentForTrip(companyId, tripId, incidentId);
+    const image = await this.incidentImagesRepo.findOne({
+      where: { id: imageId, tripIncidentId: incidentId },
+    });
+    if (!image) {
+      throw new NotFoundException(`Image ${imageId} not found`);
+    }
+    return image;
   }
 
   private async assertTripExists(
@@ -1073,12 +1113,18 @@ export class TripsService {
       assertTripBitacoraAccess(actor, dto.isIncident === true);
     }
     const trip = await this.getTripEntity(companyId, tripId);
+    this.assertTripFollowUpStillOpen(trip);
     const isIncident = dto.isIncident === true;
+    const description = (dto.description ?? '').trim();
+    const postedBy = dto.postedBy.trim();
+    if (!postedBy) {
+      throw new BadRequestException('postedBy is required');
+    }
     const savedIncident = await this.incidentsRepo.save(
       this.incidentsRepo.create({
         tripId: trip.id,
-        description: dto.description.trim(),
-        postedBy: dto.postedBy.trim(),
+        description,
+        postedBy,
         isIncident,
       }),
     );
@@ -1100,7 +1146,89 @@ export class TripsService {
       actor,
       metadata: { incidentId: savedIncident.id },
     });
-    return this.findOne(companyId, tripId);
+    const tripResponse = await this.findOne(companyId, tripId);
+    return {
+      ...tripResponse,
+      lastBitacoraEntryId: savedIncident.id,
+    };
+  }
+
+  async uploadIncidentImage(
+    companyId: number,
+    tripId: number,
+    incidentId: number,
+    file: Express.Multer.File,
+    actor?: AuthUser,
+  ) {
+    if (!file?.buffer?.length) {
+      throw new BadRequestException('file is required');
+    }
+    const mime = (file.mimetype || '').toLowerCase();
+    if (
+      !(TRIP_INCIDENT_IMAGE_MIME_TYPES as readonly string[]).includes(mime)
+    ) {
+      throw new BadRequestException(
+        'Solo se permiten imágenes JPG, PNG, WEBP o GIF.',
+      );
+    }
+    const trip = await this.getTripEntity(companyId, tripId);
+    this.assertTripFollowUpStillOpen(trip);
+    const incident = await this.findIncidentForTrip(
+      companyId,
+      tripId,
+      incidentId,
+    );
+    if (actor) {
+      assertTripBitacoraAccess(actor, incident.isIncident === true);
+    }
+
+    const uploaded = await this.fileService.upload(
+      TRIP_INCIDENT_IMAGE_STORAGE_FOLDER,
+      file,
+    );
+    const maxSort = await this.incidentImagesRepo
+      .createQueryBuilder('img')
+      .select('MAX(img.sort_order)', 'max')
+      .where('img.trip_incident_id = :incidentId', { incidentId })
+      .getRawOne<{ max: string | null }>();
+    const sortOrder = Number(maxSort?.max ?? -1) + 1;
+
+    const saved = await this.incidentImagesRepo.save(
+      this.incidentImagesRepo.create({
+        tripIncidentId: incident.id,
+        fileName: uploaded.originalName,
+        storageKey: uploaded.url,
+        contentType: file.mimetype || null,
+        sizeBytes: String(file.size),
+        sortOrder: Number.isFinite(sortOrder) ? sortOrder : 0,
+      }),
+    );
+
+    return {
+      id: saved.id,
+      tripIncidentId: saved.tripIncidentId,
+      fileName: saved.fileName,
+      contentType: saved.contentType,
+      sortOrder: saved.sortOrder,
+    };
+  }
+
+  async downloadIncidentImage(
+    companyId: number,
+    tripId: number,
+    incidentId: number,
+    imageId: number,
+  ) {
+    const image = await this.findIncidentImageForTrip(
+      companyId,
+      tripId,
+      incidentId,
+      imageId,
+    );
+    if (!image.storageKey) {
+      throw new NotFoundException(`Image ${imageId} has no stored file`);
+    }
+    return this.fileService.presignedUrl(image.storageKey);
   }
 
   async updateActualSchedule(
@@ -1433,6 +1561,20 @@ export class TripsService {
         'La justificación es obligatoria al actualizar una entrega de vacío.',
       );
     }
+    this.assertTripFollowUpStillOpen(trip);
+  }
+
+  /**
+   * Tras 7 días de completada, la maniobra queda cerrada a entrega de vacío
+   * y bitácora (notas / fotos).
+   */
+  private assertTripFollowUpStillOpen(trip: Trip): void {
+    if (!isTripFollowUpLocked(trip)) {
+      return;
+    }
+    throw new BadRequestException(
+      'La maniobra quedó cerrada: pasaron más de 7 días desde su completado. Ya no se puede modificar la entrega de vacío ni la bitácora.',
+    );
   }
 
   /**

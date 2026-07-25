@@ -120,6 +120,14 @@ export function mapTripToResponse(
 }
 
 function mapIncident(i: TripIncident, authorLookup?: IncidentAuthorLookup) {
+  const images = (i.images ?? [])
+    .slice()
+    .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.id - b.id)
+    .map((img) => ({
+      id: img.id,
+      fileName: img.fileName,
+      contentType: img.contentType ?? null,
+    }));
   return {
     id: i.id,
     description: i.description,
@@ -129,5 +137,6 @@ function mapIncident(i: TripIncident, authorLookup?: IncidentAuthorLookup) {
       ? formatIncidentAuthorLabel(i.postedBy, authorLookup)
       : i.postedBy,
     isIncident: i.isIncident === true,
+    images,
   };
 }

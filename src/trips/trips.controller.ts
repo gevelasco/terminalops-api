@@ -90,6 +90,50 @@ export class TripsController {
     return this.service.addIncident(companyId, tripId, dto, user);
   }
 
+  @Post(':tripId/incidents/:incidentId/images')
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['file'],
+      properties: {
+        file: { type: 'string', format: 'binary' },
+      },
+    },
+  })
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadIncidentImage(
+    @Param('tripId', ParseIntPipe) tripId: number,
+    @Param('incidentId', ParseIntPipe) incidentId: number,
+    @UploadedFile() file: Express.Multer.File,
+    @LoggedUser() user: AuthUser,
+  ) {
+    const companyId = await this.tenantContext.resolveInternalIdFromAuthUser(user);
+    return this.service.uploadIncidentImage(
+      companyId,
+      tripId,
+      incidentId,
+      file,
+      user,
+    );
+  }
+
+  @Get(':tripId/incidents/:incidentId/images/:imageId/download')
+  async downloadIncidentImage(
+    @Param('tripId', ParseIntPipe) tripId: number,
+    @Param('incidentId', ParseIntPipe) incidentId: number,
+    @Param('imageId', ParseIntPipe) imageId: number,
+    @LoggedUser() user: AuthUser,
+  ) {
+    const companyId = await this.tenantContext.resolveInternalIdFromAuthUser(user);
+    return this.service.downloadIncidentImage(
+      companyId,
+      tripId,
+      incidentId,
+      imageId,
+    );
+  }
+
   @Patch(':tripId/actual-schedule')
   @ApiOperation({ summary: 'Update actual schedule dates for in-transit maniobra' })
   async updateActualSchedule(

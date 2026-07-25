@@ -3,9 +3,11 @@ import { Transform } from 'class-transformer';
 import { IsBoolean, IsOptional, IsString, MinLength } from 'class-validator';
 
 export class AddIncidentDto {
-  @ApiProperty()
+  @ApiProperty({
+    description:
+      'Texto de la entrada. Puede ir vacío si luego se adjuntan imágenes.',
+  })
   @IsString()
-  @MinLength(1)
   description: string;
 
   @ApiProperty()

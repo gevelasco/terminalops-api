@@ -4,10 +4,12 @@ import {
   Entity,
   JoinColumn,
   ManyToOne,
+  OneToMany,
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { TERMINALOPS_SCHEMA } from 'src/common/constants/schema-name';
 import { Trip } from 'src/trips/entities/trip.entity';
+import { TripIncidentImage } from 'src/trips/entities/trip-incident-image.entity';
 
 /** Entrada de bitácora de maniobra; `isIncident` marca el subconjunto operativo. */
 @Entity({ schema: TERMINALOPS_SCHEMA, name: 'trip_incidents' })
@@ -33,4 +35,7 @@ export class TripIncident {
   @ManyToOne(() => Trip, (t) => t.incidents, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'trip_id' })
   trip: Trip;
+
+  @OneToMany(() => TripIncidentImage, (image) => image.incident)
+  images?: TripIncidentImage[];
 }
