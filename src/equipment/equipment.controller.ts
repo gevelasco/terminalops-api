@@ -19,6 +19,7 @@ import { assertModuleWrite } from '../common/utils/module-permission.util';
 import { LoggedUser } from '../decorators/logged-user.decorator';
 import { AuthGuard } from '../guards/auth/auth.guard';
 import type AuthUser from '../types/auth-user.type';
+import { PlanEnforcementService } from '../common/billing/plan-enforcement.service';
 import { UpdateEquipmentDto } from './dto/update-equipment.dto';
 import { EquipmentService } from './equipment.service';
 
@@ -30,6 +31,7 @@ export class EquipmentController {
   constructor(
     private readonly service: EquipmentService,
     private readonly tenantContext: TenantContextService,
+    private readonly planEnforcement: PlanEnforcementService,
   ) {}
 
   @Get(':equipmentId')
@@ -51,6 +53,12 @@ export class EquipmentController {
     assertModuleWrite(user, APP_MODULE_CODES.FLEET);
     rejectClientFleetStatusMutation(req.body as Record<string, unknown>);
     const companyId = await this.tenantContext.resolveInternalIdFromAuthUser(user);
+    if (dto.fleetMeta?.trailerTenureMode !== undefined) {
+      await this.planEnforcement.assertTenureAllowed(
+        companyId,
+        dto.fleetMeta.trailerTenureMode,
+      );
+    }
     return this.service.update(companyId, equipmentId, dto, user);
   }
 

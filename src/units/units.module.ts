@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { TenantModule } from 'src/common/tenant/tenant.module';
+import { BillingModule } from 'src/common/billing/billing.module';
 import { FleetModule } from 'src/fleet/fleet.module';
 import { FleetMaintenanceEntry } from 'src/units/entities/fleet-maintenance-entry.entity';
 import { FleetVerificationEntry } from 'src/units/entities/fleet-verification-entry.entity';
@@ -14,6 +15,7 @@ import { UnitTripOdometerModule } from './unit-trip-odometer.module';
 @Module({
   imports: [
     TenantModule,
+    BillingModule,
     FleetModule,
     UnitTripOdometerModule,
     TypeOrmModule.forFeature([

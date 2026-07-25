@@ -19,6 +19,11 @@ import {
   mergeNotificationFeedItems,
   serializeActivityEventRow,
 } from './notifications.serializer';
+import {
+  allowedNotificationEntityTypes,
+  canSeeNotificationItem,
+} from './notification-access.util';
+import type AuthUser from 'src/types/auth-user.type';
 
 export interface NotificationsFeedResult {
   period: 'day' | 'week' | 'month';
@@ -40,10 +45,12 @@ export class NotificationsService {
   async getFeed(
     companyId: number,
     query: NotificationsQueryDto,
+    user: AuthUser,
   ): Promise<NotificationsFeedResult> {
     const period = query.period ?? 'day';
     const limit = Math.min(Math.max(query.limit ?? 50, 1), 100);
     const range = resolveNotificationPeriodRange(period);
+    const entityTypes = allowedNotificationEntityTypes(user);
 
     const [eventRows, computedRows] = await Promise.all([
       this.activityEvents.listForCompany(
@@ -51,8 +58,9 @@ export class NotificationsService {
         range.fromAt,
         range.toAt,
         limit,
+        entityTypes,
       ),
-      this.loadComputedNotifications(companyId, range),
+      this.loadComputedNotifications(companyId, range, user),
     ]);
 
     const events = eventRows.map(serializeActivityEventRow);
@@ -77,27 +85,77 @@ export class NotificationsService {
     };
   }
 
+  /**
+   * Badge ligero: eventos de actividad posteriores a `since` (ISO).
+   * No incluye vencimientos calculados (eso vive en el feed completo).
+   * Staff: solo entityTypes de módulos con lectura.
+   */
+  async getSummary(
+    companyId: number,
+    sinceIso: string,
+    user: AuthUser,
+  ): Promise<{
+    hasNew: boolean;
+    count: number;
+    latestOccurredAt: string | null;
+    since: string;
+  }> {
+    const since = new Date(sinceIso);
+    if (Number.isNaN(since.getTime())) {
+      const fallback = new Date();
+      return {
+        hasNew: false,
+        count: 0,
+        latestOccurredAt: null,
+        since: fallback.toISOString(),
+      };
+    }
+    const entityTypes = allowedNotificationEntityTypes(user);
+    const summary = await this.activityEvents.summarySince(
+      companyId,
+      since,
+      entityTypes,
+    );
+    return { ...summary, since: since.toISOString() };
+  }
+
   private async loadComputedNotifications(
     companyId: number,
     range: ReturnType<typeof resolveNotificationPeriodRange>,
+    user: AuthUser,
   ): Promise<NotificationFeedItemDto[]> {
+    const entityTypes = allowedNotificationEntityTypes(user);
+    const canSeeTrips =
+      entityTypes == null || entityTypes.includes('trip');
+    const canSeePayments =
+      entityTypes == null ||
+      entityTypes.some((t) =>
+        ['unit', 'equipment', 'operator', 'expenses', 'expense'].includes(t),
+      );
+
     const paymentFetchFrom = notificationOverdueFetchFrom(range.today);
     const [calendar, receivableRows] = await Promise.all([
-      this.expensesService.getCalendar(companyId, {
-        from: paymentFetchFrom,
-        to: range.to,
-        page: 1,
-        limit: 0,
-      }),
-      this.queryReceivablesDue(companyId, range.from, range.to),
+      canSeePayments
+        ? this.expensesService.getCalendar(companyId, {
+            from: paymentFetchFrom,
+            to: range.to,
+            page: 1,
+            limit: 0,
+          })
+        : Promise.resolve({ items: [] }),
+      canSeeTrips
+        ? this.queryReceivablesDue(companyId, range.from, range.to)
+        : Promise.resolve([]),
     ]);
 
     const payments = buildComputedPaymentNotifications(calendar.items, {
       from: range.from,
       to: range.to,
       today: range.today,
-    });
-    const receivables = buildReceivableDueNotifications(receivableRows);
+    }).filter((item) => canSeeNotificationItem(user, item));
+    const receivables = buildReceivableDueNotifications(receivableRows).filter(
+      (item) => canSeeNotificationItem(user, item),
+    );
     return [...payments, ...receivables];
   }
 

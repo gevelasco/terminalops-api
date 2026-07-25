@@ -99,15 +99,64 @@ export class ActivityEventsService {
     from: Date,
     to: Date,
     limit: number,
+    entityTypes?: string[] | null,
   ): Promise<CompanyActivityEvent[]> {
-    return this.repo
+    if (entityTypes && entityTypes.length === 0) {
+      return [];
+    }
+    const qb = this.repo
       .createQueryBuilder('event')
       .where('event.companyId = :companyId', { companyId })
       .andWhere('event.occurredAt >= :from', { from })
-      .andWhere('event.occurredAt <= :to', { to })
+      .andWhere('event.occurredAt <= :to', { to });
+    if (entityTypes?.length) {
+      qb.andWhere('event.entityType IN (:...entityTypes)', { entityTypes });
+    }
+    return qb
       .orderBy('event.occurredAt', 'DESC')
       .addOrderBy('event.id', 'DESC')
       .take(limit)
       .getMany();
+  }
+
+  /**
+   * Resumen ligero para badge: conteo de eventos posteriores a `since`.
+   * Usa el índice (company_id, occurred_at). Sin computed dues.
+   * `entityTypes` null = sin filtro (admin); [] = nada visible.
+   */
+  async summarySince(
+    companyId: number,
+    since: Date,
+    entityTypes?: string[] | null,
+  ): Promise<{
+    hasNew: boolean;
+    count: number;
+    latestOccurredAt: string | null;
+  }> {
+    if (entityTypes && entityTypes.length === 0) {
+      return { hasNew: false, count: 0, latestOccurredAt: null };
+    }
+    const qb = this.repo
+      .createQueryBuilder('event')
+      .select('COUNT(*)', 'cnt')
+      .addSelect('MAX(event.occurredAt)', 'latest')
+      .where('event.companyId = :companyId', { companyId })
+      .andWhere('event.occurredAt > :since', { since });
+    if (entityTypes?.length) {
+      qb.andWhere('event.entityType IN (:...entityTypes)', { entityTypes });
+    }
+    const raw = await qb.getRawOne<{
+      cnt: string;
+      latest: Date | string | null;
+    }>();
+
+    const count = Number(raw?.cnt ?? 0);
+    const latest = raw?.latest ? new Date(raw.latest) : null;
+    return {
+      hasNew: count > 0,
+      count: Number.isFinite(count) ? count : 0,
+      latestOccurredAt:
+        latest && !Number.isNaN(latest.getTime()) ? latest.toISOString() : null,
+    };
   }
 }

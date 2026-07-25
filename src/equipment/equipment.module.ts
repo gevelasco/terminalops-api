@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { FleetModule } from 'src/fleet/fleet.module';
+import { BillingModule } from 'src/common/billing/billing.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { EquipmentFleetDocument } from 'src/equipment/entities/equipment-fleet-document.entity';
 import { EquipmentFleetProfile } from 'src/equipment/entities/equipment-fleet-profile.entity';
@@ -14,6 +15,7 @@ import { EquipmentService } from './equipment.service';
 @Module({
   imports: [
     FleetModule,
+    BillingModule,
     TypeOrmModule.forFeature([
       Equipment,
       Unit,

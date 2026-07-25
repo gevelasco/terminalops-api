@@ -19,6 +19,10 @@ export type AuthUser = {
   /** ID numérico de la empresa (URLs /companies/:id); string en claims JWT. */
   companyId: string;
   companyName?: string;
+  /** Plan comercial de la empresa (`basic` | `standard` | `pro`, o legacy). */
+  subscriptionPlan?: string | null;
+  /** Lema / tagline de la empresa (companies.tagline). */
+  companyTagline?: string | null;
   theme: ThemeScheme;
   memberSince?: string;
   department?: string;

@@ -23,6 +23,7 @@ import { AuthGuard } from '../guards/auth/auth.guard';
 import { assertCompanyAccess } from '../common/utils/tenant.util';
 import { APP_MODULE_CODES } from '../common/constants/app-modules';
 import { assertModuleRead, assertModuleWrite } from '../common/utils/module-permission.util';
+import { assertDieselAutomaticAllowed } from '../common/billing/plan-entitlements';
 import type AuthUser from '../types/auth-user.type';
 import { ClientsService } from '../clients/clients.service';
 import { ClientsBalanceService } from '../clients/clients-balance.service';
@@ -71,7 +72,7 @@ import { CreateCompanyUserDto } from '../users/dto/create-company-user.dto';
 import { UpdateCompanyUserDto } from '../users/dto/update-company-user.dto';
 import { NotificationsService } from '../notifications/notifications.service';
 import { NotificationsQueryDto } from '../notifications/dto/notifications-query.dto';
-
+import { PlanEnforcementService } from '../common/billing/plan-enforcement.service';
 
 
 function parseIncludeFleetTenure(value?: string): boolean {
@@ -116,6 +117,7 @@ export class CompaniesController {
     private readonly fleetBrandsService: FleetBrandsService,
     private readonly usersService: UsersService,
     private readonly notificationsService: NotificationsService,
+    private readonly planEnforcement: PlanEnforcementService,
   ) {}
 
   @Get(':companyId')
@@ -307,6 +309,7 @@ export class CompaniesController {
       user,
       companyId,
     );
+    await this.planEnforcement.assertCanAddOperator(tenantId);
     return this.operatorsService.create(tenantId, dto);
   }
 
@@ -356,6 +359,11 @@ export class CompaniesController {
       user,
       companyId,
     );
+    await this.planEnforcement.assertCanAddUnit(tenantId);
+    await this.planEnforcement.assertTenureAllowed(
+      tenantId,
+      dto.fleetMeta?.trailerTenureMode,
+    );
     return this.unitsService.create(tenantId, dto, user);
   }
 
@@ -402,6 +410,11 @@ export class CompaniesController {
     const tenantId = await this.companiesService.assertAccessAndResolve(
       user,
       companyId,
+    );
+    await this.planEnforcement.assertCanAddEquipment(tenantId);
+    await this.planEnforcement.assertTenureAllowed(
+      tenantId,
+      dto.fleetMeta?.trailerTenureMode,
     );
     return this.equipmentService.create(tenantId, dto, user);
   }
@@ -460,6 +473,7 @@ export class CompaniesController {
       user,
       companyId,
     );
+    await this.planEnforcement.assertCanAddTripThisMonth(tenantId);
     rejectClientTripStatusMutation(req.body as Record<string, unknown>);
     return this.tripsService.create(tenantId, dto, req.body as Record<string, unknown>);
   }
@@ -479,6 +493,7 @@ export class CompaniesController {
         'El control automático de diesel está desactivado para esta empresa',
       );
     }
+    assertDieselAutomaticAllowed(company.subscriptionPlan);
     const diesel = await this.fuelPriceService.resolveDieselForCompany(company);
     const dieselPricePerLiter = diesel.pricePerLiter ?? undefined;
     return await this.fuelEstimator.estimate(dto, { dieselPricePerLiter });
@@ -660,6 +675,24 @@ export class CompaniesController {
     return this.fleetOverviewService.listOverview(tenantId, parsedTripIds);
   }
 
+  @Get(':companyId/notifications/summary')
+  @ApiOperation({
+    summary:
+      'Resumen ligero de notificaciones nuevas desde un watermark (badge)',
+  })
+  async notificationsSummary(
+    @Param('companyId', ParseIntPipe) companyId: number,
+    @Query('since') since: string | undefined,
+    @LoggedUser() user: AuthUser,
+  ) {
+    const tenantId = await this.companiesService.assertAccessAndResolve(
+      user,
+      companyId,
+    );
+    const sinceIso = since?.trim() || new Date().toISOString();
+    return this.notificationsService.getSummary(tenantId, sinceIso, user);
+  }
+
   @Get(':companyId/notifications')
   @ApiOperation({
     summary:
@@ -674,7 +707,7 @@ export class CompaniesController {
       user,
       companyId,
     );
-    return this.notificationsService.getFeed(tenantId, query);
+    return this.notificationsService.getFeed(tenantId, query, user);
   }
 
   @Get(':companyId/dashboard/summary')
@@ -800,6 +833,7 @@ export class CompaniesController {
     @Body() dto: CreateCompanyUserDto,
   ) {
     await this.companiesService.assertAccessAndResolve(user, companyId);
+    await this.planEnforcement.assertCanAddUser(companyId, dto.role);
     return this.usersService.createCompanyUser(companyId, user, dto);
   }
 

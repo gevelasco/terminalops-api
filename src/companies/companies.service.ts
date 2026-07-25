@@ -13,6 +13,10 @@ import { OperationalCentersService } from '../operational-centers/operational-ce
 import { CreateCompanyDto } from './dto/create-company.dto';
 import { UpdateCompanyOperationalSettingsDto } from './dto/update-company-operational-settings.dto';
 import { normalizeExpensePaymentMethod } from 'src/expenses/expense-payment-method.util';
+import {
+  assertDieselAutomaticAllowed,
+  assertMaintenancePolicyAllowed,
+} from 'src/common/billing/plan-entitlements';
 
 function roundDieselPrice(n: number): number {
   return Math.round(n * 10000) / 10000;
@@ -34,6 +38,7 @@ export class CompaniesService {
         name: dto.name,
         legalName: dto.legalName,
         subscriptionStatus: 'active',
+        subscriptionPlan: 'basic',
         operationalAnalysisEnabled: true,
         operationalAnalysisChangedAt: now,
         tripAssistPrefillEnabled: false,
@@ -42,7 +47,7 @@ export class CompaniesService {
         tripAutoTollsPaymentMethod: 'cash',
         tripAutoPerDiemPaymentMethod: 'cash',
         tripAutoControlPaymentMethod: 'cash',
-        dieselControlEnabled: true,
+        dieselControlEnabled: false,
         dieselControlChangedAt: now,
       }),
     );
@@ -125,12 +130,18 @@ export class CompaniesService {
       );
     }
     if (dto.dieselControlEnabled !== undefined) {
+      if (dto.dieselControlEnabled) {
+        assertDieselAutomaticAllowed(company.subscriptionPlan);
+      }
       if (company.dieselControlEnabled !== dto.dieselControlEnabled) {
         company.dieselControlChangedAt = new Date();
       }
       company.dieselControlEnabled = dto.dieselControlEnabled;
     }
     if (dto.maintenanceKmControlEnabled !== undefined) {
+      if (dto.maintenanceKmControlEnabled) {
+        assertMaintenancePolicyAllowed(company.subscriptionPlan);
+      }
       if (company.maintenanceKmControlEnabled !== dto.maintenanceKmControlEnabled) {
         company.maintenanceKmControlChangedAt = new Date();
       }
@@ -147,6 +158,9 @@ export class CompaniesService {
       company.maintenanceKmIntervalDefault = String(dto.maintenanceKmIntervalDefault);
     }
     if (dto.maintenanceDateControlEnabled !== undefined) {
+      if (dto.maintenanceDateControlEnabled) {
+        assertMaintenancePolicyAllowed(company.subscriptionPlan);
+      }
       if (company.maintenanceDateControlEnabled !== dto.maintenanceDateControlEnabled) {
         company.maintenanceDateControlChangedAt = new Date();
       }
@@ -200,6 +214,7 @@ export class CompaniesService {
         'El control de diésel está desactivado para esta empresa',
       );
     }
+    assertDieselAutomaticAllowed(company.subscriptionPlan);
 
     const now = new Date();
     company.dieselReferencePricePerLiter = String(roundDieselPrice(pricePerLiter));

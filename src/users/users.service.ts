@@ -255,6 +255,8 @@ export class UsersService {
       moduleGrants,
       companyId: String(user.companyId),
       companyName: user.company?.name,
+      companyTagline: user.company?.tagline ?? null,
+      subscriptionPlan: user.company?.subscriptionPlan ?? 'basic',
       theme,
       memberSince: toIsoString(user.createdAt),
       department,
@@ -492,7 +494,7 @@ export class UsersService {
       name: company.name,
       tagline: company.tagline ?? null,
       subscriptionStatus: company.subscriptionStatus,
-      subscriptionPlan: company.subscriptionPlan ?? 'trial',
+      subscriptionPlan: company.subscriptionPlan ?? 'basic',
       subscriptionEndsAt,
       createdAt,
     };
