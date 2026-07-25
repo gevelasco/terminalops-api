@@ -18,6 +18,7 @@ import { FleetInsuranceExpenseSyncService } from 'src/fleet/fleet-insurance-expe
 import { FleetGpsExpenseSyncService } from 'src/fleet/fleet-gps-expense-sync.service';
 import { FleetTenureExpenseSyncService } from 'src/fleet/fleet-tenure-expense-sync.service';
 import { ActivityEventsService } from 'src/activity-events/activity-events.service';
+import { FileService } from 'src/common/file/file.service';
 
 describe('UnitsService (A6 fleet status lock)', () => {
   let service: UnitsService;
@@ -151,6 +152,14 @@ describe('UnitsService (A6 fleet status lock)', () => {
         {
           provide: ActivityEventsService,
           useValue: activityEvents,
+        },
+        {
+          provide: FileService,
+          useValue: {
+            upload: jest.fn(),
+            remove: jest.fn(),
+            presignedUrl: jest.fn(),
+          },
         },
       ],
     }).compile();

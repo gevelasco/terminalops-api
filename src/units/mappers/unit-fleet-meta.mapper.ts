@@ -203,6 +203,21 @@ function documentNamesByKind(
   return names.length > 0 ? names : undefined;
 }
 
+function fleetDocumentsForApi(
+  documents: UnitFleetDocument[] | undefined,
+): Array<{ id: number; fileName: string; documentKind: string }> | undefined {
+  const rows = (documents ?? [])
+    .slice()
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+    .map((d) => ({
+      id: d.id,
+      fileName: d.fileName,
+      documentKind: d.documentKind,
+    }))
+    .filter((d) => d.id > 0 && Boolean(d.fileName));
+  return rows.length > 0 ? rows : undefined;
+}
+
 export function profileToFleetMeta(
   profile: UnitFleetProfile | undefined,
   maintenanceEntries: FleetMaintenanceEntry[] | undefined,
@@ -308,6 +323,7 @@ export function profileToFleetMeta(
     meta.documentVerificationNames = documentNamesByKind(documents, 'verification');
     meta.documentPolicyNames = documentNamesByKind(documents, 'policy');
     meta.documentOwnershipNames = documentNamesByKind(documents, 'ownership');
+    meta.fleetDocuments = fleetDocumentsForApi(documents);
 
     const withTenure = mergeTenureIntoFleetMeta(
       Object.keys(meta).length > 0 ? meta : undefined,

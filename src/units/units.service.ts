@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { FileService } from 'src/common/file/file.service';
 import { serializeUnit } from 'src/common/serializers/unit.serializer';
 import { FleetTenureService } from 'src/fleet/fleet-tenure.service';
 import { FleetBrandsService } from 'src/fleet/fleet-brands.service';
@@ -23,7 +24,6 @@ import { Unit } from 'src/units/entities/unit.entity';
 import { CreateUnitDto } from './dto/create-unit.dto';
 import { UpdateUnitDto } from './dto/update-unit.dto';
 import {
-  fleetMetaDtoToDocuments,
   fleetMetaDtoToMaintenanceEntries,
   fleetMetaDtoToProfile,
   fleetMetaDtoToVerificationEntries,
@@ -47,6 +47,11 @@ import {
   unitFleetMetaGpsTouched,
   unitFleetMetaVerificationTouched,
 } from 'src/fleet/fleet-meta-expense-sync-scope.util';
+import {
+  UNIT_FLEET_DOCUMENT_KINDS,
+  UNIT_FLEET_DOCUMENT_STORAGE_FOLDER,
+  type UnitFleetDocumentKind,
+} from './unit-fleet-document.constants';
 
 const UNIT_DETAIL_RELATIONS = [
   'fleetProfile',
@@ -103,6 +108,7 @@ export class UnitsService {
     private readonly gpsExpenseSync: FleetGpsExpenseSyncService,
     private readonly tenureExpenseSync: FleetTenureExpenseSyncService,
     private readonly activityEvents: ActivityEventsService,
+    private readonly fileService: FileService,
   ) {}
 
   async create(companyId: number, dto: CreateUnitDto, actor?: AuthUser) {
@@ -268,8 +274,116 @@ export class UnitsService {
 
   async remove(companyId: number, unitId: number) {
     await this.findOne(companyId, unitId);
+    const docs = await this.documentsRepo.find({ where: { unitId } });
+    for (const doc of docs) {
+      if (doc.storageKey) {
+        try {
+          await this.fileService.remove(doc.storageKey);
+        } catch {
+          // Best-effort: DB cascade still removes the row.
+        }
+      }
+    }
     await this.repo.delete({ id: unitId, companyId });
     return { id: unitId, deleted: true };
+  }
+
+  async uploadDocument(
+    companyId: number,
+    unitId: number,
+    documentKind: UnitFleetDocumentKind,
+    file: Express.Multer.File,
+  ) {
+    if (!file?.buffer?.length) {
+      throw new BadRequestException('file is required');
+    }
+    if (
+      !(UNIT_FLEET_DOCUMENT_KINDS as readonly string[]).includes(documentKind)
+    ) {
+      throw new BadRequestException('Invalid documentKind');
+    }
+    await this.findOne(companyId, unitId);
+
+    const uploaded = await this.fileService.upload(
+      UNIT_FLEET_DOCUMENT_STORAGE_FOLDER,
+      file,
+    );
+    const maxSort = await this.documentsRepo
+      .createQueryBuilder('d')
+      .select('MAX(d.sort_order)', 'max')
+      .where('d.unit_id = :unitId', { unitId })
+      .getRawOne<{ max: string | null }>();
+    const sortOrder = Number(maxSort?.max ?? -1) + 1;
+
+    const saved = await this.documentsRepo.save(
+      this.documentsRepo.create({
+        unitId,
+        documentKind,
+        fileName: uploaded.originalName,
+        storageKey: uploaded.url,
+        contentType: file.mimetype || null,
+        sizeBytes: String(file.size),
+        sortOrder: Number.isFinite(sortOrder) ? sortOrder : 0,
+      }),
+    );
+
+    return {
+      id: saved.id,
+      unitId: saved.unitId,
+      documentKind: saved.documentKind,
+      fileName: saved.fileName,
+      sortOrder: saved.sortOrder,
+    };
+  }
+
+  async downloadDocument(
+    companyId: number,
+    unitId: number,
+    documentId: number,
+  ) {
+    const document = await this.findDocumentForUnit(
+      companyId,
+      unitId,
+      documentId,
+    );
+    if (!document.storageKey) {
+      throw new NotFoundException(
+        `Document ${documentId} has no stored file`,
+      );
+    }
+    return this.fileService.presignedUrl(document.storageKey);
+  }
+
+  async removeDocument(
+    companyId: number,
+    unitId: number,
+    documentId: number,
+  ) {
+    const document = await this.findDocumentForUnit(
+      companyId,
+      unitId,
+      documentId,
+    );
+    if (document.storageKey) {
+      await this.fileService.remove(document.storageKey);
+    }
+    await this.documentsRepo.delete({ id: documentId, unitId });
+    return { id: documentId, deleted: true };
+  }
+
+  private async findDocumentForUnit(
+    companyId: number,
+    unitId: number,
+    documentId: number,
+  ): Promise<UnitFleetDocument> {
+    await this.findOne(companyId, unitId);
+    const document = await this.documentsRepo.findOne({
+      where: { id: documentId, unitId },
+    });
+    if (!document) {
+      throw new NotFoundException(`Document ${documentId} not found`);
+    }
+    return document;
   }
 
   async startMaintenance(companyId: number, unitId: number) {
@@ -443,20 +557,8 @@ export class UnitsService {
       });
     }
 
-    const hasDocumentPayload =
-      fleetMeta.documentMaintenanceNames !== undefined ||
-      fleetMeta.documentVerificationNames !== undefined ||
-      fleetMeta.documentPolicyNames !== undefined ||
-      fleetMeta.documentOwnershipNames !== undefined;
-    if (hasDocumentPayload) {
-      await this.documentsRepo.delete({ unitId });
-      const documentRows = fleetMetaDtoToDocuments(unitId, fleetMeta);
-      if (documentRows.length > 0) {
-        await this.documentsRepo.save(
-          documentRows.map((row) => this.documentsRepo.create(row)),
-        );
-      }
-    }
+    // Document files are managed via POST/DELETE /units/:unitId/documents.
+    // Ignoring legacy document*Names arrays avoids wiping stored S3 objects.
   }
 
   private async ensureUnitBrand(
