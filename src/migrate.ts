@@ -117,6 +117,99 @@ async function main() {
           ON terminalops.expense_documents (expense_id);
       `);
       console.log('Schema ensure: expense_documents OK');
+      // Hard ensure: client documents (covers migrations_list drift).
+      await dataSource.query(`
+        CREATE TABLE IF NOT EXISTS terminalops.client_documents (
+          id serial PRIMARY KEY,
+          client_id integer NOT NULL
+            REFERENCES terminalops.clients(id) ON DELETE CASCADE,
+          file_name text NOT NULL,
+          slot text NOT NULL CHECK (slot IN ('fiscal')),
+          added_at date NOT NULL,
+          sort_order smallint NOT NULL DEFAULT 0
+        );
+      `);
+      await dataSource.query(`
+        CREATE INDEX IF NOT EXISTS client_documents_client_id_idx
+          ON terminalops.client_documents (client_id);
+      `);
+      console.log('Schema ensure: client_documents OK');
+      // Hard ensure: checklist personal por usuario.
+      await dataSource.query(`
+        CREATE TABLE IF NOT EXISTS terminalops.user_checklist_todos (
+          id serial PRIMARY KEY,
+          company_id integer NOT NULL
+            REFERENCES terminalops.companies(id) ON DELETE CASCADE,
+          user_id integer NOT NULL
+            REFERENCES terminalops.app_user(id) ON DELETE CASCADE,
+          text text NOT NULL,
+          completed boolean NOT NULL DEFAULT false,
+          created_at timestamptz NOT NULL DEFAULT now(),
+          updated_at timestamptz NOT NULL DEFAULT now(),
+          CONSTRAINT user_checklist_todos_text_not_blank
+            CHECK (btrim(text) <> '')
+        );
+      `);
+      await dataSource.query(`
+        CREATE INDEX IF NOT EXISTS user_checklist_todos_user_company_idx
+          ON terminalops.user_checklist_todos (user_id, company_id);
+      `);
+      await dataSource.query(`
+        CREATE INDEX IF NOT EXISTS user_checklist_todos_company_created_idx
+          ON terminalops.user_checklist_todos (company_id, created_at DESC);
+      `);
+      console.log('Schema ensure: user_checklist_todos OK');
+      // Hard ensure: invitation codes one-time.
+      await dataSource.query(`
+        CREATE TABLE IF NOT EXISTS terminalops.invitation_codes (
+          id serial PRIMARY KEY,
+          code text NOT NULL,
+          purpose text NOT NULL,
+          granted_plan text NOT NULL,
+          license_months integer NOT NULL,
+          max_uses integer NOT NULL DEFAULT 1,
+          used_count integer NOT NULL DEFAULT 0,
+          is_active boolean NOT NULL DEFAULT true,
+          expires_at timestamptz NULL,
+          redeemed_at timestamptz NULL,
+          redeemed_by_user_id integer NULL
+            REFERENCES terminalops.app_user(id) ON DELETE SET NULL,
+          redeemed_by_company_id integer NULL
+            REFERENCES terminalops.companies(id) ON DELETE SET NULL,
+          note text NULL,
+          created_at timestamptz NOT NULL DEFAULT now(),
+          updated_at timestamptz NOT NULL DEFAULT now(),
+          CONSTRAINT invitation_codes_code_uidx UNIQUE (code),
+          CONSTRAINT invitation_codes_purpose_chk
+            CHECK (purpose IN ('signup', 'upgrade')),
+          CONSTRAINT invitation_codes_plan_chk
+            CHECK (granted_plan IN ('basic', 'standard', 'pro')),
+          CONSTRAINT invitation_codes_license_months_chk
+            CHECK (license_months >= 1 AND license_months <= 120),
+          CONSTRAINT invitation_codes_max_uses_chk
+            CHECK (max_uses >= 1),
+          CONSTRAINT invitation_codes_used_count_chk
+            CHECK (used_count >= 0 AND used_count <= max_uses)
+        );
+      `);
+      await dataSource.query(`
+        CREATE INDEX IF NOT EXISTS invitation_codes_available_idx
+          ON terminalops.invitation_codes (purpose, is_active)
+          WHERE used_count < max_uses AND is_active = true;
+      `);
+      await dataSource.query(`
+        INSERT INTO terminalops.invitation_codes
+          (code, purpose, granted_plan, license_months, max_uses, note)
+        VALUES
+          ('TX9X-BASI-2026-1V4N', 'signup', 'basic', 6, 1, 'Beta alta #1'),
+          ('VK7J-BASI-A995-S4UL', 'signup', 'basic', 6, 1, 'Beta alta #2'),
+          ('NBBB-BASI-994A-G3RM', 'signup', 'basic', 6, 1, 'Beta alta #3'),
+          ('PX8M-PROX-2026-K4QJ', 'upgrade', 'pro', 6, 1, 'Beta upgrade Pro #1'),
+          ('W3HN-PROX-B771-M9VR', 'upgrade', 'pro', 6, 1, 'Beta upgrade Pro #2'),
+          ('JC5T-PROX-2026-L2XW', 'upgrade', 'pro', 6, 1, 'Beta upgrade Pro #3')
+        ON CONFLICT (code) DO NOTHING;
+      `);
+      console.log('Schema ensure: invitation_codes OK');
       // Hard ensure: bitácora incident images table.
       await dataSource.query(`
         CREATE TABLE IF NOT EXISTS terminalops.trip_incident_images (
