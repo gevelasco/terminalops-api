@@ -22,7 +22,11 @@ import { LoggedUser } from '../decorators/logged-user.decorator';
 import { AuthGuard } from '../guards/auth/auth.guard';
 import { assertCompanyAccess } from '../common/utils/tenant.util';
 import { APP_MODULE_CODES } from '../common/constants/app-modules';
-import { assertModuleRead, assertModuleWrite } from '../common/utils/module-permission.util';
+import {
+  assertModuleRead,
+  assertModuleReadAny,
+  assertModuleWrite,
+} from '../common/utils/module-permission.util';
 import { assertDieselAutomaticAllowed } from '../common/billing/plan-entitlements';
 import type AuthUser from '../types/auth-user.type';
 import { ClientsService } from '../clients/clients.service';
@@ -63,6 +67,7 @@ import { FleetOverviewService } from '../fleet/fleet-overview.service';
 import { FleetBrandsService } from '../fleet/fleet-brands.service';
 import { CompaniesService } from './companies.service';
 import { UpdateCompanyOperationalSettingsDto } from './dto/update-company-operational-settings.dto';
+import { ActivateProPlanDto } from './dto/activate-pro-plan.dto';
 import { UpdateCompanyAccountDto } from './dto/update-company-account.dto';
 import { UpdateCompanyDieselReferencePriceDto } from './dto/update-company-diesel-reference-price.dto';
 import { FuelPriceService } from '../fuel/fuel-price.service';
@@ -171,6 +176,7 @@ export class CompaniesController {
     @Param('companyId', ParseIntPipe) companyId: number,
     @LoggedUser() user: AuthUser,
   ) {
+    assertModuleReadAny(user, [APP_MODULE_CODES.CLIENTS, APP_MODULE_CODES.TRIPS]);
     const tenantId = await this.companiesService.assertAccessAndResolve(
       user,
       companyId,
@@ -184,6 +190,7 @@ export class CompaniesController {
     @Param('companyId', ParseIntPipe) companyId: number,
     @LoggedUser() user: AuthUser,
   ) {
+    assertModuleRead(user, APP_MODULE_CODES.CLIENTS);
     const tenantId = await this.companiesService.assertAccessAndResolve(
       user,
       companyId,
@@ -200,6 +207,7 @@ export class CompaniesController {
     @Query('to') periodTo: string | undefined,
     @LoggedUser() user: AuthUser,
   ) {
+    assertModuleRead(user, APP_MODULE_CODES.CLIENTS);
     const tenantId = await this.companiesService.assertAccessAndResolve(
       user,
       companyId,
@@ -218,6 +226,7 @@ export class CompaniesController {
     @Param('companyId', ParseIntPipe) companyId: number,
     @LoggedUser() user: AuthUser,
   ) {
+    assertModuleRead(user, APP_MODULE_CODES.TRIPS);
     const tenantId = await this.companiesService.assertAccessAndResolve(
       user,
       companyId,
@@ -232,6 +241,7 @@ export class CompaniesController {
     @Param('clientId') clientId: string,
     @LoggedUser() user: AuthUser,
   ) {
+    assertModuleRead(user, APP_MODULE_CODES.CLIENTS);
     const tenantId = await this.companiesService.assertAccessAndResolve(
       user,
       companyId,
@@ -244,6 +254,7 @@ export class CompaniesController {
     @Param('companyId', ParseIntPipe) companyId: number,
     @LoggedUser() user: AuthUser,
   ) {
+    assertModuleRead(user, APP_MODULE_CODES.CLIENTS);
     const tenantId = await this.companiesService.assertAccessAndResolve(
       user,
       companyId,
@@ -274,6 +285,7 @@ export class CompaniesController {
     @Query() query: ListResourceLinkOptionsQueryDto,
     @LoggedUser() user: AuthUser,
   ) {
+    assertModuleReadAny(user, [APP_MODULE_CODES.OPERATORS, APP_MODULE_CODES.TRIPS]);
     const tenantId = await this.companiesService.assertAccessAndResolve(
       user,
       companyId,
@@ -287,6 +299,7 @@ export class CompaniesController {
     @Query('available') available: string | undefined,
     @LoggedUser() user: AuthUser,
   ) {
+    assertModuleRead(user, APP_MODULE_CODES.OPERATORS);
     const tenantId = await this.companiesService.assertAccessAndResolve(
       user,
       companyId,
@@ -322,6 +335,7 @@ export class CompaniesController {
     @Query() query: ListResourceLinkOptionsQueryDto,
     @LoggedUser() user: AuthUser,
   ) {
+    assertModuleReadAny(user, [APP_MODULE_CODES.FLEET, APP_MODULE_CODES.TRIPS]);
     const tenantId = await this.companiesService.assertAccessAndResolve(
       user,
       companyId,
@@ -336,6 +350,7 @@ export class CompaniesController {
     @Query('available') available: string | undefined,
     @LoggedUser() user: AuthUser,
   ) {
+    assertModuleRead(user, APP_MODULE_CODES.FLEET);
     const tenantId = await this.companiesService.assertAccessAndResolve(
       user,
       companyId,
@@ -376,6 +391,7 @@ export class CompaniesController {
     @Query() query: ListResourceLinkOptionsQueryDto,
     @LoggedUser() user: AuthUser,
   ) {
+    assertModuleReadAny(user, [APP_MODULE_CODES.FLEET, APP_MODULE_CODES.TRIPS]);
     const tenantId = await this.companiesService.assertAccessAndResolve(
       user,
       companyId,
@@ -389,6 +405,7 @@ export class CompaniesController {
     @Query('includeFleetTenure') includeFleetTenure: string | undefined,
     @LoggedUser() user: AuthUser,
   ) {
+    assertModuleRead(user, APP_MODULE_CODES.FLEET);
     const tenantId = await this.companiesService.assertAccessAndResolve(
       user,
       companyId,
@@ -428,6 +445,7 @@ export class CompaniesController {
     @Query() query: ListTripLinkOptionsQueryDto,
     @LoggedUser() user: AuthUser,
   ) {
+    assertModuleRead(user, APP_MODULE_CODES.TRIPS);
     const tenantId = await this.companiesService.assertAccessAndResolve(
       user,
       companyId,
@@ -441,6 +459,7 @@ export class CompaniesController {
     @Param('companyId', ParseIntPipe) companyId: number,
     @LoggedUser() user: AuthUser,
   ) {
+    assertModuleRead(user, APP_MODULE_CODES.TRIPS);
     const tenantId = await this.companiesService.assertAccessAndResolve(
       user,
       companyId,
@@ -454,6 +473,7 @@ export class CompaniesController {
     @Query() query: ListTripsQueryDto,
     @LoggedUser() user: AuthUser,
   ) {
+    assertModuleRead(user, APP_MODULE_CODES.TRIPS);
     const tenantId = await this.companiesService.assertAccessAndResolve(
       user,
       companyId,
@@ -505,6 +525,7 @@ export class CompaniesController {
     @Param('companyId', ParseIntPipe) companyId: number,
     @LoggedUser() user: AuthUser,
   ) {
+    assertModuleRead(user, APP_MODULE_CODES.CLIENTS);
     const tenantId = await this.companiesService.assertAccessAndResolve(
       user,
       companyId,
@@ -555,6 +576,7 @@ export class CompaniesController {
     @Query() query: CheckDestinationRateRouteQueryDto,
     @LoggedUser() user: AuthUser,
   ) {
+    assertModuleRead(user, APP_MODULE_CODES.CLIENTS);
     const tenantId = await this.companiesService.assertAccessAndResolve(
       user,
       companyId,
@@ -571,6 +593,7 @@ export class CompaniesController {
     @Query() query: MatchDestinationRateQueryDto,
     @LoggedUser() user: AuthUser,
   ) {
+    assertModuleReadAny(user, [APP_MODULE_CODES.CLIENTS, APP_MODULE_CODES.TRIPS]);
     const tenantId = await this.companiesService.assertAccessAndResolve(
       user,
       companyId,
@@ -584,6 +607,7 @@ export class CompaniesController {
     @Param('companyId', ParseIntPipe) companyId: number,
     @LoggedUser() user: AuthUser,
   ) {
+    assertModuleRead(user, APP_MODULE_CODES.CLIENTS);
     const tenantId = await this.companiesService.assertAccessAndResolve(
       user,
       companyId,
@@ -611,6 +635,7 @@ export class CompaniesController {
     @Query() query: ExpensesCalendarQueryDto,
     @LoggedUser() user: AuthUser,
   ) {
+    assertModuleRead(user, APP_MODULE_CODES.EXPENSES);
     const tenantId = await this.companiesService.assertAccessAndResolve(
       user,
       companyId,
@@ -624,6 +649,7 @@ export class CompaniesController {
     @Query() query: ListExpensesQueryDto,
     @LoggedUser() user: AuthUser,
   ) {
+    assertModuleRead(user, APP_MODULE_CODES.EXPENSES);
     const tenantId = await this.companiesService.assertAccessAndResolve(
       user,
       companyId,
@@ -651,6 +677,7 @@ export class CompaniesController {
     @Param('companyId', ParseIntPipe) companyId: number,
     @LoggedUser() user: AuthUser,
   ) {
+    assertModuleRead(user, APP_MODULE_CODES.FLEET);
     const tenantId = await this.companiesService.assertAccessAndResolve(
       user,
       companyId,
@@ -667,6 +694,7 @@ export class CompaniesController {
     @LoggedUser() user: AuthUser,
     @Query('tripIds') tripIds?: string,
   ) {
+    assertModuleRead(user, APP_MODULE_CODES.FLEET);
     const tenantId = await this.companiesService.assertAccessAndResolve(
       user,
       companyId,
@@ -719,6 +747,7 @@ export class CompaniesController {
     @Param('companyId', ParseIntPipe) companyId: number,
     @LoggedUser() user: AuthUser,
   ) {
+    assertModuleRead(user, APP_MODULE_CODES.DASHBOARD);
     const tenantId = await this.companiesService.assertAccessAndResolve(
       user,
       companyId,
@@ -735,6 +764,7 @@ export class CompaniesController {
     @Param('companyId', ParseIntPipe) companyId: number,
     @LoggedUser() user: AuthUser,
   ) {
+    assertModuleRead(user, APP_MODULE_CODES.DASHBOARD);
     const tenantId = await this.companiesService.assertAccessAndResolve(
       user,
       companyId,
@@ -799,8 +829,11 @@ export class CompaniesController {
     @Param('companyId', ParseIntPipe) companyId: number,
     @LoggedUser() user: AuthUser,
   ) {
-    await this.companiesService.assertAccessAndResolve(user, companyId);
-    return this.usersService.getCompanyAccount(companyId, user);
+    assertCompanyAccess(user, companyId);
+    this.usersService.assertCanViewAccount(user);
+    // 1 SELECT companies (columnas de ficha). Sin joins a user/POC/prefs/modules.
+    const company = await this.companiesService.findAccountSnapshot(companyId);
+    return this.usersService.toCompanyAccountResponse(company);
   }
 
   @Patch(':companyId/account')
@@ -810,9 +843,34 @@ export class CompaniesController {
     @Body() dto: UpdateCompanyAccountDto,
     @LoggedUser() user: AuthUser,
   ) {
-    await this.companiesService.assertAccessAndResolve(user, companyId);
-    await this.companiesService.updateAccountInfo(user, companyId, dto);
-    return this.usersService.getCompanyAccount(companyId, user);
+    assertCompanyAccess(user, companyId);
+    this.usersService.assertCanViewAccount(user);
+    const company = await this.companiesService.updateAccountInfo(
+      user,
+      companyId,
+      dto,
+    );
+    return this.usersService.toCompanyAccountResponse(company);
+  }
+
+  @Post(':companyId/account/activate-pro')
+  @ApiOperation({
+    summary:
+      'Canjear código de invitación de upgrade (plan/duración según el código)',
+  })
+  async activateProPlan(
+    @Param('companyId', ParseIntPipe) companyId: number,
+    @Body() dto: ActivateProPlanDto,
+    @LoggedUser() user: AuthUser,
+  ) {
+    assertCompanyAccess(user, companyId);
+    this.usersService.assertCanViewAccount(user);
+    const company = await this.companiesService.activateProPlan(
+      user,
+      companyId,
+      dto.invitationCode,
+    );
+    return this.usersService.toCompanyAccountResponse(company);
   }
 
   @Get(':companyId/users')

@@ -1,5 +1,4 @@
 import {
-  ConflictException,
   ForbiddenException,
   HttpException,
   HttpStatus,
@@ -8,8 +7,9 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { compare } from 'bcrypt';
-import { isValidInvitationCode } from '../common/constants/invitation-codes';
+import { invitationLicenseEndsAt } from '../common/constants/invitation-codes';
 import { CompaniesService } from '../companies/companies.service';
+import { InvitationCodesService } from '../invitation-codes/invitation-codes.service';
 import { OperationalCentersService } from '../operational-centers/operational-centers.service';
 import { UsersService } from '../users/users.service';
 import EnvConfig from '../types/env-config.type';
@@ -24,6 +24,7 @@ export class AuthService {
   constructor(
     private readonly usersService: UsersService,
     private readonly companiesService: CompaniesService,
+    private readonly invitationCodes: InvitationCodesService,
     private readonly operationalCenters: OperationalCentersService,
     private readonly jwtService: JwtService,
     private readonly config: ConfigService<EnvConfig>,
@@ -63,39 +64,49 @@ export class AuthService {
     if (!invitationCode) {
       throw new ForbiddenException('El código de invitación es obligatorio');
     }
-    if (!isValidInvitationCode(invitationCode)) {
-      throw new ForbiddenException('Código de invitación inválido');
-    }
 
     const username = dto.username.trim();
     const email = dto.email.trim().toLowerCase();
-    if (await this.usersService.isEmailTaken(email)) {
-      throw new ConflictException(
-        `El correo "${email}" ya está registrado. Inicia sesión o usa otro correo.`,
+    const invite = await this.invitationCodes.consume(invitationCode, 'signup');
+
+    try {
+      const company = await this.companiesService.create({
+        name: dto.companyName.trim(),
+        subscriptionPlan: invite.grantedPlan,
+        subscriptionEndsAt: invitationLicenseEndsAt(invite.licenseMonths),
+      });
+
+      const displayName =
+        `${dto.firstName.trim()} ${dto.lastName.trim()}`.trim();
+      // createForCompany ya valida email/username únicos (evita COUNT duplicado aquí).
+      const user = await this.usersService.createForCompany(company.id, {
+        username,
+        password: dto.password,
+        displayName,
+        email,
+        phone: dto.phone.trim(),
+        role: 'superadmin',
+        theme: 'light',
+      });
+
+      await this.invitationCodes.attachRedemption(
+        invite.id,
+        company.id,
+        user.id,
       );
+      return this.buildAuthResponse(user);
+    } catch (err) {
+      await this.invitationCodes.release(invite.id);
+      throw err;
     }
-
-    const company = await this.companiesService.create({
-      name: dto.companyName.trim(),
-    });
-
-    const displayName = `${dto.firstName.trim()} ${dto.lastName.trim()}`.trim();
-    const user = await this.usersService.createForCompany(company.id, {
-      username,
-      password: dto.password,
-      displayName,
-      email,
-      phone: dto.phone.trim(),
-      role: 'superadmin',
-      theme: 'light',
-    });
-
-    return this.buildAuthResponse(user);
   }
 
   private async buildAuthResponse(user: AppUser) {
-    const fresh = await this.usersService.findOne({ id: user.id });
-    const resolved = fresh ?? user;
+    // Reusa el user ya hidratado (sign-up/login) y solo re-fetch si faltan joins.
+    const resolved =
+      user.company && user.preferences != null
+        ? user
+        : ((await this.usersService.findOne({ id: user.id })) ?? user);
     if (resolved.company) {
       resolved.company.primaryOperationalCenter ??=
         await this.operationalCenters.getDefaultEntity(resolved.companyId);

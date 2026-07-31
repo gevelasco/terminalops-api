@@ -1,4 +1,5 @@
 import {
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -6,17 +7,28 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Company } from 'src/companies/entities/company.entity';
+import { invitationLicenseEndsAt } from '../common/constants/invitation-codes';
+import { isOwnerRole } from '../common/constants/app-modules';
 import { assertCompanyAccess } from '../common/utils/tenant.util';
 import AuthUser from '../types/auth-user.type';
 import { TenantContextService } from '../common/tenant/tenant-context.service';
 import { OperationalCentersService } from '../operational-centers/operational-centers.service';
-import { CreateCompanyDto } from './dto/create-company.dto';
+import { InvitationCodesService } from '../invitation-codes/invitation-codes.service';
+import type { CreateCompanyInput } from './dto/create-company.dto';
 import { UpdateCompanyOperationalSettingsDto } from './dto/update-company-operational-settings.dto';
 import { normalizeExpensePaymentMethod } from 'src/expenses/expense-payment-method.util';
 import {
   assertDieselAutomaticAllowed,
   assertMaintenancePolicyAllowed,
+  normalizeSubscriptionPlanId,
+  type SubscriptionPlanId,
 } from 'src/common/billing/plan-entitlements';
+
+const PLAN_RANK: Record<SubscriptionPlanId, number> = {
+  basic: 1,
+  standard: 2,
+  pro: 3,
+};
 
 function roundDieselPrice(n: number): number {
   return Math.round(n * 10000) / 10000;
@@ -29,16 +41,18 @@ export class CompaniesService {
     private readonly repo: Repository<Company>,
     private readonly tenantContext: TenantContextService,
     private readonly operationalCenters: OperationalCentersService,
+    private readonly invitationCodes: InvitationCodesService,
   ) {}
 
-  async create(dto: CreateCompanyDto) {
+  async create(dto: CreateCompanyInput) {
     const now = new Date();
-    const saved = await this.repo.save(
+    const company = await this.repo.save(
       this.repo.create({
         name: dto.name,
         legalName: dto.legalName,
         subscriptionStatus: 'active',
-        subscriptionPlan: 'basic',
+        subscriptionPlan: dto.subscriptionPlan ?? 'basic',
+        subscriptionEndsAt: dto.subscriptionEndsAt,
         operationalAnalysisEnabled: true,
         operationalAnalysisChangedAt: now,
         tripAssistPrefillEnabled: false,
@@ -51,8 +65,6 @@ export class CompaniesService {
         dieselControlChangedAt: now,
       }),
     );
-    const fresh = await this.repo.findOne({ where: { id: saved.id } });
-    const company = fresh ?? saved;
     await this.operationalCenters.ensureDefaultCenterForCompany(company.id);
     return company;
   }
@@ -61,6 +73,26 @@ export class CompaniesService {
     const row = await this.repo.findOne({ where: { id } });
     if (!row) {
       throw new NotFoundException(`Company ${id} not found`);
+    }
+    return row;
+  }
+
+  /** Solo columnas de ficha/licencia — sin joins. */
+  async findAccountSnapshot(companyId: number) {
+    const row = await this.repo.findOne({
+      where: { id: companyId },
+      select: [
+        'id',
+        'name',
+        'tagline',
+        'subscriptionStatus',
+        'subscriptionPlan',
+        'subscriptionEndsAt',
+        'createdAt',
+      ],
+    });
+    if (!row) {
+      throw new NotFoundException(`Company ${companyId} not found`);
     }
     return row;
   }
@@ -231,11 +263,13 @@ export class CompaniesService {
     companyId: number,
     data: { name?: string; tagline?: string },
   ) {
-    if (user.role !== 'admin' && user.role !== 'superadmin') {
-      throw new ForbiddenException('Solo administradores pueden editar la información de la empresa');
+    if (!isOwnerRole(user.role)) {
+      throw new ForbiddenException(
+        'Solo el propietario puede editar la información de la cuenta',
+      );
     }
-    const company = await this.findOne(companyId);
     assertCompanyAccess(user, companyId);
+    const company = await this.findOne(companyId);
 
     if (data.name !== undefined) {
       const trimmed = data.name.trim();
@@ -248,5 +282,54 @@ export class CompaniesService {
       company.tagline = data.tagline.trim() || undefined;
     }
     return this.repo.save(company);
+  }
+
+  /**
+   * Canjea código de upgrade desde Cuenta.
+   * Aplica el plan y meses definidos en el código (basic/standard/pro).
+   */
+  async activateProPlan(
+    user: AuthUser,
+    companyId: number,
+    invitationCode: string,
+  ) {
+    if (!isOwnerRole(user.role)) {
+      throw new ForbiddenException(
+        'Solo el propietario puede canjear un código de plan',
+      );
+    }
+    assertCompanyAccess(user, companyId);
+
+    const code = invitationCode?.trim() ?? '';
+    if (!code) {
+      throw new ForbiddenException('El código de invitación es obligatorio');
+    }
+
+    const company = await this.findOne(companyId);
+    const currentPlan = normalizeSubscriptionPlanId(company.subscriptionPlan);
+    const invite = await this.invitationCodes.consume(code, 'upgrade');
+
+    try {
+      const grantedPlan = normalizeSubscriptionPlanId(invite.grantedPlan);
+      if (PLAN_RANK[grantedPlan] < PLAN_RANK[currentPlan]) {
+        throw new ConflictException(
+          'Este código no aplica a tu plan actual.',
+        );
+      }
+
+      company.subscriptionPlan = grantedPlan;
+      company.subscriptionStatus = 'active';
+      company.subscriptionEndsAt = invitationLicenseEndsAt(invite.licenseMonths);
+      const saved = await this.repo.save(company);
+      await this.invitationCodes.attachRedemption(
+        invite.id,
+        companyId,
+        Number(user.id),
+      );
+      return saved;
+    } catch (err) {
+      await this.invitationCodes.release(invite.id);
+      throw err;
+    }
   }
 }

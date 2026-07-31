@@ -109,13 +109,32 @@ export function canMarkTripIncident(user: AuthUser): boolean {
 
 export function assertModuleRead(user: AuthUser, module: AppModuleCode): void {
   if (!canReadModule(user.role, user.moduleGrants, module)) {
-    throw forbiddenForModule(module, 'read');
+    throw forbiddenForModule(module, 'read', user);
   }
+}
+
+/**
+ * Lectura permitida si el usuario tiene acceso a cualquiera de los módulos.
+ * Útil para pickers/link-options compartidos (ej. Comercial o Maniobras).
+ */
+export function assertModuleReadAny(
+  user: AuthUser,
+  modules: readonly AppModuleCode[],
+): void {
+  if (!modules.length) {
+    throw new ForbiddenException('No tienes permiso para consultar este recurso.');
+  }
+  for (const module of modules) {
+    if (canReadModule(user.role, user.moduleGrants, module)) {
+      return;
+    }
+  }
+  throw forbiddenForModule(modules[0], 'read', user);
 }
 
 export function assertModuleWrite(user: AuthUser, module: AppModuleCode): void {
   if (!canWriteModule(user.role, user.moduleGrants, module)) {
-    throw forbiddenForModule(module, 'write');
+    throw forbiddenForModule(module, 'write', user);
   }
 }
 
@@ -138,15 +157,29 @@ export function assertTripBitacoraAccess(
   }
 }
 
+/** Código estable para que el FE sincronice sesión solo ante revocación de módulo. */
+export const MODULE_ACCESS_DENIED_CODE = 'MODULE_ACCESS_DENIED';
+
 function forbiddenForModule(
   module: AppModuleCode,
   kind: 'read' | 'write',
+  user: AuthUser,
 ): ForbiddenException {
   const label = moduleLabel(module);
   const action = kind === 'read' ? 'consultar' : 'modificar';
-  return new ForbiddenException(
-    `No tienes permiso para ${action} el módulo ${label}.`,
-  );
+  const moduleGrants = resolveStaffModuleGrants(user.moduleGrants);
+  return new ForbiddenException({
+    statusCode: 403,
+    error: 'Forbidden',
+    message: `No tienes permiso para ${action} el módulo ${label}.`,
+    code: MODULE_ACCESS_DENIED_CODE,
+    module,
+    // Acceso fresco (AuthGuard ya lo leyó de BD) — el FE actualiza sin otro request.
+    role: user.role,
+    companyId: user.companyId,
+    moduleGrants,
+    allowedModules: resolveAllowedModules(user.role, moduleGrants),
+  });
 }
 
 function moduleLabel(module: AppModuleCode): string {

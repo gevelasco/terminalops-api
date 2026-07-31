@@ -37,8 +37,9 @@ export class SignUpDto {
   password: string;
 
   @ApiProperty({
-    description: 'Código de invitación requerido para registrar una empresa',
-    example: 'VSC-GRUPO-2026-A',
+    description:
+      'Código de invitación Básico (obligatorio). El alta crea plan basic con licencia beta.',
+    example: 'XXXX-XXXX-XXXX-XXXX',
   })
   @IsString()
   @IsNotEmpty({ message: 'El código de invitación es obligatorio' })

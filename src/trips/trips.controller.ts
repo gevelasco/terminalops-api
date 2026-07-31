@@ -32,7 +32,10 @@ import { UpdateTripDto } from './dto/update-trip.dto';
 import { UploadTripDocumentDto } from './dto/upload-trip-document.dto';
 import { rejectClientTripStatusMutation } from './trip-status-lock.util';
 import { APP_MODULE_CODES } from '../common/constants/app-modules';
-import { assertModuleWrite } from '../common/utils/module-permission.util';
+import {
+  assertModuleRead,
+  assertModuleWrite,
+} from '../common/utils/module-permission.util';
 import { TRIP_DOCUMENT_KINDS } from './trip-document.constants';
 import { TripsService } from './trips.service';
 
@@ -51,6 +54,7 @@ export class TripsController {
     @Param('tripId', ParseIntPipe) tripId: number,
     @LoggedUser() user: AuthUser,
   ) {
+    assertModuleRead(user, APP_MODULE_CODES.TRIPS);
     const companyId = await this.tenantContext.resolveInternalIdFromAuthUser(user);
     return this.service.findOne(companyId, tripId);
   }
@@ -125,6 +129,7 @@ export class TripsController {
     @Param('imageId', ParseIntPipe) imageId: number,
     @LoggedUser() user: AuthUser,
   ) {
+    assertModuleRead(user, APP_MODULE_CODES.TRIPS);
     const companyId = await this.tenantContext.resolveInternalIdFromAuthUser(user);
     return this.service.downloadIncidentImage(
       companyId,
@@ -202,6 +207,7 @@ export class TripsController {
     @Param('documentId', ParseIntPipe) documentId: number,
     @LoggedUser() user: AuthUser,
   ) {
+    assertModuleRead(user, APP_MODULE_CODES.TRIPS);
     const companyId = await this.tenantContext.resolveInternalIdFromAuthUser(user);
     return this.service.downloadDocument(companyId, tripId, documentId);
   }
@@ -225,6 +231,7 @@ export class TripsController {
     @Param('tripId', ParseIntPipe) tripId: number,
     @LoggedUser() user: AuthUser,
   ) {
+    assertModuleWrite(user, APP_MODULE_CODES.TRIPS);
     const companyId = await this.tenantContext.resolveInternalIdFromAuthUser(user);
     return this.service.softDelete(companyId, tripId, user);
   }

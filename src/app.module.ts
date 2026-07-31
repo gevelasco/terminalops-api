@@ -5,8 +5,10 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
+import { ChecklistModule } from './checklist/checklist.module';
 import { ClientsModule } from './clients/clients.module';
 import { CompaniesModule } from './companies/companies.module';
+import { InvitationCodesModule } from './invitation-codes/invitation-codes.module';
 import { EquipmentModule } from './equipment/equipment.module';
 import { ExpensesModule } from './expenses/expenses.module';
 import { DestinationRatesModule } from './destination-rates/destination-rates.module';
@@ -51,8 +53,10 @@ import EnvConfig from './types/env-config.type';
         synchronize: false,
       }),
     }),
+    InvitationCodesModule,
     AuthModule,
     CompaniesModule,
+    ChecklistModule,
     ClientsModule,
     OperatorsModule,
     UnitsModule,

@@ -67,6 +67,19 @@ export class UsersService {
     });
   }
 
+  /**
+   * Principal liviano para AuthGuard: rol, status, company y grants frescos.
+   * No carga foto, preferencias ni company completa.
+   */
+  findAuthPrincipal(userId: number) {
+    return this.usersRepo
+      .createQueryBuilder('user')
+      .select(['user.id', 'user.companyId', 'user.role', 'user.status'])
+      .leftJoinAndSelect('user.moduleAccess', 'moduleAccess')
+      .where('user.id = :userId', { userId })
+      .getOne();
+  }
+
   async getProfileById(id: number) {
     const user = await this.findById(id);
     if (!user) {
@@ -473,31 +486,43 @@ export class UsersService {
     return visible.map((user) => this.toCompanyUserResponse(user));
   }
 
-  async getCompanyAccount(companyId: number, actor: AuthUser) {
-    this.assertCanViewAccount(actor);
-    const user = await this.findOne({ id: Number(actor.id) });
-    if (!user?.company || user.companyId !== companyId) {
-      throw new NotFoundException('Empresa no encontrada');
-    }
-    const company = user.company;
-    const createdAt = toIsoString(company.createdAt) ?? null;
-
-    let subscriptionEndsAt = toIsoString(company.subscriptionEndsAt) ?? null;
-    if (!subscriptionEndsAt && company.createdAt) {
-      const sixMonths = new Date(company.createdAt);
-      sixMonths.setMonth(sixMonths.getMonth() + 6);
-      subscriptionEndsAt = sixMonths.toISOString();
-    }
-
+  toCompanyAccountResponse(company: {
+    id: number;
+    name: string;
+    tagline?: string | null;
+    subscriptionStatus: string;
+    subscriptionPlan?: string | null;
+    subscriptionEndsAt?: Date | string | null;
+    createdAt?: Date | string | null;
+  }) {
     return {
       id: company.id,
       name: company.name,
       tagline: company.tagline ?? null,
       subscriptionStatus: company.subscriptionStatus,
       subscriptionPlan: company.subscriptionPlan ?? 'basic',
-      subscriptionEndsAt,
-      createdAt,
+      subscriptionEndsAt: toIsoString(company.subscriptionEndsAt) ?? null,
+      createdAt: toIsoString(company.createdAt) ?? null,
     };
+  }
+
+  /**
+   * @deprecated Preferir CompaniesService.findAccountSnapshot + toCompanyAccountResponse
+   * (evita joins pesados de findOne). Se mantiene por compatibilidad interna.
+   */
+  async getCompanyAccount(companyId: number, actor: AuthUser) {
+    this.assertCanViewAccount(actor);
+    if (Number(actor.companyId) !== companyId) {
+      throw new NotFoundException('Empresa no encontrada');
+    }
+    const user = await this.usersRepo.findOne({
+      where: { id: Number(actor.id), companyId },
+      relations: ['company'],
+    });
+    if (!user?.company) {
+      throw new NotFoundException('Empresa no encontrada');
+    }
+    return this.toCompanyAccountResponse(user.company);
   }
 
   async createCompanyUser(

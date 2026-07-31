@@ -16,7 +16,10 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { rejectClientFleetStatusMutation } from 'src/fleet/fleet-status-lock.util';
 import { TenantContextService } from '../common/tenant/tenant-context.service';
 import { APP_MODULE_CODES } from '../common/constants/app-modules';
-import { assertModuleWrite } from '../common/utils/module-permission.util';
+import {
+  assertModuleRead,
+  assertModuleWrite,
+} from '../common/utils/module-permission.util';
 import { LoggedUser } from '../decorators/logged-user.decorator';
 import { AuthGuard } from '../guards/auth/auth.guard';
 import type AuthUser from '../types/auth-user.type';
@@ -40,6 +43,7 @@ export class OperatorsController {
     @Query('to') periodTo: string | undefined,
     @LoggedUser() user: AuthUser,
   ) {
+    assertModuleRead(user, APP_MODULE_CODES.OPERATORS);
     const companyId = await this.tenantContext.resolveInternalIdFromAuthUser(user);
     return this.service.getOperationSummary(companyId, operatorId, periodFrom, periodTo);
   }
@@ -101,6 +105,7 @@ export class OperatorsController {
     @Param('operatorId', ParseIntPipe) operatorId: number,
     @LoggedUser() user: AuthUser,
   ) {
+    assertModuleRead(user, APP_MODULE_CODES.OPERATORS);
     const companyId = await this.tenantContext.resolveInternalIdFromAuthUser(user);
     return this.service.findOne(companyId, operatorId);
   }
@@ -123,6 +128,7 @@ export class OperatorsController {
     @Param('operatorId', ParseIntPipe) operatorId: number,
     @LoggedUser() user: AuthUser,
   ) {
+    assertModuleWrite(user, APP_MODULE_CODES.OPERATORS);
     const companyId = await this.tenantContext.resolveInternalIdFromAuthUser(user);
     return this.service.remove(companyId, operatorId);
   }

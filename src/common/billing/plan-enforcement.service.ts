@@ -98,9 +98,26 @@ export class PlanEnforcementService {
   private async planRaw(companyId: number): Promise<string | null> {
     const company = await this.companies.findOne({
       where: { id: companyId },
-      select: ['id', 'subscriptionPlan'],
+      select: [
+        'id',
+        'subscriptionPlan',
+        'subscriptionStatus',
+        'subscriptionEndsAt',
+      ],
     });
-    return company?.subscriptionPlan ?? null;
+    if (!company) {
+      return null;
+    }
+    const status = (company.subscriptionStatus ?? 'active').toLowerCase();
+    if (status === 'cancelled' || status === 'past_due' || status === 'expired') {
+      return 'basic';
+    }
+    const endsAt = company.subscriptionEndsAt;
+    if (endsAt && new Date(endsAt).getTime() < Date.now()) {
+      // Licencia vencida: aplicar cupos/features de Básico.
+      return 'basic';
+    }
+    return company.subscriptionPlan ?? null;
   }
 
   private async countTripsThisMonth(companyId: number): Promise<number> {
