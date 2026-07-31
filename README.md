@@ -71,6 +71,17 @@ npm run start:dev
 | `npm run build` | Compila a `dist/` |
 | `npm run start:prod` | API compilada (`dist/src/main.js`) |
 
+## Ops / PRD
+
+Guía de hardening, logs, alertas 5xx, HTTPS/CORS y backup/restore:
+
+→ **[docs/ops-prd.md](docs/ops-prd.md)**
+
+```bash
+npm run db:backup          # dump gzip en ./backups
+npm run db:backup:verify   # prueba restore en DB temporal
+```
+
 ## Producción (Docker)
 
 ```bash

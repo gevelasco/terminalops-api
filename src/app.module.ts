@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { APP_GUARD } from '@nestjs/core';
 import { ScheduleModule } from '@nestjs/schedule';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -18,6 +20,7 @@ import { OperatorsModule } from './operators/operators.module';
 import { TripsModule } from './trips/trips.module';
 import { UnitsModule } from './units/units.module';
 import { FileModule } from './common/file/file.module';
+import { ObservabilityModule } from './common/observability/observability.module';
 import { TenantModule } from './common/tenant/tenant.module';
 import { ActivityEventsModule } from './activity-events/activity-events.module';
 import { typeOrmEntityGlobsFromDir } from './database/typeorm-entity-globs';
@@ -28,6 +31,15 @@ import EnvConfig from './types/env-config.type';
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     ScheduleModule.forRoot(),
+    // Límite global holgado; auth aplica @Throttle más estricto.
+    ThrottlerModule.forRoot([
+      {
+        name: 'default',
+        ttl: 60_000,
+        limit: 120,
+      },
+    ]),
+    ObservabilityModule,
     TenantModule,
     FileModule,
     ActivityEventsModule,
@@ -45,11 +57,13 @@ import EnvConfig from './types/env-config.type';
         migrationsTableName: 'migrations_list',
         migrationsTransactionMode: 'each',
         // Las migraciones corren UNA sola vez en el paso previo al arranque
-        // (`migration:run:server` → migrate.ts, con advisory lock). Correrlas
-        // también aquí las duplicaría en cada instancia/réplica del deploy.
+        // (`migration:run:server` → migrate.ts, con advisory lock).
         migrationsRun: false,
         autoLoadEntities: true,
-        ssl: false,
+        ssl:
+          configService.get('DB_SSL', { infer: true }) === 'true'
+            ? { rejectUnauthorized: false }
+            : false,
         synchronize: false,
       }),
     }),
@@ -68,6 +82,12 @@ import EnvConfig from './types/env-config.type';
     GeoModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
+  ],
 })
 export class AppModule {}

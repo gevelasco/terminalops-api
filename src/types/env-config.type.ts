@@ -6,10 +6,20 @@ type EnvConfig = {
   DB_USERNAME: string;
   DB_PASSWORD: string;
   DB_DATABASE: string;
+  /** true en hosts gestionados (Railway, etc.) */
+  DB_SSL?: string;
+  /**
+   * Origen(es) CORS del FE, separados por coma.
+   * Ej. producción: https://app.tudominio.com
+   */
   ORIGIN: string;
   JWT_SECRET: string;
   JWT_REFRESH_SECRET: string;
   SALT_ROUNDS: number;
+  /** Webhook Slack/Discord/generic para alertas 5xx (opcional). */
+  ALERT_WEBHOOK_URL?: string;
+  /** En production Swagger queda off salvo ENABLE_SWAGGER=true. */
+  ENABLE_SWAGGER?: string;
   /** Precio diesel MXN/L si no hay cache ni APIs (opcional). */
   FUEL_DIESEL_FALLBACK_PRICE_MXN?: number;
   /** TTL cache diesel en horas (default 6). */
