@@ -136,12 +136,11 @@ export class NotificationsService {
     const paymentFetchFrom = notificationOverdueFetchFrom(range.today);
     const [calendar, receivableRows] = await Promise.all([
       canSeePayments
-        ? this.expensesService.getCalendar(companyId, {
-            from: paymentFetchFrom,
-            to: range.to,
-            page: 1,
-            limit: 0,
-          })
+        ? this.expensesService.getPaymentDueItemsForNotifications(
+            companyId,
+            paymentFetchFrom,
+            range.to,
+          )
         : Promise.resolve({ items: [] }),
       canSeeTrips
         ? this.queryReceivablesDue(companyId, range.from, range.to)

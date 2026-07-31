@@ -29,6 +29,10 @@ import {
   FLEET_ASSIGNABLE_LIST_STATUS,
   type FleetListAvailableOptions,
 } from 'src/fleet/fleet-available-list.util';
+import {
+  loadLatestMaintenanceByOwnerIds,
+  loadLatestVerificationByOwnerIds,
+} from 'src/fleet/fleet-latest-entries.loader';
 import { CreateEquipmentDto } from './dto/create-equipment.dto';
 import { UpdateEquipmentDto } from './dto/update-equipment.dto';
 import {
@@ -145,9 +149,29 @@ export class EquipmentService {
       where: options?.available
         ? { companyId, isActive: true, status: FLEET_ASSIGNABLE_LIST_STATUS }
         : { companyId, isActive: true },
-      relations: ['fleetProfile', 'maintenanceEntries', 'verificationEntries'],
+      relations: ['fleetProfile'],
       order: { name: 'ASC' },
     });
+    const equipmentIds = rows.map((row) => row.id);
+    const schema = this.repo.metadata.schema ?? 'terminalops';
+    const [maint, verif] = await Promise.all([
+      loadLatestMaintenanceByOwnerIds(
+        this.repo.manager,
+        schema,
+        'equipment_id',
+        equipmentIds,
+      ),
+      loadLatestVerificationByOwnerIds(
+        this.repo.manager,
+        schema,
+        'equipment_id',
+        equipmentIds,
+      ),
+    ]);
+    for (const row of rows) {
+      row.maintenanceEntries = maint.get(row.id) ?? [];
+      row.verificationEntries = verif.get(row.id) ?? [];
+    }
     return rows.map((row) => serializeEquipment(row, { list: true }));
   }
 

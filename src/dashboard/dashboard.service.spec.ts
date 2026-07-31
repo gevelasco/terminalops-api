@@ -40,6 +40,7 @@ describe('DashboardService', () => {
       transitioned: 0,
       skipped: 0,
     }),
+    kickCompanyLifecycleFresh: jest.fn(),
   };
 
   function mockTripQb(
@@ -160,7 +161,7 @@ describe('DashboardService', () => {
   it('getSummary returns live status counts and calendar-day result', async () => {
     const summary = await service.getSummary(1);
 
-    expect(tripLifecycleService.ensureCompanyLifecycleFresh).toHaveBeenCalledWith(1);
+    expect(tripLifecycleService.kickCompanyLifecycleFresh).toHaveBeenCalledWith(1);
     expect(summary.tripsInTransit).toBe(2);
     expect(summary.tripsInTransitDestinations).toBe(3);
     expect(summary.unitsAvailable).toBe(4);

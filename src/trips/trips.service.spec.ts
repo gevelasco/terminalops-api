@@ -65,7 +65,7 @@ describe('TripsService.update (A4 snapshot immutability)', () => {
         { provide: OperationConfigurationsService, useValue: { findByCode: jest.fn() } },
         { provide: DestinationRatesService, useValue: {} },
         { provide: OperationalCentersService, useValue: {} },
-        { provide: TripLifecycleService, useValue: { applyLifecycleChainForTrip: jest.fn(), ensureCompanyLifecycleFresh: jest.fn().mockResolvedValue({ scanned: 0, transitioned: 0, skipped: 0 }) } },
+        { provide: TripLifecycleService, useValue: { applyLifecycleChainForTrip: jest.fn(), ensureCompanyLifecycleFresh: jest.fn().mockResolvedValue({ scanned: 0, transitioned: 0, skipped: 0 }), kickCompanyLifecycleFresh: jest.fn() } },
         { provide: TripFleetStatusSyncService, useValue: { syncForTrip: jest.fn(), syncForTripAfterUpdate: jest.fn(), reconcileReleasedFleetResources: jest.fn() } },
         { provide: UnitTripOdometerService, useValue: { reverseCreditForTrip: jest.fn(), creditUnitForCompletedTrip: jest.fn() } },
         { provide: ExpensesService, useValue: {} },

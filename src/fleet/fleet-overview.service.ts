@@ -36,6 +36,15 @@ import {
 } from './fleet-overview-maintenance.util';
 import { companyMaintenancePolicyContext } from 'src/units/company-maintenance-policy.util';
 import { daysWithoutManeuverSince } from './fleet-overview-idle.util';
+import {
+  loadLatestMaintenanceByOwnerIds,
+  loadLatestVerificationByOwnerIds,
+} from './fleet-latest-entries.loader';
+
+export type FleetOverviewListOptions = {
+  /** Reports: omite filas de equipo (solo usa items de unidad). */
+  includeEquipmentRows?: boolean;
+};
 
 function metaString(
   meta: Record<string, unknown> | undefined,
@@ -157,7 +166,9 @@ export class FleetOverviewService {
   async listOverview(
     companyId: number,
     tripIds?: readonly number[],
+    options?: FleetOverviewListOptions,
   ): Promise<FleetOverviewResponseDto> {
+    const includeEquipmentRows = options?.includeEquipmentRows !== false;
     const tripIdFilter =
       tripIds == null
         ? null
@@ -170,67 +181,37 @@ export class FleetOverviewService {
     const allowedTripIds =
       tripIdFilter == null ? null : new Set<number>(tripIdFilter);
 
-    const tripWhere = allowedTripIds
-      ? {
-          companyId,
-          status: In([...TRIP_FLEET_ACTIVE_STATUSES]),
-          id: In([...allowedTripIds]),
-          deletedAt: IsNull(),
-        }
-      : {
-          companyId,
-          status: In([...TRIP_FLEET_ACTIVE_STATUSES]),
-          deletedAt: IsNull(),
-        };
+    // Path del mapa/estado: solo cards de maniobra → sin mantenimiento ni idle.
+    if (allowedTripIds) {
+      return this.listOverviewForTripIds(companyId, allowedTripIds);
+    }
+
+    const tripWhere = {
+      companyId,
+      status: In([...TRIP_FLEET_ACTIVE_STATUSES]),
+      deletedAt: IsNull(),
+    };
 
     const trips = await this.tripsRepo.find({
       where: tripWhere,
-      relations: ['tripEquipment', 'tripEquipment.equipment', 'operator'],
+      relations: ['tripEquipment', 'operator'],
       order: { plannedDepartureAt: 'ASC' },
     });
 
-    if (allowedTripIds && trips.length === 0) {
-      return { items: [], equipment: [] };
-    }
-
-    const unitIds = allowedTripIds
-      ? [
-          ...new Set(
-            trips
-              .map((trip) => trip.unitId)
-              .filter((id): id is number => id != null),
-          ),
-        ]
-      : null;
-
-    if (allowedTripIds && (unitIds == null || unitIds.length === 0)) {
-      return { items: [], equipment: [] };
-    }
+    const unitIds = null;
 
     const [unitsRaw, equipmentRaw, configs, lastEndedAtByUnitId, company] =
       await Promise.all([
-        unitIds
-          ? this.unitsRepo.find({
-              where: { companyId, id: In(unitIds) },
-              relations: ['fleetProfile'],
-              order: { plate: 'ASC' },
-            })
-          : this.unitsRepo.find({
-              where: { companyId },
-              relations: ['fleetProfile'],
-              order: { plate: 'ASC' },
-            }),
-        unitIds
-          ? this.equipmentRepo.find({
-              where: { companyId, unitId: In(unitIds) },
-              relations: ['fleetProfile'],
-              order: { name: 'ASC' },
-            })
-          : this.equipmentRepo.find({
-              where: { companyId },
-              relations: ['fleetProfile'],
-              order: { name: 'ASC' },
-            }),
+        this.unitsRepo.find({
+          where: { companyId },
+          relations: ['fleetProfile'],
+          order: { plate: 'ASC' },
+        }),
+        this.equipmentRepo.find({
+          where: { companyId },
+          relations: ['fleetProfile'],
+          order: { name: 'ASC' },
+        }),
         this.configsRepo.find({
           where: { companyId, active: true },
           order: { name: 'ASC' },
@@ -250,11 +231,36 @@ export class FleetOverviewService {
 
     const loadedUnitIds = unitsRaw.map((u) => u.id);
     const loadedEquipmentIds = equipmentRaw.map((e) => e.id);
+    const schema = this.unitsRepo.metadata.schema ?? 'terminalops';
     const [unitMaint, unitVerif, eqMaint, eqVerif] = await Promise.all([
-      this.loadLatestMaintenanceByUnitIds(loadedUnitIds),
-      this.loadLatestVerificationByUnitIds(loadedUnitIds),
-      this.loadLatestMaintenanceByEquipmentIds(loadedEquipmentIds),
-      this.loadLatestVerificationByEquipmentIds(loadedEquipmentIds),
+      loadLatestMaintenanceByOwnerIds(
+        this.unitsRepo.manager,
+        schema,
+        'unit_id',
+        loadedUnitIds,
+      ),
+      loadLatestVerificationByOwnerIds(
+        this.unitsRepo.manager,
+        schema,
+        'unit_id',
+        loadedUnitIds,
+      ),
+      includeEquipmentRows
+        ? loadLatestMaintenanceByOwnerIds(
+            this.unitsRepo.manager,
+            schema,
+            'equipment_id',
+            loadedEquipmentIds,
+          )
+        : Promise.resolve(new Map<number, FleetMaintenanceEntry[]>()),
+      includeEquipmentRows
+        ? loadLatestVerificationByOwnerIds(
+            this.unitsRepo.manager,
+            schema,
+            'equipment_id',
+            loadedEquipmentIds,
+          )
+        : Promise.resolve(new Map<number, FleetVerificationEntry[]>()),
     ]);
 
     const units = unitsRaw.map((unit) => {
@@ -301,11 +307,7 @@ export class FleetOverviewService {
       const hitched = sortHitchedEquipment(
         equipmentByUnitId.get(unit.id) ?? unit.equipment ?? [],
       );
-      const activeTrip = pickActiveTripForUnit(
-        unit.id,
-        tripsByUnitId,
-        allowedTripIds ?? undefined,
-      );
+      const activeTrip = pickActiveTripForUnit(unit.id, tripsByUnitId);
       const operationalStatus =
         this.fleetStatusResolver.resolveOverviewOperationalStatus({
           persistedStatus: unit.status,
@@ -431,93 +433,75 @@ export class FleetOverviewService {
       return item;
     });
 
-    const equipmentRows: FleetOverviewEquipmentRowDto[] = activeEquipment.map(
-      (eq) => {
-        const unit = activeUnits.find((u) => u.id === eq.unitId);
-        const activeTrip =
-          (eq.unitId != null
-            ? pickActiveTripForUnit(
-                eq.unitId,
-                tripsByUnitId,
-                allowedTripIds ?? undefined,
-              )
-            : null) ??
-          tripByEquipmentId.get(eq.id) ??
-          null;
-        const metaRaw = equipmentProfileToFleetMeta(
-          eq.fleetProfile,
-          eq.maintenanceEntries,
-          undefined,
-          undefined,
-          eq.verificationEntries,
-          { includeHistory: false },
-        );
-        const meta = toFleetMetaLike(metaRaw);
-        const brand =
-          metaString(metaRaw, 'trailerBrandName')?.trim() ||
-          eq.trailerBrandAbbr?.trim() ||
-          '—';
-        const modelParts = [
-          eq.trailerYear?.trim(),
-          metaString(metaRaw, 'trailerVersion')?.trim(),
-        ].filter(Boolean);
-        const maint =
-          activeTrip == null
-            ? buildMaintenanceSummary(meta, maintenancePolicy)
-            : undefined;
+    const equipmentRows: FleetOverviewEquipmentRowDto[] = includeEquipmentRows
+      ? activeEquipment.map((eq) => {
+          const unit = activeUnits.find((u) => u.id === eq.unitId);
+          const activeTrip =
+            (eq.unitId != null
+              ? pickActiveTripForUnit(eq.unitId, tripsByUnitId)
+              : null) ??
+            tripByEquipmentId.get(eq.id) ??
+            null;
+          const metaRaw = equipmentProfileToFleetMeta(
+            eq.fleetProfile,
+            eq.maintenanceEntries,
+            undefined,
+            undefined,
+            eq.verificationEntries,
+            { includeHistory: false },
+          );
+          const meta = toFleetMetaLike(metaRaw);
+          const brand =
+            metaString(metaRaw, 'trailerBrandName')?.trim() ||
+            eq.trailerBrandAbbr?.trim() ||
+            '—';
+          const modelParts = [
+            eq.trailerYear?.trim(),
+            metaString(metaRaw, 'trailerVersion')?.trim(),
+          ].filter(Boolean);
+          const maint =
+            activeTrip == null
+              ? buildMaintenanceSummary(meta, maintenancePolicy)
+              : undefined;
 
-        return {
-          equipmentId: eq.id,
-          unitId: eq.unitId ?? null,
-          unitName: unit ? buildUnitOperationalId(unit) : null,
-          operationalCode: buildEquipmentOperationalCode(eq),
-          alias: eq.name?.trim() || undefined,
-          brand,
-          model: modelParts.length ? modelParts.join(' · ') : '—',
-          plate: eq.plate?.trim() || '—',
-          equipmentType: (eq.type ?? '').trim() || '—',
-          operationalStatus:
-            this.fleetStatusResolver.resolveOverviewOperationalStatus({
-              persistedStatus: eq.status,
-              activeTripStatus:
-                activeTrip?.status === 'in_transit' ||
-                activeTrip?.status === 'scheduled'
-                  ? activeTrip.status
-                  : undefined,
-              isActive: eq.isActive !== false,
-            }),
-          maintenance: maint
-            ? {
-                lastMaintenanceDate: maint.lastMaintenanceDate,
-                nextMaintenanceDate: maint.nextMaintenanceDate,
-                kmSinceLastMaintenance: maint.kmSinceLastMaintenance,
-                tireStatus: maint.tireStatus,
-                insuranceStatus: maint.insuranceStatus,
-                inspectionStatus: maint.inspectionStatus,
-                maintenanceRenewal: maint.maintenanceRenewal,
-                insuranceRenewal: maint.insuranceRenewal,
-                inspectionRenewal: maint.inspectionRenewal,
-              }
-            : undefined,
-        };
-      },
-    );
+          return {
+            equipmentId: eq.id,
+            unitId: eq.unitId ?? null,
+            unitName: unit ? buildUnitOperationalId(unit) : null,
+            operationalCode: buildEquipmentOperationalCode(eq),
+            alias: eq.name?.trim() || undefined,
+            brand,
+            model: modelParts.length ? modelParts.join(' · ') : '—',
+            plate: eq.plate?.trim() || '—',
+            equipmentType: (eq.type ?? '').trim() || '—',
+            operationalStatus:
+              this.fleetStatusResolver.resolveOverviewOperationalStatus({
+                persistedStatus: eq.status,
+                activeTripStatus:
+                  activeTrip?.status === 'in_transit' ||
+                  activeTrip?.status === 'scheduled'
+                    ? activeTrip.status
+                    : undefined,
+                isActive: eq.isActive !== false,
+              }),
+            maintenance: maint
+              ? {
+                  lastMaintenanceDate: maint.lastMaintenanceDate,
+                  nextMaintenanceDate: maint.nextMaintenanceDate,
+                  kmSinceLastMaintenance: maint.kmSinceLastMaintenance,
+                  tireStatus: maint.tireStatus,
+                  insuranceStatus: maint.insuranceStatus,
+                  inspectionStatus: maint.inspectionStatus,
+                  maintenanceRenewal: maint.maintenanceRenewal,
+                  insuranceRenewal: maint.insuranceRenewal,
+                  inspectionRenewal: maint.inspectionRenewal,
+                }
+              : undefined,
+          };
+        })
+      : [];
 
-    const filteredItems = allowedTripIds
-      ? items.filter(
-          (item) => item.trip != null && allowedTripIds.has(item.trip.tripId),
-        )
-      : items;
-
-    const filteredEquipmentRows = allowedTripIds
-      ? equipmentRows.filter(
-          (row) =>
-            row.operationalStatus === 'in_transit' ||
-            row.operationalStatus === 'scheduled',
-        )
-      : equipmentRows;
-
-    filteredItems.sort((a, b) => {
+    items.sort((a, b) => {
       const d =
         this.fleetStatusResolver.overviewSortRank(b.operationalStatus) -
         this.fleetStatusResolver.overviewSortRank(a.operationalStatus);
@@ -527,138 +511,240 @@ export class FleetOverviewService {
       return a.unitName.localeCompare(b.unitName, 'es');
     });
 
-    return { items: filteredItems, equipment: filteredEquipmentRows };
+    return { items, equipment: equipmentRows };
   }
 
-  private async loadLatestMaintenanceByUnitIds(
-    unitIds: readonly number[],
-  ): Promise<Map<number, FleetMaintenanceEntry[]>> {
-    return this.loadLatestMaintenance('unit_id', unitIds);
-  }
+  /**
+   * Variante ligera para el mapa (tripIds): solo unidades/equipo de esas
+   * maniobras, sin perfiles de mantenimiento ni «días sin maniobra».
+   */
+  private async listOverviewForTripIds(
+    companyId: number,
+    allowedTripIds: ReadonlySet<number>,
+  ): Promise<FleetOverviewResponseDto> {
+    const trips = await this.tripsRepo.find({
+      where: {
+        companyId,
+        status: In([...TRIP_FLEET_ACTIVE_STATUSES]),
+        id: In([...allowedTripIds]),
+        deletedAt: IsNull(),
+      },
+      relations: ['tripEquipment', 'operator'],
+      order: { plannedDepartureAt: 'ASC' },
+    });
 
-  private async loadLatestMaintenanceByEquipmentIds(
-    equipmentIds: readonly number[],
-  ): Promise<Map<number, FleetMaintenanceEntry[]>> {
-    return this.loadLatestMaintenance('equipment_id', equipmentIds);
-  }
-
-  private async loadLatestMaintenance(
-    ownerColumn: 'unit_id' | 'equipment_id',
-    ownerIds: readonly number[],
-  ): Promise<Map<number, FleetMaintenanceEntry[]>> {
-    const out = new Map<number, FleetMaintenanceEntry[]>();
-    if (ownerIds.length === 0) {
-      return out;
+    if (trips.length === 0) {
+      return { items: [], equipment: [] };
     }
-    const schema = this.unitsRepo.metadata.schema;
-    const rows: Array<{
-      id: number;
-      unit_id: number | null;
-      equipment_id: number | null;
-      entry_date: string | null;
-      entry_type: string | null;
-      cost: string | null;
-      notes: string | null;
-      payment_method: string | null;
-      sort_order: number;
-    }> = await this.unitsRepo.query(
-      `
-      SELECT DISTINCT ON (${ownerColumn})
-        id, unit_id, equipment_id, entry_date, entry_type, cost, notes,
-        payment_method, sort_order
-      FROM ${schema}.fleet_maintenance_entries
-      WHERE ${ownerColumn} = ANY($1::int[])
-      ORDER BY ${ownerColumn}, sort_order DESC NULLS LAST, entry_date DESC NULLS LAST, id DESC
-      `,
-      [ownerIds],
-    );
-    for (const row of rows) {
-      const ownerId =
-        ownerColumn === 'unit_id' ? row.unit_id : row.equipment_id;
-      if (ownerId == null) {
+
+    const unitIds = [
+      ...new Set(
+        trips
+          .map((trip) => trip.unitId)
+          .filter((id): id is number => id != null),
+      ),
+    ];
+    if (unitIds.length === 0) {
+      return { items: [], equipment: [] };
+    }
+
+    const equipmentIdsFromTrips = [
+      ...new Set(
+        trips.flatMap((trip) =>
+          (trip.tripEquipment ?? []).map((te) => te.equipmentId),
+        ),
+      ),
+    ];
+
+    const [unitsRaw, equipmentRaw, configs] = await Promise.all([
+      this.unitsRepo.find({
+        where: { companyId, id: In(unitIds) },
+        order: { plate: 'ASC' },
+      }),
+      this.equipmentRepo.find({
+        where:
+          equipmentIdsFromTrips.length > 0
+            ? [
+                { companyId, unitId: In(unitIds) },
+                { companyId, id: In(equipmentIdsFromTrips) },
+              ]
+            : { companyId, unitId: In(unitIds) },
+        order: { name: 'ASC' },
+      }),
+      this.configsRepo.find({
+        where: { companyId, active: true },
+        order: { name: 'ASC' },
+      }),
+    ]);
+
+    const activeUnits = unitsRaw.filter((u) => u.isActive !== false);
+    const activeEquipment = equipmentRaw.filter((e) => e.isActive !== false);
+    const configsById = new Map(configs.map((c) => [c.id, c]));
+
+    const equipmentByUnitId = new Map<number, Equipment[]>();
+    for (const eq of activeEquipment) {
+      if (eq.unitId == null) {
         continue;
       }
-      const entry = {
-        id: row.id,
-        unitId: row.unit_id ?? undefined,
-        equipmentId: row.equipment_id ?? undefined,
-        entryDate: row.entry_date ?? undefined,
-        entryType: row.entry_type ?? undefined,
-        cost: row.cost ?? undefined,
-        notes: row.notes ?? undefined,
-        paymentMethod: row.payment_method ?? undefined,
-        sortOrder: row.sort_order ?? 0,
-      } as FleetMaintenanceEntry;
-      out.set(ownerId, [entry]);
+      const list = equipmentByUnitId.get(eq.unitId) ?? [];
+      list.push(eq);
+      equipmentByUnitId.set(eq.unitId, list);
     }
-    return out;
-  }
 
-  private async loadLatestVerificationByUnitIds(
-    unitIds: readonly number[],
-  ): Promise<Map<number, FleetVerificationEntry[]>> {
-    return this.loadLatestVerification('unit_id', unitIds);
-  }
-
-  private async loadLatestVerificationByEquipmentIds(
-    equipmentIds: readonly number[],
-  ): Promise<Map<number, FleetVerificationEntry[]>> {
-    return this.loadLatestVerification('equipment_id', equipmentIds);
-  }
-
-  private async loadLatestVerification(
-    ownerColumn: 'unit_id' | 'equipment_id',
-    ownerIds: readonly number[],
-  ): Promise<Map<number, FleetVerificationEntry[]>> {
-    const out = new Map<number, FleetVerificationEntry[]>();
-    if (ownerIds.length === 0) {
-      return out;
+    const tripsByUnitId = new Map<number, Trip[]>();
+    const tripByEquipmentId = new Map<number, Trip>();
+    for (const trip of trips) {
+      if (trip.unitId != null) {
+        const list = tripsByUnitId.get(trip.unitId) ?? [];
+        list.push(trip);
+        tripsByUnitId.set(trip.unitId, list);
+      }
+      for (const te of trip.tripEquipment ?? []) {
+        tripByEquipmentId.set(te.equipmentId, trip);
+      }
     }
-    const schema = this.unitsRepo.metadata.schema;
-    const rows: Array<{
-      id: number;
-      unit_id: number | null;
-      equipment_id: number | null;
-      scope: FleetVerificationEntry['scope'];
-      entry_date: string | null;
-      cost: string | null;
-      notes: string | null;
-      payment_method: string | null;
-      sort_order: number;
-    }> = await this.unitsRepo.query(
-      `
-      SELECT DISTINCT ON (${ownerColumn}, scope)
-        id, unit_id, equipment_id, scope, entry_date, cost, notes,
-        payment_method, sort_order
-      FROM ${schema}.fleet_verification_entries
-      WHERE ${ownerColumn} = ANY($1::int[])
-      ORDER BY ${ownerColumn}, scope, sort_order DESC NULLS LAST,
-        entry_date DESC NULLS LAST, id DESC
-      `,
-      [ownerIds],
-    );
-    for (const row of rows) {
-      const ownerId =
-        ownerColumn === 'unit_id' ? row.unit_id : row.equipment_id;
-      if (ownerId == null) {
+
+    const items: FleetOverviewItemDto[] = [];
+    for (const unit of activeUnits) {
+      const hitched = sortHitchedEquipment(
+        equipmentByUnitId.get(unit.id) ?? [],
+      );
+      const activeTrip = pickActiveTripForUnit(
+        unit.id,
+        tripsByUnitId,
+        allowedTripIds,
+      );
+      if (!activeTrip || !allowedTripIds.has(activeTrip.id)) {
         continue;
       }
-      const entry = {
-        id: row.id,
-        unitId: row.unit_id ?? undefined,
-        equipmentId: row.equipment_id ?? undefined,
-        scope: row.scope,
-        entryDate: row.entry_date ?? undefined,
-        cost: row.cost ?? undefined,
-        notes: row.notes ?? undefined,
-        paymentMethod: row.payment_method ?? undefined,
-        sortOrder: row.sort_order ?? 0,
-      } as FleetVerificationEntry;
-      const bucket = out.get(ownerId) ?? [];
-      bucket.push(entry);
-      out.set(ownerId, bucket);
+
+      const operationalStatus =
+        this.fleetStatusResolver.resolveOverviewOperationalStatus({
+          persistedStatus: unit.status,
+          activeTripStatus:
+            activeTrip.status === 'in_transit' ||
+            activeTrip.status === 'scheduled'
+              ? activeTrip.status
+              : undefined,
+          isActive: unit.isActive !== false,
+        });
+      const convoyType = convoyTypeFromCount(hitched.length);
+      const primaryEq = hitched[0] ?? null;
+      const originLabel =
+        activeTrip.originCityMunicipality?.trim() ||
+        buildTripOriginLabel(activeTrip);
+      const destinationLabel =
+        activeTrip.destinationCityMunicipality?.trim() ||
+        buildTripDestinationLabel(activeTrip);
+      const routeLabel = formatCompactTripRouteLabel(
+        originLabel,
+        destinationLabel,
+      );
+      const exposedActual = exposeTripActualSchedule(activeTrip);
+
+      items.push({
+        unitId: unit.id,
+        unitName: buildUnitOperationalId(unit),
+        unitAlias: unit.name?.trim() || undefined,
+        unitPlate: unit.plate?.trim() || '',
+        unitTransportType: unit.transportType?.trim() || undefined,
+        equipment: {
+          equipmentId: primaryEq?.id ?? null,
+          type: convoyType,
+          status: this.fleetStatusResolver.persistedAssetStatus(
+            primaryEq?.status ?? unit.status,
+          ),
+        },
+        hitchedEquipment: hitched.map((eq) => ({
+          equipmentId: eq.id,
+          operationalCode: buildEquipmentOperationalCode(eq),
+          alias: eq.name?.trim() || undefined,
+          equipmentType: (eq.type ?? '').trim() || '—',
+          hitchPosition:
+            eq.hitchPosition === 'lead' || eq.hitchPosition === 'rear'
+              ? eq.hitchPosition
+              : undefined,
+          status: this.fleetStatusResolver.persistedAssetStatus(eq.status),
+        })),
+        operationalStatus,
+        configuration: resolveConfiguration(activeTrip, configsById),
+        trip: {
+          tripId: activeTrip.id,
+          maneuverCode: activeTrip.maneuverCode,
+          clientName: activeTrip.clientName,
+          origin: routeLabel,
+          destination: formatCompactRouteEndpoint(destinationLabel),
+          status: tripStatus(activeTrip.status),
+          plannedDepartureAt:
+            toIsoString(activeTrip.plannedDepartureAt) ?? undefined,
+          plannedArrivalAt:
+            toIsoString(activeTrip.plannedArrivalAt) ?? undefined,
+          plannedCompletionAt:
+            toIsoString(activeTrip.plannedCompletionAt) ?? undefined,
+          departureAt: toIsoString(exposedActual.departureAt) ?? undefined,
+          arrivedAt: toIsoString(exposedActual.arrivedAt) ?? undefined,
+          returnAt: toIsoString(exposedActual.returnAt) ?? undefined,
+          operationalDistanceKm:
+            operationalKmFromStoredTrip(
+              activeTrip.routeDistanceKm
+                ? Number(activeTrip.routeDistanceKm)
+                : null,
+            ) ?? undefined,
+          operatorName: resolveOperatorDisplayName(activeTrip),
+        },
+      });
     }
-    return out;
+
+    const equipmentRows: FleetOverviewEquipmentRowDto[] = [];
+    for (const eq of activeEquipment) {
+      const unit = activeUnits.find((u) => u.id === eq.unitId);
+      const activeTrip =
+        (eq.unitId != null
+          ? pickActiveTripForUnit(eq.unitId, tripsByUnitId, allowedTripIds)
+          : null) ??
+        tripByEquipmentId.get(eq.id) ??
+        null;
+      const operationalStatus =
+        this.fleetStatusResolver.resolveOverviewOperationalStatus({
+          persistedStatus: eq.status,
+          activeTripStatus:
+            activeTrip?.status === 'in_transit' ||
+            activeTrip?.status === 'scheduled'
+              ? activeTrip.status
+              : undefined,
+          isActive: eq.isActive !== false,
+        });
+      if (
+        operationalStatus !== 'in_transit' &&
+        operationalStatus !== 'scheduled'
+      ) {
+        continue;
+      }
+      equipmentRows.push({
+        equipmentId: eq.id,
+        unitId: eq.unitId ?? null,
+        unitName: unit ? buildUnitOperationalId(unit) : null,
+        operationalCode: buildEquipmentOperationalCode(eq),
+        alias: eq.name?.trim() || undefined,
+        brand: eq.trailerBrandAbbr?.trim() || '—',
+        model: eq.trailerYear?.trim() || '—',
+        plate: eq.plate?.trim() || '—',
+        equipmentType: (eq.type ?? '').trim() || '—',
+        operationalStatus,
+      });
+    }
+
+    items.sort((a, b) => {
+      const d =
+        this.fleetStatusResolver.overviewSortRank(b.operationalStatus) -
+        this.fleetStatusResolver.overviewSortRank(a.operationalStatus);
+      if (d !== 0) {
+        return d;
+      }
+      return a.unitName.localeCompare(b.unitName, 'es');
+    });
+
+    return { items, equipment: equipmentRows };
   }
 
   /**

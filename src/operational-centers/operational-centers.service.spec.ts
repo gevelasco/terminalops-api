@@ -11,6 +11,7 @@ describe('OperationalCentersService (A1 Fase 1–2)', () => {
   const centerSave = jest.fn();
   const centerCreate = jest.fn((dto: object) => dto);
   const centerFindOne = jest.fn();
+  const centerCount = jest.fn().mockResolvedValue(0);
   const companyFindOne = jest.fn();
   const companySave = jest.fn();
   const qbExecute = jest.fn().mockResolvedValue(undefined);
@@ -27,6 +28,7 @@ describe('OperationalCentersService (A1 Fase 1–2)', () => {
 
   beforeEach(async () => {
     jest.clearAllMocks();
+    centerCount.mockResolvedValue(0);
     centerSave.mockImplementation(async (row: OperationalCenter) => ({
       ...row,
       id: row.id ?? 11,
@@ -42,6 +44,7 @@ describe('OperationalCentersService (A1 Fase 1–2)', () => {
             save: centerSave,
             create: centerCreate,
             findOne: centerFindOne,
+            count: centerCount,
             find: jest.fn(),
             createQueryBuilder,
           },
@@ -66,13 +69,14 @@ describe('OperationalCentersService (A1 Fase 1–2)', () => {
   });
 
   it('updatePrimaryCenterFromOperationalSettings escribe geo en operational_centers', async () => {
-    centerFindOne.mockResolvedValueOnce({
+    const primary = {
       id: 11,
       companyId: 1,
       name: 'Centro Principal',
       isDefault: true,
-    });
-    companyFindOne.mockResolvedValueOnce({
+    };
+    centerFindOne.mockResolvedValue(primary);
+    companyFindOne.mockResolvedValue({
       id: 1,
       primaryOperationalCenterId: 11,
     });
@@ -95,6 +99,7 @@ describe('OperationalCentersService (A1 Fase 1–2)', () => {
       }),
     );
     expect(companySave).not.toHaveBeenCalled();
+    expect(qbExecute).not.toHaveBeenCalled();
   });
 
   it('ensureDefaultCenterForCompany no sobrescribe geo de centro existente', async () => {
@@ -102,19 +107,24 @@ describe('OperationalCentersService (A1 Fase 1–2)', () => {
       id: 1,
       primaryOperationalCenterId: 11,
     });
-    centerFindOne.mockResolvedValueOnce({
+    const existing = {
       id: 11,
       companyId: 1,
       postalCode: '64000',
       locality: 'Centro',
       isDefault: true,
-    });
+    };
+    // findExistingPrimaryCenter + ensureCompanyPrimaryPointer (target)
+    centerFindOne
+      .mockResolvedValueOnce(existing)
+      .mockResolvedValueOnce(existing);
 
     const center = await service.ensureDefaultCenterForCompany(1);
 
     expect(center.postalCode).toBe('64000');
     expect(centerSave).not.toHaveBeenCalled();
     expect(centerCreate).not.toHaveBeenCalled();
+    expect(qbExecute).not.toHaveBeenCalled();
   });
 
   it('ensureDefaultCenterForCompany crea centro vacío sin leer columnas legacy', async () => {

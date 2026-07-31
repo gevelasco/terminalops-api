@@ -64,12 +64,7 @@ const UNIT_DETAIL_RELATIONS = [
   'equipment.maintenanceEntries',
 ] as const;
 
-const UNIT_LIST_RELATIONS = [
-  'fleetProfile',
-  'maintenanceEntries',
-  'verificationEntries',
-  'equipment',
-] as const;
+const UNIT_LIST_RELATIONS = ['fleetProfile', 'equipment'] as const;
 
 import {
   FLEET_ASSIGNABLE_LIST_STATUS,
@@ -81,6 +76,10 @@ import { mapUnitLinkOption } from './unit-link-option.mapper';
 import { ActivityEventsService } from 'src/activity-events/activity-events.service';
 import { COMPANY_ACTIVITY_KIND } from 'src/activity-events/company-activity-event.kinds';
 import { buildUnitOperationalId } from 'src/common/utils/unit-operational-id.util';
+import {
+  loadLatestMaintenanceByOwnerIds,
+  loadLatestVerificationByOwnerIds,
+} from 'src/fleet/fleet-latest-entries.loader';
 import type AuthUser from 'src/types/auth-user.type';
 
 export type UnitsFindAllOptions = FleetListAvailableOptions & {
@@ -188,6 +187,26 @@ export class UnitsService {
       relations: [...UNIT_LIST_RELATIONS],
       order: { plate: 'ASC' },
     });
+    const unitIds = rows.map((row) => row.id);
+    const schema = this.repo.metadata.schema ?? 'terminalops';
+    const [maint, verif] = await Promise.all([
+      loadLatestMaintenanceByOwnerIds(
+        this.repo.manager,
+        schema,
+        'unit_id',
+        unitIds,
+      ),
+      loadLatestVerificationByOwnerIds(
+        this.repo.manager,
+        schema,
+        'unit_id',
+        unitIds,
+      ),
+    ]);
+    for (const row of rows) {
+      row.maintenanceEntries = maint.get(row.id) ?? [];
+      row.verificationEntries = verif.get(row.id) ?? [];
+    }
     return rows.map((row) => serializeUnit(row, { list: true }));
   }
 

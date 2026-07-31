@@ -162,7 +162,7 @@ export class TripsService {
     companyId: number,
     query?: ListTripsQueryDto,
   ): Promise<TripsListResult> {
-    await this.tripLifecycle.ensureCompanyLifecycleFresh(companyId);
+    this.tripLifecycle.kickCompanyLifecycleFresh(companyId);
 
     const limit = normalizeTripListLimit(query?.limit);
     const page = Math.max(1, query?.page ?? 1);
@@ -265,9 +265,10 @@ export class TripsService {
   }
 
   async findForMap(companyId: number): Promise<TripsMapResponseDto> {
-    await this.tripLifecycle.ensureCompanyLifecycleFresh(companyId);
+    this.tripLifecycle.kickCompanyLifecycleFresh(companyId);
 
-    const [trips, defaultCenter, operationalCenters] = await Promise.all([
+    // Lectura pura de centros (sin ensure/writes de getDefaultEntity).
+    const [trips, centers] = await Promise.all([
       this.tripsRepo
         .createQueryBuilder('trip')
         .leftJoinAndSelect('trip.destinationRate', 'rate')
@@ -280,9 +281,17 @@ export class TripsService {
         })
         .orderBy('trip.plannedDepartureAt', 'ASC')
         .getMany(),
-      this.operationalCenters.getDefaultEntity(companyId),
       this.operationalCenters.findAllEntities(companyId),
     ]);
+
+    let operationalCenters = centers;
+    let defaultCenter =
+      operationalCenters.find((c) => c.isDefault) ?? operationalCenters[0];
+    if (!defaultCenter) {
+      defaultCenter =
+        await this.operationalCenters.ensureDefaultCenterForCompany(companyId);
+      operationalCenters = [defaultCenter];
+    }
 
     const destinationsNeedingMatch = trips
       .filter((trip) => {

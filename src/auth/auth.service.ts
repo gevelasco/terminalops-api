@@ -109,7 +109,9 @@ export class AuthService {
         : ((await this.usersService.findOne({ id: user.id })) ?? user);
     if (resolved.company) {
       resolved.company.primaryOperationalCenter ??=
-        await this.operationalCenters.getDefaultEntity(resolved.companyId);
+        await this.operationalCenters.getPrimaryCenterForRead(
+          resolved.companyId,
+        );
     }
     const authUser = this.usersService.generateAuthUser(resolved);
     const { photoDataUrl: _photo, ...jwtClaims } = authUser;

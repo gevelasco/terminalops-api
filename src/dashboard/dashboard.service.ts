@@ -89,7 +89,7 @@ export class DashboardService {
   ) {}
 
   async getSummary(companyId: number): Promise<DashboardSummaryDto> {
-    await this.tripLifecycle.ensureCompanyLifecycleFresh(companyId);
+    this.tripLifecycle.kickCompanyLifecycleFresh(companyId);
 
     const now = new Date();
     const operationalDate = operationalDateKey(now);
@@ -260,7 +260,7 @@ export class DashboardService {
   }
 
   async getInsights(companyId: number): Promise<DashboardInsightsDto> {
-    await this.tripLifecycle.ensureCompanyLifecycleFresh(companyId);
+    this.tripLifecycle.kickCompanyLifecycleFresh(companyId);
 
     const flowStartSql = `(NOW() AT TIME ZONE '${OPERATIONAL_TZ}')::date - interval '29 days'`;
 

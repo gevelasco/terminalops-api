@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Not, Repository } from 'typeorm';
 import { Company } from 'src/companies/entities/company.entity';
 import { DestinationRate } from 'src/destination-rates/entities/destination-rate.entity';
 import { serializeOperationalCenter } from 'src/common/serializers/operational-center.serializer';
@@ -43,6 +43,33 @@ export class OperationalCentersService {
     return serializeOperationalCenter(row);
   }
 
+  /**
+   * Lectura pura del centro primario (GET/login).
+   * No repara pointers ni hace UPDATEs; solo crea si la empresa no tiene ninguno.
+   */
+  async getPrimaryCenterForRead(companyId: number): Promise<OperationalCenter> {
+    const company = await this.companiesRepo.findOne({
+      where: { id: companyId },
+      select: ['id', 'primaryOperationalCenterId'],
+    });
+    if (company) {
+      const primary = await this.findExistingPrimaryCenter(company);
+      if (primary) {
+        return primary;
+      }
+    }
+
+    const row = await this.repo.findOne({
+      where: { companyId },
+      order: { id: 'ASC' },
+    });
+    if (row) {
+      return row;
+    }
+    return this.ensureDefaultCenterForCompany(companyId);
+  }
+
+  /** Escritura/ensure: alinea pointer e is_default. Usar en PATCH/settings, no en GET. */
   async getDefaultEntity(companyId: number): Promise<OperationalCenter> {
     const company = await this.companiesRepo.findOne({ where: { id: companyId } });
     if (company) {
@@ -213,6 +240,7 @@ export class OperationalCentersService {
   /**
    * Fuente de verdad: companies.primary_operational_center_id.
    * is_default se mantiene como espejo para listados/FE.
+   * Evita UPDATEs cuando el pointer y flags ya están correctos (lecturas del mapa).
    */
   private async ensureCompanyPrimaryPointer(
     company: Company,
@@ -222,6 +250,24 @@ export class OperationalCentersService {
       company.primaryOperationalCenterId = centerId;
       await this.companiesRepo.save(company);
     }
+
+    const [target, extraDefaults] = await Promise.all([
+      this.repo.findOne({
+        where: { id: centerId, companyId: company.id },
+        select: ['id', 'isDefault'],
+      }),
+      this.repo.count({
+        where: {
+          companyId: company.id,
+          isDefault: true,
+          id: Not(centerId),
+        },
+      }),
+    ]);
+    if (target?.isDefault && extraDefaults === 0) {
+      return;
+    }
+
     await this.repo
       .createQueryBuilder()
       .update(OperationalCenter)

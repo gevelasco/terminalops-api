@@ -14,7 +14,10 @@ import {
   buildNextPayDueByOperatorId,
   buildOperatorLastManeuverSnapshot,
 } from 'src/operators/operator-list-enrichment.util';
-import { buildOperatorOperationSummary } from 'src/operators/operator-operation-summary.util';
+import {
+  buildOperatorOperationSummary,
+  OPERATOR_SUMMARY_RECENT_DAYS,
+} from 'src/operators/operator-operation-summary.util';
 import { tripCompletionAnchorYmd } from 'src/operators/operator-payment-schedule.util';
 import { parseOperationalIncurredAt } from 'src/expenses/expenses-incurred-at.util';
 import { expenseTextColumn } from 'src/expenses/expense-payload.util';
@@ -198,11 +201,60 @@ export class OperatorsService {
     if (!operator) {
       throw new NotFoundException(`Operator ${operatorId} not found`);
     }
-    const trips = await this.tripRepo.find({
-      where: { companyId, operatorId, deletedAt: IsNull() },
-      relations: ['unit', 'tripEquipment', 'tripEquipment.equipment'],
-      order: { plannedDepartureAt: 'DESC' },
-    });
+
+    const now = new Date();
+    const toYmd =
+      periodTo?.trim() ||
+      `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    // Ventana amplia para pagos pendientes + métricas recientes (no historial total).
+    const lookbackDays = periodFrom?.trim()
+      ? 400
+      : Math.max(OPERATOR_SUMMARY_RECENT_DAYS, 90);
+    const fromDate = new Date(`${toYmd}T12:00:00`);
+    fromDate.setDate(fromDate.getDate() - (lookbackDays - 1));
+    const fromYmd =
+      periodFrom?.trim() ||
+      `${fromDate.getFullYear()}-${String(fromDate.getMonth() + 1).padStart(2, '0')}-${String(fromDate.getDate()).padStart(2, '0')}`;
+
+    const schema = this.tripRepo.metadata.schema ?? TERMINALOPS_SCHEMA;
+    const trips = await this.tripRepo
+      .createQueryBuilder('trip')
+      .leftJoinAndSelect('trip.unit', 'unit')
+      .leftJoinAndSelect('trip.tripEquipment', 'tripEquipment')
+      .leftJoinAndSelect('tripEquipment.equipment', 'equipment')
+      .where('trip.companyId = :companyId', { companyId })
+      .andWhere('trip.operatorId = :operatorId', { operatorId })
+      .andWhere('trip.deleted_at IS NULL')
+      .andWhere(
+        `(
+          trip.status IN ('scheduled', 'in_transit')
+          OR (
+            COALESCE(
+              trip.completed_at,
+              trip.return_at,
+              trip.arrived_at,
+              trip.departure_at,
+              trip.planned_departure_at
+            ) AT TIME ZONE 'America/Mexico_City'
+          )::date BETWEEN :fromYmd::date AND :toYmd::date
+          OR (
+            trip.status = 'completed'
+            AND COALESCE(trip.operator_quota, 0) > 0
+            AND COALESCE(trip.operator_quota, 0) > (
+              SELECT COALESCE(SUM(pe.amount), 0)
+              FROM ${schema}.expenses pe
+              WHERE pe.company_id = trip.company_id
+                AND pe.trip_id = trip.id
+                AND pe.discarded_at IS NULL
+                AND pe.kind IN ('operator_payment', 'operator_commission')
+            )
+          )
+        )`,
+        { fromYmd, toYmd },
+      )
+      .orderBy('trip.plannedDepartureAt', 'DESC')
+      .getMany();
+
     const tripIds = trips.map((t) => t.id);
     const unitIds = [
       ...new Set(
@@ -228,7 +280,7 @@ export class OperatorsService {
       trips,
       expenses,
       unitsById,
-      new Date(),
+      now,
       operator.paymentSchedule,
       periodFrom,
       periodTo,

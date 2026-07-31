@@ -49,6 +49,7 @@ import {
   expenseActivityOnUpdate,
   expenseActivitySubjectLabel,
 } from 'src/activity-events/activity-events.expense.util';
+import { loadLatestVerificationByOwnerIds } from 'src/fleet/fleet-latest-entries.loader';
 
 export interface ExpensesListResult {
   items: ReturnType<typeof serializeExpense>[];
@@ -204,13 +205,19 @@ export class ExpensesService {
   async findAll(
     companyId: number,
     query?: ListExpensesQueryDto,
-    options: { allowUnlimited?: boolean } = {},
+    options: {
+      allowUnlimited?: boolean;
+      includeDocuments?: boolean;
+      skipAggregates?: boolean;
+    } = {},
   ): Promise<ExpensesListResult> {
     const limit =
       options.allowUnlimited === true && query?.limit === 0
         ? 0
         : normalizeExpenseListLimit(query?.limit);
     const page = Math.max(1, query?.page ?? 1);
+    const includeDocuments = options.includeDocuments !== false;
+    const skipAggregates = options.skipAggregates === true;
     const tripFilter = await this.resolveExpenseListTripFilter(
       companyId,
       query,
@@ -219,13 +226,16 @@ export class ExpensesService {
     const baseQb = this.repo.createQueryBuilder('e');
     applyExpenseListFilters(baseQb, companyId, query, tripFilter);
 
-    const total = await baseQb.clone().getCount();
-
-    const sumRow = await baseQb
-      .clone()
-      .select('COALESCE(SUM(e.amount), 0)', 'sum')
-      .getRawOne<{ sum: string }>();
-    const totalAmount = sumRow?.sum ?? '0';
+    let total = 0;
+    let totalAmount = '0';
+    if (!skipAggregates) {
+      total = await baseQb.clone().getCount();
+      const sumRow = await baseQb
+        .clone()
+        .select('COALESCE(SUM(e.amount), 0)', 'sum')
+        .getRawOne<{ sum: string }>();
+      totalAmount = sumRow?.sum ?? '0';
+    }
 
     // select() for `e` (not addSelect): avoid duplicate aliases with skip/take DISTINCT.
     const rowsQb = this.repo
@@ -277,7 +287,17 @@ export class ExpensesService {
     }
 
     const rows = await rowsQb.getMany();
-    await this.attachDocuments(rows);
+    if (includeDocuments) {
+      await this.attachDocuments(rows);
+    } else {
+      for (const row of rows) {
+        row.documents = [];
+      }
+    }
+
+    if (skipAggregates) {
+      total = rows.length;
+    }
 
     return {
       items: rows.map((row) => serializeExpense(row)),
@@ -348,7 +368,11 @@ export class ExpensesService {
       this.findAll(
         companyId,
         { from, to, limit: 0 },
-        { allowUnlimited: true },
+        {
+          allowUnlimited: true,
+          includeDocuments: false,
+          skipAggregates: true,
+        },
       ),
       tripsQb.getMany(),
       this.loadCalendarScheduleUnits(companyId),
@@ -508,10 +532,9 @@ export class ExpensesService {
 
   /** Units con schedule de GPS, seguro o entradas de verificación. */
   private async loadCalendarScheduleUnits(companyId: number): Promise<Unit[]> {
-    return this.unitsRepo
+    const rows = await this.unitsRepo
       .createQueryBuilder('u')
       .leftJoinAndSelect('u.fleetProfile', 'fp')
-      .leftJoinAndSelect('u.verificationEntries', 've')
       .where('u.companyId = :companyId', { companyId })
       .andWhere(
         `(
@@ -532,16 +555,26 @@ export class ExpensesService {
         )`,
       )
       .getMany();
+    const schema = this.unitsRepo.metadata.schema ?? 'terminalops';
+    const verif = await loadLatestVerificationByOwnerIds(
+      this.unitsRepo.manager,
+      schema,
+      'unit_id',
+      rows.map((r) => r.id),
+    );
+    for (const row of rows) {
+      row.verificationEntries = verif.get(row.id) ?? [];
+    }
+    return rows;
   }
 
   /** Equipment con schedule de seguro o verificación. */
   private async loadCalendarScheduleEquipment(
     companyId: number,
   ): Promise<Equipment[]> {
-    return this.equipmentRepo
+    const rows = await this.equipmentRepo
       .createQueryBuilder('eq')
       .leftJoinAndSelect('eq.fleetProfile', 'fp')
-      .leftJoinAndSelect('eq.verificationEntries', 've')
       .where('eq.companyId = :companyId', { companyId })
       .andWhere(
         `(
@@ -559,6 +592,34 @@ export class ExpensesService {
         )`,
       )
       .getMany();
+    const schema = this.equipmentRepo.metadata.schema ?? 'terminalops';
+    const verif = await loadLatestVerificationByOwnerIds(
+      this.equipmentRepo.manager,
+      schema,
+      'equipment_id',
+      rows.map((r) => r.id),
+    );
+    for (const row of rows) {
+      row.verificationEntries = verif.get(row.id) ?? [];
+    }
+    return rows;
+  }
+
+  /**
+   * Proyecciones de pagos programados para el feed de notificaciones.
+   * Evita el calendario completo (sin docs, sin agregados de listado).
+   */
+  async getPaymentDueItemsForNotifications(
+    companyId: number,
+    from: string,
+    to: string,
+  ): Promise<ExpensesCalendarResult> {
+    return this.getCalendar(companyId, {
+      from,
+      to,
+      page: 1,
+      limit: 0,
+    });
   }
 
   async findOne(companyId: number, expenseId: number) {

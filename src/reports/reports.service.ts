@@ -235,6 +235,7 @@ export class ReportsService {
     // La dedup de ciclos (seguro/GPS/cuotas) puede casar pagos con fecha
     // distinta al vencimiento (índice de cuota, pago adelantado/atrasado):
     // se usa una ventana de ±12 meses alrededor del periodo, no el histórico.
+    const unitSchema = this.unitsRepo.metadata.schema;
     const [
       payableUnits,
       payableEquipment,
@@ -242,14 +243,49 @@ export class ReportsService {
       projectionExpenses,
       allExpenses,
     ] = await Promise.all([
-      this.unitsRepo.find({
-        where: { companyId: scope.companyId },
-        relations: ['fleetProfile'],
-      }),
-      this.equipmentRepo.find({
-        where: { companyId: scope.companyId },
-        relations: ['fleetProfile'],
-      }),
+      this.unitsRepo
+        .createQueryBuilder('u')
+        .leftJoinAndSelect('u.fleetProfile', 'fp')
+        .where('u.companyId = :companyId', { companyId: scope.companyId })
+        .andWhere(
+          `(
+            EXISTS (
+              SELECT 1 FROM ${unitSchema}.unit_fleet_profiles p
+              WHERE p.unit_id = u.id
+                AND (
+                  (p.has_gps = true AND COALESCE(p.gps_price, 0) > 0)
+                  OR COALESCE(p.insurance_cost, 0) > 0
+                )
+            )
+            OR EXISTS (
+              SELECT 1 FROM ${unitSchema}.fleet_verification_entries v
+              WHERE v.unit_id = u.id
+                AND v.entry_date IS NOT NULL
+                AND COALESCE(v.cost, 0) > 0
+            )
+          )`,
+        )
+        .getMany(),
+      this.equipmentRepo
+        .createQueryBuilder('eq')
+        .leftJoinAndSelect('eq.fleetProfile', 'fp')
+        .where('eq.companyId = :companyId', { companyId: scope.companyId })
+        .andWhere(
+          `(
+            EXISTS (
+              SELECT 1 FROM ${unitSchema}.equipment_fleet_profiles p
+              WHERE p.equipment_id = eq.id
+                AND COALESCE(p.insurance_cost, 0) > 0
+            )
+            OR EXISTS (
+              SELECT 1 FROM ${unitSchema}.fleet_verification_entries v
+              WHERE v.equipment_id = eq.id
+                AND v.entry_date IS NOT NULL
+                AND COALESCE(v.cost, 0) > 0
+            )
+          )`,
+        )
+        .getMany(),
       this.tenuresRepo.find({ where: { companyId: scope.companyId } }),
       this.expensesRepo
         .createQueryBuilder('e')
@@ -1810,7 +1846,9 @@ export class ReportsService {
       tireWearRows,
       unitProfitabilityRows,
     ] = await Promise.all([
-      this.fleetOverview.listOverview(scope.companyId),
+      this.fleetOverview.listOverview(scope.companyId, undefined, {
+        includeEquipmentRows: false,
+      }),
       this.sumOperationalKm(scope),
       this.sumFleetDiesel(scope),
       this.queryTopUnitsByKm(scope),

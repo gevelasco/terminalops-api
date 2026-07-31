@@ -19,6 +19,9 @@ import {
 /** Advisory lock global para evitar cron concurrente en múltiples instancias. */
 const LIFECYCLE_CRON_LOCK_KEY = 74_027_001;
 
+/** Evita re-escanear la misma empresa en ráfagas mapa/listado/dashboard. */
+const COMPANY_FRESH_TTL_MS = 30_000;
+
 /** Al cerrar por lifecycle, usa fin real o planeado (no «ahora» en maniobras retroactivas). */
 function resolveCompletedAtOnTransition(trip: Trip, transitionedAt: Date): Date {
   if (trip.returnAt) {
@@ -48,6 +51,7 @@ export class TripLifecycleService {
     number,
     Promise<TripLifecycleRunResult>
   >();
+  private readonly companyFreshCompletedAt = new Map<number, number>();
 
   constructor(
     @InjectRepository(Trip)
@@ -189,8 +193,8 @@ export class TripLifecycleService {
   }
 
   /**
-   * Adelanta transiciones vencidas de una empresa antes de lecturas agregadas
-   * (listado, mapa, dashboard). No usar en detalle de una sola maniobra.
+   * Adelanta transiciones vencidas de una empresa.
+   * Preferir `kickCompanyLifecycleFresh` en GETs agregados para no bloquear.
    */
   async ensureCompanyLifecycleFresh(
     companyId: number,
@@ -201,11 +205,34 @@ export class TripLifecycleService {
       return inFlight;
     }
 
-    const run = this.runCompanyLifecycleFresh(companyId, now).finally(() => {
-      this.companyFreshInFlight.delete(companyId);
-    });
+    const lastCompleted = this.companyFreshCompletedAt.get(companyId);
+    if (
+      lastCompleted != null &&
+      Date.now() - lastCompleted < COMPANY_FRESH_TTL_MS
+    ) {
+      return { scanned: 0, transitioned: 0, skipped: 0 };
+    }
+
+    const run = this.runCompanyLifecycleFresh(companyId, now)
+      .then((result) => {
+        this.companyFreshCompletedAt.set(companyId, Date.now());
+        return result;
+      })
+      .finally(() => {
+        this.companyFreshInFlight.delete(companyId);
+      });
     this.companyFreshInFlight.set(companyId, run);
     return run;
+  }
+
+  /** Dispara lifecycle en background; no bloquea listado/mapa/dashboard. */
+  kickCompanyLifecycleFresh(companyId: number, now: Date = new Date()): void {
+    void this.ensureCompanyLifecycleFresh(companyId, now).catch((err) => {
+      this.logger.warn(
+        `Background lifecycle refresh failed for company ${companyId}`,
+        err instanceof Error ? err.message : err,
+      );
+    });
   }
 
   /**

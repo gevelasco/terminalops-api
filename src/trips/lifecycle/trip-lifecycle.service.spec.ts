@@ -111,4 +111,13 @@ describe('TripLifecycleService', () => {
 
     expect(queryBuilder.getMany).toHaveBeenCalledTimes(1);
   });
+
+  it('omite re-scan de la misma empresa dentro del TTL', async () => {
+    qbGetMany.mockResolvedValue([]);
+
+    await service.ensureCompanyLifecycleFresh(9);
+    await service.ensureCompanyLifecycleFresh(9);
+
+    expect(queryBuilder.getMany).toHaveBeenCalledTimes(1);
+  });
 });

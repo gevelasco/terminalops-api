@@ -132,8 +132,10 @@ export class CompaniesController {
     @LoggedUser() user: AuthUser,
   ) {
     assertCompanyAccess(user, companyId);
-    const company = await this.companiesService.findOne(companyId);
-    const center = await this.operationalCentersService.getDefaultEntity(companyId);
+    const [company, center] = await Promise.all([
+      this.companiesService.findOne(companyId),
+      this.operationalCentersService.getPrimaryCenterForRead(companyId),
+    ]);
     return serializeCompanyOperationalSettings(company, center);
   }
 
