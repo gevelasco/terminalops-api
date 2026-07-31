@@ -37,6 +37,12 @@ type EnvConfig = {
   RW_S3_BUCKET?: string;
   RW_ACCESS_KEY_ID?: string;
   RW_SECRET_ACCESS_KEY?: string;
+  /** Resend API key — sin esto los correos se omiten (log warn). */
+  RESEND_API_KEY?: string;
+  /** Remitente verificado en Resend. Ej. TerminalOps <noreply@tudominio.com> */
+  EMAIL_FROM?: string;
+  /** URL pública del FE para links de correo (fallback: primer ORIGIN). */
+  APP_URL?: string;
 };
 
 export default EnvConfig;

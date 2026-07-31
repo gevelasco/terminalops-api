@@ -3,12 +3,14 @@ import {
   HttpException,
   HttpStatus,
   Injectable,
+  Logger,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { compare } from 'bcrypt';
 import { invitationLicenseEndsAt } from '../common/constants/invitation-codes';
 import { CompaniesService } from '../companies/companies.service';
+import { EmailService } from '../email/email.service';
 import { InvitationCodesService } from '../invitation-codes/invitation-codes.service';
 import { OperationalCentersService } from '../operational-centers/operational-centers.service';
 import { UsersService } from '../users/users.service';
@@ -18,14 +20,22 @@ import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { SignUpDto } from './dto/sign-up.dto';
 import { isAppUserLoginAllowed } from './auth-login.util';
+import {
+  buildPasswordResetPayload,
+  isPasswordResetPayload,
+  type PasswordResetJwtPayload,
+} from './password-reset-token.util';
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private readonly usersService: UsersService,
     private readonly companiesService: CompaniesService,
     private readonly invitationCodes: InvitationCodesService,
     private readonly operationalCenters: OperationalCentersService,
+    private readonly emailService: EmailService,
     private readonly jwtService: JwtService,
     private readonly config: ConfigService<EnvConfig>,
   ) {}
@@ -70,15 +80,15 @@ export class AuthService {
     const invite = await this.invitationCodes.consume(invitationCode, 'signup');
 
     try {
+      const companyName = dto.companyName.trim();
       const company = await this.companiesService.create({
-        name: dto.companyName.trim(),
+        name: companyName,
         subscriptionPlan: invite.grantedPlan,
         subscriptionEndsAt: invitationLicenseEndsAt(invite.licenseMonths),
       });
 
       const displayName =
         `${dto.firstName.trim()} ${dto.lastName.trim()}`.trim();
-      // createForCompany ya valida email/username únicos (evita COUNT duplicado aquí).
       const user = await this.usersService.createForCompany(company.id, {
         username,
         password: dto.password,
@@ -94,6 +104,20 @@ export class AuthService {
         company.id,
         user.id,
       );
+
+      void this.emailService
+        .sendWelcome({
+          to: email,
+          recipientName: displayName || username,
+          companyName,
+        })
+        .catch((err) => {
+          this.logger.warn(
+            `Welcome email failed for ${email}`,
+            err instanceof Error ? err.message : err,
+          );
+        });
+
       return this.buildAuthResponse(user);
     } catch (err) {
       await this.invitationCodes.release(invite.id);
@@ -101,8 +125,75 @@ export class AuthService {
     }
   }
 
+  /**
+   * Siempre responde OK para no filtrar si el correo existe.
+   */
+  async forgotPassword(emailRaw: string): Promise<{ ok: true }> {
+    const email = emailRaw.trim().toLowerCase();
+    const user = await this.usersService.findByEmail(email);
+    if (user?.email && isAppUserLoginAllowed(user.status)) {
+      const token = await this.signPasswordResetToken(user);
+      void this.emailService
+        .sendPasswordReset({
+          to: user.email,
+          recipientName: user.displayName?.trim() || user.username,
+          resetToken: token,
+        })
+        .catch((err) => {
+          this.logger.warn(
+            `Password reset email failed for ${email}`,
+            err instanceof Error ? err.message : err,
+          );
+        });
+    }
+    return { ok: true };
+  }
+
+  async resetPassword(token: string, newPassword: string): Promise<{ ok: true }> {
+    let payload: PasswordResetJwtPayload;
+    try {
+      payload = await this.jwtService.verifyAsync<PasswordResetJwtPayload>(
+        token,
+        {
+          secret: this.config.get('JWT_SECRET', { infer: true }),
+        },
+      );
+    } catch {
+      throw new HttpException(
+        'El enlace no es válido o ya caducó. Solicita uno nuevo.',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+    if (!isPasswordResetPayload(payload)) {
+      throw new HttpException(
+        'El enlace no es válido o ya caducó. Solicita uno nuevo.',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+    await this.usersService.setPasswordById(payload.sub, newPassword);
+    return { ok: true };
+  }
+
+  /** Token de restablecimiento / set password (invitación). */
+  async signPasswordResetToken(
+    user: Pick<AppUser, 'id' | 'email'>,
+    /** Segundos (p. ej. 3600 = 1h, 86400 = 24h). */
+    expiresInSeconds: number = 3600,
+  ): Promise<string> {
+    const email = user.email?.trim().toLowerCase();
+    if (!email) {
+      throw new HttpException(
+        'El usuario no tiene correo para restablecer contraseña',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+    return this.jwtService.signAsync(buildPasswordResetPayload(user.id, email), {
+      secret: this.config.get('JWT_SECRET', { infer: true }),
+      expiresIn: expiresInSeconds,
+    });
+  }
+
   private async buildAuthResponse(user: AppUser) {
-    // Reusa el user ya hidratado (sign-up/login) y solo re-fetch si faltan joins.
     const resolved =
       user.company && user.preferences != null
         ? user

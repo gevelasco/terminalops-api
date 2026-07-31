@@ -3,19 +3,23 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { compare } from 'bcrypt';
 import { FindOptionsWhere, Repository } from 'typeorm';
 import { hashPassword } from '../auth/auth.utils';
+import { buildPasswordResetPayload } from '../auth/password-reset-token.util';
+import { EmailService } from '../email/email.service';
 import { AppUser } from 'src/users/entities/app-user.entity';
 import { UserPreferences } from 'src/users/entities/user-preferences.entity';
 import { UserModuleAccess } from 'src/users/entities/user-module-access.entity';
 import AuthUser, { ThemeScheme } from '../types/auth-user.type';
 import { toIsoString } from '../common/utils/iso-date.util';
-import { ConfigService } from '@nestjs/config';
 import EnvConfig from '../types/env-config.type';
 import { UpdateUserProfileDto } from './dto/update-user-profile.dto';
 import { operationalCenterGeoForApi } from 'src/operational-centers/operational-center-geo-for-api';
@@ -43,6 +47,8 @@ const ROLE_JOB_TITLES: Record<string, string> = {
 
 @Injectable()
 export class UsersService {
+  private readonly logger = new Logger(UsersService.name);
+
   constructor(
     @InjectRepository(AppUser)
     private readonly usersRepo: Repository<AppUser>,
@@ -51,6 +57,8 @@ export class UsersService {
     @InjectRepository(UserModuleAccess)
     private readonly moduleAccessRepo: Repository<UserModuleAccess>,
     private readonly config: ConfigService<EnvConfig>,
+    private readonly jwtService: JwtService,
+    private readonly emailService: EmailService,
   ) {}
 
   findOne(where: FindOptionsWhere<AppUser>) {
@@ -192,6 +200,16 @@ export class UsersService {
       throw new UnauthorizedException('La contraseña actual no es correcta.');
     }
 
+    user.passwordHash = await hashPassword(newPassword, this.saltRounds);
+    await this.usersRepo.save(user);
+  }
+
+  /** Restablecimiento / set password por token (sin contraseña actual). */
+  async setPasswordById(id: number, newPassword: string): Promise<void> {
+    const user = await this.usersRepo.findOne({ where: { id } });
+    if (!user) {
+      throw new NotFoundException('Usuario no encontrado');
+    }
     user.passwordHash = await hashPassword(newPassword, this.saltRounds);
     await this.usersRepo.save(user);
   }
@@ -571,6 +589,32 @@ export class UsersService {
     if (!full) {
       throw new NotFoundException('Usuario no encontrado');
     }
+
+    const inviteEmail = full.email?.trim().toLowerCase();
+    if (inviteEmail) {
+      const setPasswordToken = await this.jwtService.signAsync(
+        buildPasswordResetPayload(full.id, inviteEmail),
+        {
+          secret: this.config.get('JWT_SECRET', { infer: true }),
+          expiresIn: 60 * 60 * 24,
+        },
+      );
+      void this.emailService
+        .sendInvite({
+          to: inviteEmail,
+          recipientName: full.displayName?.trim() || full.username,
+          companyName: full.company?.name?.trim() || 'tu empresa',
+          inviterName: actor.name || actor.username,
+          setPasswordToken,
+        })
+        .catch((err) => {
+          this.logger.warn(
+            `Invite email failed for ${inviteEmail}`,
+            err instanceof Error ? err.message : err,
+          );
+        });
+    }
+
     return this.toCompanyUserResponse(full);
   }
 

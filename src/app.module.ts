@@ -7,6 +7,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
+import { EmailModule } from './email/email.module';
 import { ChecklistModule } from './checklist/checklist.module';
 import { ClientsModule } from './clients/clients.module';
 import { CompaniesModule } from './companies/companies.module';
@@ -68,6 +69,7 @@ import EnvConfig from './types/env-config.type';
       }),
     }),
     InvitationCodesModule,
+    EmailModule,
     AuthModule,
     CompaniesModule,
     ChecklistModule,

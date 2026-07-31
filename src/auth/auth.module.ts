@@ -2,6 +2,7 @@ import { Global, Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { CompaniesModule } from '../companies/companies.module';
+import { EmailModule } from '../email/email.module';
 import { AuthGuard } from '../guards/auth/auth.guard';
 import { OperationalCentersModule } from '../operational-centers/operational-centers.module';
 import { UsersModule } from '../users/users.module';
@@ -15,6 +16,7 @@ import { AuthService } from './auth.service';
     UsersModule,
     CompaniesModule,
     OperationalCentersModule,
+    EmailModule,
     JwtModule.registerAsync({
       inject: [ConfigService],
       global: true,
