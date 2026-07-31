@@ -357,8 +357,13 @@ export class FleetOverviewService {
       };
 
       if (activeTrip) {
-        const originLabel = buildTripOriginLabel(activeTrip);
-        const destinationLabel = buildTripDestinationLabel(activeTrip);
+        // Preferir ciudad/municipio (compacto en card); si falta, label postal completo.
+        const originLabel =
+          activeTrip.originCityMunicipality?.trim() ||
+          buildTripOriginLabel(activeTrip);
+        const destinationLabel =
+          activeTrip.destinationCityMunicipality?.trim() ||
+          buildTripDestinationLabel(activeTrip);
         const routeLabel = formatCompactTripRouteLabel(
           originLabel,
           destinationLabel,

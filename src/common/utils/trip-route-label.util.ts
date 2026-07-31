@@ -56,5 +56,18 @@ export function formatCompactTripRouteLabel(
   origin: string,
   destination: string,
 ): string {
-  return `${formatCompactRouteEndpoint(origin)} → ${formatCompactRouteEndpoint(destination)}`;
+  const o = formatCompactRouteEndpoint(origin);
+  const d = formatCompactRouteEndpoint(destination);
+  const oOk = Boolean(o && o !== '—');
+  const dOk = Boolean(d && d !== '—');
+  if (oOk && dOk) {
+    return `${o} → ${d}`;
+  }
+  if (oOk) {
+    return o;
+  }
+  if (dOk) {
+    return d;
+  }
+  return '—';
 }
