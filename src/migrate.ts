@@ -109,12 +109,26 @@ async function main() {
           file_name text NOT NULL,
           slot text NOT NULL CHECK (slot IN ('receipt')),
           added_at date NOT NULL,
-          sort_order smallint NOT NULL DEFAULT 0
+          sort_order smallint NOT NULL DEFAULT 0,
+          storage_key text NULL,
+          content_type text NULL,
+          size_bytes bigint NULL
         );
+      `);
+      await dataSource.query(`
+        ALTER TABLE terminalops.expense_documents
+          ADD COLUMN IF NOT EXISTS storage_key text NULL,
+          ADD COLUMN IF NOT EXISTS content_type text NULL,
+          ADD COLUMN IF NOT EXISTS size_bytes bigint NULL;
       `);
       await dataSource.query(`
         CREATE INDEX IF NOT EXISTS expense_documents_expense_id_idx
           ON terminalops.expense_documents (expense_id);
+      `);
+      await dataSource.query(`
+        CREATE INDEX IF NOT EXISTS expense_documents_storage_key_idx
+          ON terminalops.expense_documents (storage_key)
+          WHERE storage_key IS NOT NULL;
       `);
       console.log('Schema ensure: expense_documents OK');
       // Hard ensure: client documents (covers migrations_list drift).
@@ -126,12 +140,26 @@ async function main() {
           file_name text NOT NULL,
           slot text NOT NULL CHECK (slot IN ('fiscal')),
           added_at date NOT NULL,
-          sort_order smallint NOT NULL DEFAULT 0
+          sort_order smallint NOT NULL DEFAULT 0,
+          storage_key text NULL,
+          content_type text NULL,
+          size_bytes bigint NULL
         );
+      `);
+      await dataSource.query(`
+        ALTER TABLE terminalops.client_documents
+          ADD COLUMN IF NOT EXISTS storage_key text NULL,
+          ADD COLUMN IF NOT EXISTS content_type text NULL,
+          ADD COLUMN IF NOT EXISTS size_bytes bigint NULL;
       `);
       await dataSource.query(`
         CREATE INDEX IF NOT EXISTS client_documents_client_id_idx
           ON terminalops.client_documents (client_id);
+      `);
+      await dataSource.query(`
+        CREATE INDEX IF NOT EXISTS client_documents_storage_key_idx
+          ON terminalops.client_documents (storage_key)
+          WHERE storage_key IS NOT NULL;
       `);
       console.log('Schema ensure: client_documents OK');
       // Hard ensure: checklist personal por usuario.

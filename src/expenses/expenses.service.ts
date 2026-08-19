@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -6,6 +7,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, IsNull, In, type EntityManager } from 'typeorm';
 import { isAdminRole } from 'src/common/constants/app-modules';
+import { FileService } from 'src/common/file/file.service';
 import { serializeExpense } from 'src/common/serializers/expense.serializer';
 import { parseOptionalNumericId } from 'src/common/utils/tenant.util';
 import type AuthUser from 'src/types/auth-user.type';
@@ -32,6 +34,10 @@ import {
   normalizeExpenseListLimit,
 } from './expenses-list.util';
 import {
+  assertExpenseCalendarDateRange,
+  EXPENSE_CALENDAR_ACTUAL_MAX_ROWS,
+} from './expenses-calendar-range.util';
+import {
   buildExpenseCalendarProjection,
   paginateExpenseCalendarEntries,
   type ExpenseCalendarEntry,
@@ -50,6 +56,11 @@ import {
   expenseActivitySubjectLabel,
 } from 'src/activity-events/activity-events.expense.util';
 import { loadLatestVerificationByOwnerIds } from 'src/fleet/fleet-latest-entries.loader';
+import {
+  EXPENSE_DOCUMENT_SLOTS,
+  EXPENSE_DOCUMENT_STORAGE_FOLDER,
+  type ExpenseDocumentSlot,
+} from './expense-document.constants';
 
 export interface ExpensesListResult {
   items: ReturnType<typeof serializeExpense>[];
@@ -100,6 +111,7 @@ export class ExpensesService {
     private readonly maintenanceFleetReconcile: ExpensesMaintenanceFleetReconcileService,
     private readonly verificationFleetReconcile: ExpensesVerificationFleetReconcileService,
     private readonly activityEvents: ActivityEventsService,
+    private readonly fileService: FileService,
   ) {}
 
   async create(companyId: number, dto: CreateExpenseDto, actor?: AuthUser) {
@@ -206,15 +218,11 @@ export class ExpensesService {
     companyId: number,
     query?: ListExpensesQueryDto,
     options: {
-      allowUnlimited?: boolean;
       includeDocuments?: boolean;
       skipAggregates?: boolean;
     } = {},
   ): Promise<ExpensesListResult> {
-    const limit =
-      options.allowUnlimited === true && query?.limit === 0
-        ? 0
-        : normalizeExpenseListLimit(query?.limit);
+    const limit = normalizeExpenseListLimit(query?.limit);
     const page = Math.max(1, query?.page ?? 1);
     const includeDocuments = options.includeDocuments !== false;
     const skipAggregates = options.skipAggregates === true;
@@ -281,10 +289,7 @@ export class ExpensesService {
       .addSelect(['relatedOperator.id', 'relatedOperator.name']);
     applyExpenseListFilters(rowsQb, companyId, query, tripFilter);
     rowsQb.orderBy('e.incurredAt', 'DESC');
-
-    if (limit > 0) {
-      rowsQb.skip((page - 1) * limit).take(limit);
-    }
+    rowsQb.skip((page - 1) * limit).take(limit);
 
     const rows = await rowsQb.getMany();
     if (includeDocuments) {
@@ -302,8 +307,8 @@ export class ExpensesService {
     return {
       items: rows.map((row) => serializeExpense(row)),
       total,
-      page: limit > 0 ? page : 1,
-      limit: limit > 0 ? limit : total,
+      page,
+      limit,
       totalAmount,
     };
   }
@@ -312,8 +317,7 @@ export class ExpensesService {
     companyId: number,
     query: ExpensesCalendarQueryDto,
   ): Promise<ExpensesCalendarResult> {
-    const from = query.from.trim();
-    const to = query.to.trim();
+    const { from, to } = assertExpenseCalendarDateRange(query.from, query.to);
     const limit = normalizeExpenseListLimit(query.limit);
     const page = Math.max(1, query.page ?? 1);
 
@@ -364,16 +368,8 @@ export class ExpensesService {
         )`,
       );
 
-    const [actualResult, trips, units, equipment] = await Promise.all([
-      this.findAll(
-        companyId,
-        { from, to, limit: 0 },
-        {
-          allowUnlimited: true,
-          includeDocuments: false,
-          skipAggregates: true,
-        },
-      ),
+    const [actualItems, trips, units, equipment] = await Promise.all([
+      this.loadCalendarActualExpenses(companyId, from, to),
       tripsQb.getMany(),
       this.loadCalendarScheduleUnits(companyId),
       this.loadCalendarScheduleEquipment(companyId),
@@ -487,7 +483,7 @@ export class ExpensesService {
       operators,
       tenures: [],
       expenses: dedupExpenses,
-      actualItems: actualResult.items,
+      actualItems: actualItems,
     });
 
     const paginated = paginateExpenseCalendarEntries(
@@ -496,7 +492,7 @@ export class ExpensesService {
       limit,
     );
     const expenseById = new Map(
-      actualResult.items.map((item) => [Number(item['id']), item]),
+      actualItems.map((item) => [Number(item['id']), item]),
     );
 
     const items: ExpensesCalendarItem[] = paginated.items.map((entry) => ({
@@ -614,12 +610,61 @@ export class ExpensesService {
     from: string,
     to: string,
   ): Promise<ExpensesCalendarResult> {
-    return this.getCalendar(companyId, {
+    const first = await this.getCalendar(companyId, {
       from,
       to,
       page: 1,
-      limit: 0,
+      limit: 100,
     });
+    if (first.total <= first.limit) {
+      return first;
+    }
+    const pages = Math.ceil(first.total / first.limit);
+    const rest = await Promise.all(
+      Array.from({ length: pages - 1 }, (_, i) =>
+        this.getCalendar(companyId, {
+          from,
+          to,
+          page: i + 2,
+          limit: 100,
+        }),
+      ),
+    );
+    return {
+      ...first,
+      items: [...first.items, ...rest.flatMap((page) => page.items)],
+      page: 1,
+      limit: first.total,
+    };
+  }
+
+  /** Gastos reales del periodo para proyectar el calendario (sin docs; con tope). */
+  private async loadCalendarActualExpenses(
+    companyId: number,
+    from: string,
+    to: string,
+  ): Promise<ReturnType<typeof serializeExpense>[]> {
+    const items: ReturnType<typeof serializeExpense>[] = [];
+    const pageSize = 100;
+    let page = 1;
+    for (;;) {
+      const batch = await this.findAll(
+        companyId,
+        { from, to, page, limit: pageSize },
+        { includeDocuments: false, skipAggregates: true },
+      );
+      items.push(...batch.items);
+      if (items.length > EXPENSE_CALENDAR_ACTUAL_MAX_ROWS) {
+        throw new BadRequestException(
+          `Demasiados gastos en el rango (máximo ${EXPENSE_CALENDAR_ACTUAL_MAX_ROWS}). Reduce el periodo.`,
+        );
+      }
+      if (batch.items.length < pageSize) {
+        break;
+      }
+      page += 1;
+    }
+    return items;
   }
 
   async findOne(companyId: number, expenseId: number) {
@@ -1089,25 +1134,160 @@ export class ExpensesService {
     expenseId: number,
     documents: CreateExpenseDocumentDto[],
   ): Promise<void> {
-    await this.documentsRepo.delete({ expenseId });
-    if (documents.length === 0) {
-      return;
-    }
-    await this.documentsRepo.save(
-      await Promise.all(
-        documents.map(async (doc, index) => {
-          const existingDocId = await this.resolveDocumentId(expenseId, doc.id);
-          return this.documentsRepo.create({
-            ...(existingDocId ? { id: existingDocId } : {}),
-            expenseId,
-            fileName: doc.fileName,
-            slot: doc.slot,
-            addedAt: doc.addedAt ?? new Date().toISOString().slice(0, 10),
-            sortOrder: index,
-          });
-        }),
-      ),
+    // Prefer POST/DELETE /expenses/:id/documents for binary files.
+    // Nested documents[] remains for legacy metadata sync and preserves storage_key.
+    const previous = await this.documentsRepo.find({ where: { expenseId } });
+    const previousById = new Map(previous.map((d) => [d.id, d]));
+    const keptIds = new Set<number>();
+
+    const nextRows = await Promise.all(
+      documents.map(async (doc, index) => {
+        const existingDocId = await this.resolveDocumentId(expenseId, doc.id);
+        const previousRow = existingDocId
+          ? previousById.get(existingDocId)
+          : undefined;
+        if (existingDocId) {
+          keptIds.add(existingDocId);
+        }
+        return this.documentsRepo.create({
+          ...(existingDocId ? { id: existingDocId } : {}),
+          expenseId,
+          fileName: doc.fileName,
+          slot: doc.slot,
+          addedAt: doc.addedAt ?? new Date().toISOString().slice(0, 10),
+          sortOrder: index,
+          storageKey: previousRow?.storageKey ?? null,
+          contentType: previousRow?.contentType ?? null,
+          sizeBytes: previousRow?.sizeBytes ?? null,
+        });
+      }),
     );
+
+    for (const row of previous) {
+      if (keptIds.has(row.id)) {
+        continue;
+      }
+      if (row.storageKey) {
+        await this.fileService.remove(row.storageKey);
+      }
+    }
+
+    await this.documentsRepo.delete({ expenseId });
+    if (nextRows.length > 0) {
+      await this.documentsRepo.save(nextRows);
+    }
+  }
+
+  async uploadDocument(
+    companyId: number,
+    expenseId: number,
+    slot: ExpenseDocumentSlot,
+    file: Express.Multer.File,
+  ) {
+    if (!file?.buffer?.length) {
+      throw new BadRequestException('file is required');
+    }
+    if (!(EXPENSE_DOCUMENT_SLOTS as readonly string[]).includes(slot)) {
+      throw new BadRequestException('Invalid slot');
+    }
+    await this.assertExpenseExists(companyId, expenseId);
+
+    const uploaded = await this.fileService.upload(
+      EXPENSE_DOCUMENT_STORAGE_FOLDER,
+      file,
+    );
+    const maxSort = await this.documentsRepo
+      .createQueryBuilder('d')
+      .select('MAX(d.sort_order)', 'max')
+      .where('d.expense_id = :expenseId', { expenseId })
+      .getRawOne<{ max: string | null }>();
+    const sortOrder = Number(maxSort?.max ?? -1) + 1;
+
+    const saved = await this.documentsRepo.save(
+      this.documentsRepo.create({
+        expenseId,
+        slot,
+        fileName: uploaded.originalName,
+        storageKey: uploaded.url,
+        contentType: file.mimetype || null,
+        sizeBytes: String(file.size),
+        addedAt: new Date().toISOString().slice(0, 10),
+        sortOrder: Number.isFinite(sortOrder) ? sortOrder : 0,
+      }),
+    );
+
+    return {
+      id: saved.id,
+      expenseId: saved.expenseId,
+      slot: saved.slot,
+      fileName: saved.fileName,
+      addedAt: saved.addedAt,
+      sortOrder: saved.sortOrder,
+      hasStoredFile: true,
+    };
+  }
+
+  async downloadDocument(
+    companyId: number,
+    expenseId: number,
+    documentId: number,
+  ) {
+    const document = await this.findDocumentForExpense(
+      companyId,
+      expenseId,
+      documentId,
+    );
+    if (!document.storageKey) {
+      throw new NotFoundException(
+        `Document ${documentId} has no stored file`,
+      );
+    }
+    return this.fileService.presignedUrl(document.storageKey);
+  }
+
+  async removeDocument(
+    companyId: number,
+    expenseId: number,
+    documentId: number,
+  ) {
+    const document = await this.findDocumentForExpense(
+      companyId,
+      expenseId,
+      documentId,
+    );
+    if (document.storageKey) {
+      await this.fileService.remove(document.storageKey);
+    }
+    await this.documentsRepo.delete({ id: documentId, expenseId });
+    return { id: documentId, deleted: true };
+  }
+
+  private async assertExpenseExists(
+    companyId: number,
+    expenseId: number,
+  ): Promise<void> {
+    const row = await this.repo.findOne({
+      where: { companyId, id: expenseId },
+      select: ['id'],
+    });
+    if (!row) {
+      throw new NotFoundException(`Expense ${expenseId} not found`);
+    }
+  }
+
+  private async findDocumentForExpense(
+    companyId: number,
+    expenseId: number,
+    documentId: number,
+  ): Promise<ExpenseDocument> {
+    await this.assertExpenseExists(companyId, expenseId);
+    const document = await this.documentsRepo.findOne({
+      where: { id: documentId, expenseId },
+    });
+    if (!document) {
+      throw new NotFoundException(`Document ${documentId} not found`);
+    }
+    return document;
   }
 
   private async resolveDocumentId(

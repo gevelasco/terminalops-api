@@ -371,28 +371,4 @@ export class CreateUnitFleetMetaDto {
   @IsOptional()
   @IsBoolean()
   gpsCoveredByInsuranceEndorsement?: boolean;
-
-  @ApiPropertyOptional({ type: [String] })
-  @IsOptional()
-  @IsArray()
-  @IsString({ each: true })
-  documentMaintenanceNames?: string[];
-
-  @ApiPropertyOptional({ type: [String] })
-  @IsOptional()
-  @IsArray()
-  @IsString({ each: true })
-  documentVerificationNames?: string[];
-
-  @ApiPropertyOptional({ type: [String] })
-  @IsOptional()
-  @IsArray()
-  @IsString({ each: true })
-  documentPolicyNames?: string[];
-
-  @ApiPropertyOptional({ type: [String] })
-  @IsOptional()
-  @IsArray()
-  @IsString({ each: true })
-  documentOwnershipNames?: string[];
 }

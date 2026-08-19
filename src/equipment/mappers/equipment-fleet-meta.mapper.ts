@@ -39,13 +39,6 @@ function dbNumToApi(value?: string | null): number | undefined {
   return Number.isFinite(n) ? n : undefined;
 }
 
-const DOCUMENT_KINDS = [
-  ['documentMaintenanceNames', 'maintenance'],
-  ['documentVerificationNames', 'verification'],
-  ['documentPolicyNames', 'policy'],
-  ['documentOwnershipNames', 'ownership'],
-] as const;
-
 export function fleetMetaDtoToProfile(
   equipmentId: number,
   meta: CreateEquipmentFleetMetaDto,
@@ -68,31 +61,6 @@ export function fleetMetaDtoToProfile(
     insuranceCost: numToDb(meta.insuranceCost),
     insurancePaymentMethod: meta.insurancePaymentMethod?.trim() || undefined,
   };
-}
-
-export function fleetMetaDtoToDocuments(
-  equipmentId: number,
-  meta: CreateEquipmentFleetMetaDto,
-): Partial<EquipmentFleetDocument>[] {
-  const rows: Partial<EquipmentFleetDocument>[] = [];
-  for (const [field, kind] of DOCUMENT_KINDS) {
-    const names = meta[field];
-    if (!names?.length) {
-      continue;
-    }
-    for (const fileName of names) {
-      const trimmed = fileName.trim();
-      if (!trimmed) {
-        continue;
-      }
-      rows.push({
-        equipmentId,
-        documentKind: kind,
-        fileName: trimmed,
-      });
-    }
-  }
-  return rows;
 }
 
 export function lastMaintenanceScalarsProvided(
@@ -290,12 +258,10 @@ export function profileToFleetMeta(
       meta.verificationEntries = verificationRows;
     }
 
-    for (const [field, kind] of DOCUMENT_KINDS) {
-      const names = documentNamesByKind(documents, kind);
-      if (names) {
-        meta[field] = names;
-      }
-    }
+    meta.documentMaintenanceNames = documentNamesByKind(documents, 'maintenance');
+    meta.documentVerificationNames = documentNamesByKind(documents, 'verification');
+    meta.documentPolicyNames = documentNamesByKind(documents, 'policy');
+    meta.documentOwnershipNames = documentNamesByKind(documents, 'ownership');
 
     const fleetDocuments = fleetDocumentsForApi(documents);
     if (fleetDocuments) {

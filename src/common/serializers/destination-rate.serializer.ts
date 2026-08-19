@@ -2,7 +2,7 @@ import { DestinationRate } from 'src/destination-rates/entities/destination-rate
 import { DestinationRatePrice } from 'src/destination-rates/entities/destination-rate-price.entity';
 import { toIsoString } from 'src/common/utils/iso-date.util';
 
-function serializeDestinationRatePrice(
+export function serializeDestinationRatePrice(
   price: DestinationRatePrice,
 ): Record<string, unknown> {
   const cfg = price.operationConfiguration;
@@ -18,6 +18,55 @@ function serializeDestinationRatePrice(
     notes: price.notes ?? undefined,
     createdAt: toIsoString(price.createdAt),
     updatedAt: toIsoString(price.updatedAt),
+  };
+}
+
+/** Precio mínimo para listado/tabla (sin montos operativos ni notas). */
+export function serializeDestinationRatePriceSummary(
+  price: DestinationRatePrice,
+): Record<string, unknown> {
+  const cfg = price.operationConfiguration;
+  return {
+    id: price.id,
+    operationConfigurationId:
+      cfg?.id ?? price.operationConfigurationId,
+    operationConfigurationCode: cfg?.code,
+    operationConfigurationName: cfg?.name,
+    clientCharge: price.clientCharge,
+  };
+}
+
+/**
+ * Listado ligero: columnas de tabla + coords para mapa.
+ * El detalle completo sigue en GET /destination-rates/:id.
+ */
+export function serializeDestinationRateSummary(
+  row: DestinationRate,
+): Record<string, unknown> {
+  const prices = (row.prices ?? []).map((p) =>
+    serializeDestinationRatePriceSummary(p),
+  );
+  return {
+    id: row.id,
+    companyId: row.companyId,
+    postalCode: row.postalCode,
+    cityMunicipality: row.cityMunicipality,
+    locality: row.locality,
+    destinationLatitude:
+      row.destinationLatitude != null ? Number(row.destinationLatitude) : undefined,
+    destinationLongitude:
+      row.destinationLongitude != null ? Number(row.destinationLongitude) : undefined,
+    estimatedArrivalTimeValue:
+      row.estimatedArrivalTimeValue != null
+        ? Number(row.estimatedArrivalTimeValue)
+        : undefined,
+    estimatedReturnTimeValue:
+      row.estimatedReturnTimeValue != null
+        ? Number(row.estimatedReturnTimeValue)
+        : undefined,
+    estimatedTimeUnit: row.estimatedTimeUnit ?? undefined,
+    prices,
+    active: row.active,
   };
 }
 

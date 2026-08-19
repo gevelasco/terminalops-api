@@ -47,6 +47,7 @@ function serializeClientDocument(doc: ClientDocument): Record<string, unknown> {
     slot: doc.slot,
     addedAt: doc.addedAt,
     sortOrder: doc.sortOrder,
+    hasStoredFile: Boolean(doc.storageKey),
   };
 }
 

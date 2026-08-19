@@ -11,6 +11,14 @@ import {
 
 export type TripResponse = Record<string, unknown>;
 
+export type MapTripToResponseOptions = {
+  /**
+   * Listado: sin `incidents[]` / `tripDocuments` (usar `hasIncident` denormalizado).
+   * Detalle: hidrata bitácora y documentos.
+   */
+  list?: boolean;
+};
+
 function resolveOperatorDisplayName(trip: Trip): string | undefined {
   const joined = trip.operator?.name?.trim();
   return joined || undefined;
@@ -31,7 +39,9 @@ export function mapTripToResponse(
   trip: Trip,
   equipmentCatalog: Equipment[] = [],
   authorLookup?: IncidentAuthorLookup,
+  options?: MapTripToResponseOptions,
 ): TripResponse {
+  const list = options?.list === true;
   const equipmentIds =
     trip.tripEquipment?.map((te) => te.equipmentId) ?? [];
   const equipmentLabels = equipmentIds.map((id) => {
@@ -46,9 +56,9 @@ export function mapTripToResponse(
     return row?.id ?? id;
   });
   const exposedActual = exposeTripActualSchedule(trip);
-  const mappedIncidents = (trip.incidents ?? []).map((i) =>
-    mapIncident(i, authorLookup),
-  );
+  const mappedIncidents = list
+    ? []
+    : (trip.incidents ?? []).map((i) => mapIncident(i, authorLookup));
 
   return {
     id: trip.id,
@@ -85,7 +95,9 @@ export function mapTripToResponse(
     arrivedAt: exposedActual.arrivedAt?.toISOString() ?? null,
     returnAt: exposedActual.returnAt?.toISOString() ?? null,
     creditDays: trip.creditDays,
-    hasIncident: tripHasMarkedIncidents(trip.incidents),
+    hasIncident: list
+      ? trip.hasIncident === true
+      : tripHasMarkedIncidents(trip.incidents),
     incidents: mappedIncidents,
     routeDistanceKm: trip.routeDistanceKm ? Number(trip.routeDistanceKm) : null,
     maneuverKind: trip.maneuverKind,
@@ -108,14 +120,16 @@ export function mapTripToResponse(
     falseManeuver: trip.falseManeuver,
     cancellationNote: trip.cancellationNote,
     clientCollectedAt: trip.clientCollectedAt?.toISOString() ?? null,
-    tripDocuments: (trip.documents ?? [])
-      .slice()
-      .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.id - b.id)
-      .map((d) => ({
-        id: d.id,
-        fileName: d.fileName,
-        documentKind: d.documentKind,
-      })),
+    tripDocuments: list
+      ? []
+      : (trip.documents ?? [])
+          .slice()
+          .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.id - b.id)
+          .map((d) => ({
+            id: d.id,
+            fileName: d.fileName,
+            documentKind: d.documentKind,
+          })),
   };
 }
 

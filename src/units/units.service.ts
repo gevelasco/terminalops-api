@@ -81,10 +81,22 @@ import {
   loadLatestVerificationByOwnerIds,
 } from 'src/fleet/fleet-latest-entries.loader';
 import type AuthUser from 'src/types/auth-user.type';
+import {
+  ListResourcePageQueryDto,
+  normalizeResourceListLimit,
+  normalizeResourceListPage,
+  toResourceListResult,
+  type ResourceListResult,
+} from 'src/common/dto/list-resource-page-query.dto';
 
-export type UnitsFindAllOptions = FleetListAvailableOptions & {
-  includeTenure?: boolean;
-};
+export type UnitsFindAllOptions = FleetListAvailableOptions &
+  ListResourcePageQueryDto & {
+    includeTenure?: boolean;
+  };
+
+export type UnitsListResult = ResourceListResult<
+  ReturnType<typeof serializeUnit>
+>;
 
 @Injectable()
 export class UnitsService {
@@ -179,13 +191,24 @@ export class UnitsService {
     }
   }
 
-  async findAll(companyId: number, options?: UnitsFindAllOptions) {
+  async findAll(
+    companyId: number,
+    options?: UnitsFindAllOptions,
+  ): Promise<UnitsListResult> {
+    const limit = normalizeResourceListLimit(options?.limit);
+    const page = normalizeResourceListPage(options?.page);
+    const where = options?.available
+      ? { companyId, isActive: true, status: FLEET_ASSIGNABLE_LIST_STATUS }
+      : { companyId, isActive: true };
+
+    const total = await this.repo.count({ where });
+
     const rows = await this.repo.find({
-      where: options?.available
-        ? { companyId, isActive: true, status: FLEET_ASSIGNABLE_LIST_STATUS }
-        : { companyId, isActive: true },
+      where,
       relations: [...UNIT_LIST_RELATIONS],
       order: { plate: 'ASC' },
+      skip: limit > 0 ? (page - 1) * limit : undefined,
+      take: limit > 0 ? limit : undefined,
     });
     const unitIds = rows.map((row) => row.id);
     const schema = this.repo.metadata.schema ?? 'terminalops';
@@ -207,7 +230,12 @@ export class UnitsService {
       row.maintenanceEntries = maint.get(row.id) ?? [];
       row.verificationEntries = verif.get(row.id) ?? [];
     }
-    return rows.map((row) => serializeUnit(row, { list: true }));
+    return toResourceListResult(
+      rows.map((row) => serializeUnit(row, { list: true })),
+      total,
+      page,
+      limit,
+    );
   }
 
   async findLinkOptions(

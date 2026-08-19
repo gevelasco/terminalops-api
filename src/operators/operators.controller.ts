@@ -8,11 +8,20 @@ import {
   Patch,
   Post,
   Query,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
   Req,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import type { Request } from 'express';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiConsumes,
+  ApiTags,
+} from '@nestjs/swagger';
+import { uploadFileMulterOptions } from 'src/common/file/upload-file.multer';
 import { rejectClientFleetStatusMutation } from 'src/fleet/fleet-status-lock.util';
 import { TenantContextService } from '../common/tenant/tenant-context.service';
 import { APP_MODULE_CODES } from '../common/constants/app-modules';
@@ -24,6 +33,7 @@ import { LoggedUser } from '../decorators/logged-user.decorator';
 import { AuthGuard } from '../guards/auth/auth.guard';
 import type AuthUser from '../types/auth-user.type';
 import { UpdateOperatorDto } from './dto/update-operator.dto';
+import { UploadOperatorDocumentDto } from './dto/upload-operator-document.dto';
 import { OperatorsService } from './operators.service';
 
 @ApiTags('operators')
@@ -131,5 +141,54 @@ export class OperatorsController {
     assertModuleWrite(user, APP_MODULE_CODES.OPERATORS);
     const companyId = await this.tenantContext.resolveInternalIdFromAuthUser(user);
     return this.service.remove(companyId, operatorId);
+  }
+
+  @Post(':operatorId/documents')
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['file', 'slot'],
+      properties: {
+        file: { type: 'string', format: 'binary' },
+        slot: {
+          type: 'string',
+          enum: ['operation', 'insurance'],
+        },
+      },
+    },
+  })
+  @UseInterceptors(FileInterceptor('file', uploadFileMulterOptions))
+  async uploadDocument(
+    @Param('operatorId', ParseIntPipe) operatorId: number,
+    @Body() dto: UploadOperatorDocumentDto,
+    @UploadedFile() file: Express.Multer.File,
+    @LoggedUser() user: AuthUser,
+  ) {
+    assertModuleWrite(user, APP_MODULE_CODES.OPERATORS);
+    const companyId = await this.tenantContext.resolveInternalIdFromAuthUser(user);
+    return this.service.uploadDocument(companyId, operatorId, dto.slot, file);
+  }
+
+  @Get(':operatorId/documents/:documentId/download')
+  async downloadDocument(
+    @Param('operatorId', ParseIntPipe) operatorId: number,
+    @Param('documentId', ParseIntPipe) documentId: number,
+    @LoggedUser() user: AuthUser,
+  ) {
+    assertModuleRead(user, APP_MODULE_CODES.OPERATORS);
+    const companyId = await this.tenantContext.resolveInternalIdFromAuthUser(user);
+    return this.service.downloadDocument(companyId, operatorId, documentId);
+  }
+
+  @Delete(':operatorId/documents/:documentId')
+  async removeDocument(
+    @Param('operatorId', ParseIntPipe) operatorId: number,
+    @Param('documentId', ParseIntPipe) documentId: number,
+    @LoggedUser() user: AuthUser,
+  ) {
+    assertModuleWrite(user, APP_MODULE_CODES.OPERATORS);
+    const companyId = await this.tenantContext.resolveInternalIdFromAuthUser(user);
+    return this.service.removeDocument(companyId, operatorId, documentId);
   }
 }

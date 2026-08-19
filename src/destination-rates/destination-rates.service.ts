@@ -6,7 +6,10 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { serializeDestinationRate } from 'src/common/serializers/destination-rate.serializer';
+import {
+  serializeDestinationRate,
+  serializeDestinationRateSummary,
+} from 'src/common/serializers/destination-rate.serializer';
 import { parseOptionalNumericId } from 'src/common/utils/tenant.util';
 import { OperationalCentersService } from 'src/operational-centers/operational-centers.service';
 import { OperationConfigurationsService } from 'src/operation-configurations/operation-configurations.service';
@@ -96,15 +99,11 @@ export class DestinationRatesService {
       .createQueryBuilder('rate')
       .leftJoinAndSelect('rate.prices', 'prices')
       .leftJoinAndSelect('prices.operationConfiguration', 'operationConfiguration')
-      .leftJoinAndSelect('rate.originOperationalCenter', 'originOperationalCenter')
-      .loadRelationCountAndMap('rate.maneuverCount', 'rate.trips', 'trip', (qb) =>
-        qb.andWhere('trip.deleted_at IS NULL'),
-      )
       .where('rate.companyId = :companyId', { companyId })
       .orderBy('rate.postalCode', 'ASC')
       .addOrderBy('rate.locality', 'ASC')
       .getMany();
-    return rows.map((row) => serializeDestinationRate(row));
+    return rows.map((row) => serializeDestinationRateSummary(row));
   }
 
   async findOne(companyId: number, rateId: number) {

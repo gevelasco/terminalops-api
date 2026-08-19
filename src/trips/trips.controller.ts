@@ -21,6 +21,7 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
+import { uploadFileMulterOptions } from 'src/common/file/upload-file.multer';
 import { TenantContextService } from '../common/tenant/tenant-context.service';
 import { LoggedUser } from '../decorators/logged-user.decorator';
 import { AuthGuard } from '../guards/auth/auth.guard';
@@ -105,7 +106,7 @@ export class TripsController {
       },
     },
   })
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('file', uploadFileMulterOptions))
   async uploadIncidentImage(
     @Param('tripId', ParseIntPipe) tripId: number,
     @Param('incidentId', ParseIntPipe) incidentId: number,
@@ -184,7 +185,7 @@ export class TripsController {
       },
     },
   })
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('file', uploadFileMulterOptions))
   async uploadDocument(
     @Param('tripId', ParseIntPipe) tripId: number,
     @Body() dto: UploadTripDocumentDto,

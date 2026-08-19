@@ -16,9 +16,10 @@ export class CreateTripDto {
   @IsString()
   maneuverCode?: string;
 
-  @ApiProperty()
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsString()
-  clientName: string;
+  clientName?: string;
 
   @ApiPropertyOptional({ description: 'ID público numérico del cliente' })
   @IsOptional()
@@ -187,21 +188,6 @@ export class CreateTripDto {
   @IsOptional()
   @IsString()
   destinationLocality?: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsDateString()
-  departureAt?: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsDateString()
-  arrivedAt?: string;
-
-  @ApiPropertyOptional({ description: 'Fin planificado legacy (alias de plannedCompletionAt)' })
-  @IsOptional()
-  @IsDateString()
-  returnAt?: string;
 
   @ApiPropertyOptional()
   @IsOptional()

@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, IsNull, Repository } from 'typeorm';
+import { FileService } from 'src/common/file/file.service';
 import { serializeOperator } from 'src/common/serializers/operator.serializer';
 import { TERMINALOPS_SCHEMA } from 'src/common/constants/schema-name';
 import { Expense } from 'src/expenses/entities/expense.entity';
@@ -29,6 +30,18 @@ import { OperatorPublicInsurance } from 'src/operators/entities/operator-public-
 import { CreateOperatorDto } from './dto/create-operator.dto';
 import type { OperatorOperationSummaryDto } from './dto/operator-operation-summary.dto';
 import { UpdateOperatorDto } from './dto/update-operator.dto';
+import {
+  OPERATOR_DOCUMENT_SLOTS,
+  OPERATOR_DOCUMENT_STORAGE_FOLDER,
+  type OperatorDocumentSlot,
+} from './operator-document.constants';
+import {
+  ListResourcePageQueryDto,
+  normalizeResourceListLimit,
+  normalizeResourceListPage,
+  toResourceListResult,
+  type ResourceListResult,
+} from 'src/common/dto/list-resource-page-query.dto';
 import { pickOperatorUserMutableFields } from 'src/fleet/fleet-resource-user-patch.util';
 import {
   FLEET_ASSIGNABLE_LIST_STATUS,
@@ -46,7 +59,12 @@ import {
   type OperatorHrHoldStatus,
 } from './operator-hr-hold-workflow.service';
 
-export type OperatorsFindAllOptions = FleetListAvailableOptions;
+export type OperatorsFindAllOptions = FleetListAvailableOptions &
+  ListResourcePageQueryDto;
+
+export type OperatorsListResult = ResourceListResult<
+  ReturnType<typeof serializeOperator>
+>;
 
 const OPERATOR_RELATIONS = [
   'emergencyContact',
@@ -79,6 +97,7 @@ export class OperatorsService {
     private readonly expenseRepo: Repository<Expense>,
     @InjectRepository(Unit)
     private readonly unitRepo: Repository<Unit>,
+    private readonly fileService: FileService,
     private readonly activityEvents: ActivityEventsService,
     private readonly hrHoldWorkflow: OperatorHrHoldWorkflowService,
   ) {}
@@ -97,7 +116,29 @@ export class OperatorsService {
     return this.findOne(companyId, saved.id);
   }
 
-  async findAll(companyId: number, options?: OperatorsFindAllOptions) {
+  async findAll(
+    companyId: number,
+    options?: OperatorsFindAllOptions,
+  ): Promise<OperatorsListResult> {
+    const limit = normalizeResourceListLimit(options?.limit);
+    const page = normalizeResourceListPage(options?.page);
+
+    const countQb = this.repo
+      .createQueryBuilder('operator')
+      .where('operator.companyId = :companyId', { companyId });
+
+    if (options?.available) {
+      countQb
+        .andWhere('operator.isActive = :isActive', { isActive: true })
+        .andWhere('operator.status = :status', {
+          status: FLEET_ASSIGNABLE_LIST_STATUS,
+        });
+    } else {
+      countQb.andWhere('operator.isActive = :isActive', { isActive: true });
+    }
+
+    const total = await countQb.getCount();
+
     const qb = this.repo
       .createQueryBuilder('operator')
       .leftJoinAndSelect('operator.emergencyContact', 'emergencyContact')
@@ -121,15 +162,22 @@ export class OperatorsService {
       qb.andWhere('operator.isActive = :isActive', { isActive: true });
     }
 
-    const rows = await qb
-      .orderBy('operator.name', 'ASC')
-      .addOrderBy('documents.sortOrder', 'ASC')
-      .getMany();
+    qb.orderBy('operator.name', 'ASC').addOrderBy('documents.sortOrder', 'ASC');
+    if (limit > 0) {
+      qb.skip((page - 1) * limit).take(limit);
+    }
+
+    const rows = await qb.getMany();
 
     if (!options?.available) {
       await this.applyListMetrics(companyId, rows);
     }
-    return rows.map((row) => serializeOperator(row));
+    return toResourceListResult(
+      rows.map((row) => serializeOperator(row, { list: true })),
+      total,
+      page,
+      limit,
+    );
   }
 
   async findLinkOptions(
@@ -508,6 +556,118 @@ export class OperatorsService {
     return this.findOne(companyId, operatorId);
   }
 
+  async uploadDocument(
+    companyId: number,
+    operatorId: number,
+    slot: OperatorDocumentSlot,
+    file: Express.Multer.File,
+  ) {
+    if (!file?.buffer?.length) {
+      throw new BadRequestException('file is required');
+    }
+    if (!(OPERATOR_DOCUMENT_SLOTS as readonly string[]).includes(slot)) {
+      throw new BadRequestException('Invalid slot');
+    }
+    await this.assertOperatorExists(companyId, operatorId);
+
+    const uploaded = await this.fileService.upload(
+      OPERATOR_DOCUMENT_STORAGE_FOLDER,
+      file,
+    );
+    const maxSort = await this.documentsRepo
+      .createQueryBuilder('d')
+      .select('MAX(d.sort_order)', 'max')
+      .where('d.operator_id = :operatorId', { operatorId })
+      .getRawOne<{ max: string | null }>();
+    const sortOrder = Number(maxSort?.max ?? -1) + 1;
+
+    const saved = await this.documentsRepo.save(
+      this.documentsRepo.create({
+        operatorId,
+        slot,
+        fileName: uploaded.originalName,
+        storageKey: uploaded.url,
+        contentType: file.mimetype || null,
+        sizeBytes: String(file.size),
+        addedAt: new Date().toISOString().slice(0, 10),
+        sortOrder: Number.isFinite(sortOrder) ? sortOrder : 0,
+      }),
+    );
+
+    return {
+      id: saved.id,
+      operatorId: saved.operatorId,
+      slot: saved.slot,
+      fileName: saved.fileName,
+      addedAt: saved.addedAt,
+      sortOrder: saved.sortOrder,
+      hasStoredFile: true,
+    };
+  }
+
+  async downloadDocument(
+    companyId: number,
+    operatorId: number,
+    documentId: number,
+  ) {
+    const document = await this.findDocumentForOperator(
+      companyId,
+      operatorId,
+      documentId,
+    );
+    if (!document.storageKey) {
+      throw new NotFoundException(
+        `Document ${documentId} has no stored file`,
+      );
+    }
+    return this.fileService.presignedUrl(document.storageKey);
+  }
+
+  async removeDocument(
+    companyId: number,
+    operatorId: number,
+    documentId: number,
+  ) {
+    const document = await this.findDocumentForOperator(
+      companyId,
+      operatorId,
+      documentId,
+    );
+    if (document.storageKey) {
+      await this.fileService.remove(document.storageKey);
+    }
+    await this.documentsRepo.delete({ id: documentId, operatorId });
+    return { id: documentId, deleted: true };
+  }
+
+  private async assertOperatorExists(
+    companyId: number,
+    operatorId: number,
+  ): Promise<void> {
+    const row = await this.repo.findOne({
+      where: { companyId, id: operatorId },
+      select: ['id'],
+    });
+    if (!row) {
+      throw new NotFoundException(`Operator ${operatorId} not found`);
+    }
+  }
+
+  private async findDocumentForOperator(
+    companyId: number,
+    operatorId: number,
+    documentId: number,
+  ): Promise<OperatorDocument> {
+    await this.assertOperatorExists(companyId, operatorId);
+    const document = await this.documentsRepo.findOne({
+      where: { id: documentId, operatorId },
+    });
+    if (!document) {
+      throw new NotFoundException(`Document ${documentId} not found`);
+    }
+    return document;
+  }
+
   /** Soft delete lógico: oculta de listados/asignaciones y conserva historial en maniobras. */
   async remove(companyId: number, operatorId: number) {
     const row = await this.repo.findOne({
@@ -633,27 +793,51 @@ export class OperatorsService {
       }
     }
 
+    // Prefer POST/DELETE /operators/:id/documents for binary files.
+    // Nested documents[] remains for legacy metadata sync and preserves storage_key.
     if (dto.documents !== undefined) {
+      const previous = await this.documentsRepo.find({ where: { operatorId } });
+      const previousById = new Map(previous.map((d) => [d.id, d]));
+      const keptIds = new Set<number>();
+
+      const nextRows = await Promise.all(
+        dto.documents.map(async (doc, index) => {
+          const existingDocId = await this.resolveDocumentId(
+            operatorId,
+            doc.id,
+          );
+          const previousRow = existingDocId
+            ? previousById.get(existingDocId)
+            : undefined;
+          if (existingDocId) {
+            keptIds.add(existingDocId);
+          }
+          return this.documentsRepo.create({
+            ...(existingDocId ? { id: existingDocId } : {}),
+            operatorId,
+            fileName: doc.fileName,
+            slot: doc.slot,
+            addedAt: doc.addedAt ?? new Date().toISOString().slice(0, 10),
+            sortOrder: index,
+            storageKey: previousRow?.storageKey ?? null,
+            contentType: previousRow?.contentType ?? null,
+            sizeBytes: previousRow?.sizeBytes ?? null,
+          });
+        }),
+      );
+
+      for (const row of previous) {
+        if (keptIds.has(row.id)) {
+          continue;
+        }
+        if (row.storageKey) {
+          await this.fileService.remove(row.storageKey);
+        }
+      }
+
       await this.documentsRepo.delete({ operatorId });
-      if (dto.documents.length > 0) {
-        await this.documentsRepo.save(
-          await Promise.all(
-            dto.documents.map(async (doc, index) => {
-              const existingDocId = await this.resolveDocumentId(
-                operatorId,
-                doc.id,
-              );
-              return this.documentsRepo.create({
-                ...(existingDocId ? { id: existingDocId } : {}),
-                operatorId,
-                fileName: doc.fileName,
-                slot: doc.slot,
-                addedAt: doc.addedAt ?? new Date().toISOString().slice(0, 10),
-                sortOrder: index,
-              });
-            }),
-          ),
-        );
+      if (nextRows.length > 0) {
+        await this.documentsRepo.save(nextRows);
       }
     }
   }
@@ -689,42 +873,10 @@ export class OperatorsService {
       return;
     }
     const operatorIds = operators.map((o) => o.id);
-    const [lastTrips, completedTrips] = await Promise.all([
+    const [lastTrips, unpaid] = await Promise.all([
       this.loadLastTripsByOperatorId(companyId, operatorIds),
-      this.tripRepo.find({
-        where: {
-          companyId,
-          operatorId: In(operatorIds),
-          status: 'completed',
-          deletedAt: IsNull(),
-        },
-        select: [
-          'id',
-          'operatorId',
-          'status',
-          'operatorQuota',
-          'returnAt',
-          'arrivedAt',
-          'completedAt',
-          'plannedCompletionAt',
-          'creditDays',
-        ],
-      }),
+      this.loadUnpaidCompletedTripsForOperators(companyId, operatorIds),
     ]);
-
-    const tripIds = completedTrips.map((t) => t.id);
-    const expenses =
-      tripIds.length > 0
-        ? await this.expenseRepo.find({
-            where: {
-              companyId,
-              discardedAt: IsNull(),
-              tripId: In(tripIds),
-              kind: In(['operator_payment', 'operator_commission']),
-            },
-            select: ['tripId', 'kind', 'amount'],
-          })
-        : [];
 
     const lastByOperator = new Map<number, Trip>();
     for (const row of lastTrips) {
@@ -739,8 +891,8 @@ export class OperatorsService {
       ),
     );
     const nextPayByOperator = buildNextPayDueByOperatorId(
-      completedTrips,
-      expenses,
+      unpaid.trips,
+      unpaid.expenses,
       paymentScheduleByOperatorId,
     );
 
@@ -754,6 +906,97 @@ export class OperatorsService {
       operator.nextPayDueVariant = nextPay?.variant;
       operator.owedAmount = nextPay?.owedAmount;
     }
+  }
+
+  /**
+   * Solo maniobras completadas con cuota pendiente (quota − pagos > 0).
+   * Evita hidratar todo el historial completed + expenses en memoria.
+   */
+  private async loadUnpaidCompletedTripsForOperators(
+    companyId: number,
+    operatorIds: readonly number[],
+  ): Promise<{ trips: Trip[]; expenses: Expense[] }> {
+    if (operatorIds.length === 0) {
+      return { trips: [], expenses: [] };
+    }
+
+    const rows = await this.tripRepo.query(
+      `
+        SELECT
+          t.id,
+          t.operator_id AS "operatorId",
+          t.status,
+          t.operator_quota AS "operatorQuota",
+          t.return_at AS "returnAt",
+          t.arrived_at AS "arrivedAt",
+          t.completed_at AS "completedAt",
+          t.planned_completion_at AS "plannedCompletionAt",
+          t.credit_days AS "creditDays",
+          COALESCE(paid.paid_amount, 0) AS "paidAmount"
+        FROM ${TERMINALOPS_SCHEMA}.trips t
+        LEFT JOIN LATERAL (
+          SELECT COALESCE(SUM(e.amount::numeric), 0) AS paid_amount
+          FROM ${TERMINALOPS_SCHEMA}.expenses e
+          WHERE e.trip_id = t.id
+            AND e.company_id = t.company_id
+            AND e.discarded_at IS NULL
+            AND e.kind IN ('operator_payment', 'operator_commission')
+        ) paid ON TRUE
+        WHERE t.company_id = $1
+          AND t.deleted_at IS NULL
+          AND t.status = 'completed'
+          AND t.operator_id = ANY($2::int[])
+          AND COALESCE(t.operator_quota, 0) > 0
+          AND (
+            COALESCE(t.operator_quota, 0) - COALESCE(paid.paid_amount, 0)
+          ) > 0.004
+      `,
+      [companyId, operatorIds],
+    );
+
+    const trips: Trip[] = [];
+    const expenses: Expense[] = [];
+
+    for (const row of rows as Array<Record<string, unknown>>) {
+      const tripId = Number(row['id']);
+      const operatorId = Number(row['operatorId']);
+      if (!Number.isFinite(tripId) || !Number.isFinite(operatorId)) {
+        continue;
+      }
+      const quotaRaw = row['operatorQuota'];
+      const paidAmount = Number(row['paidAmount'] ?? 0);
+      trips.push({
+        id: tripId,
+        operatorId,
+        status: String(row['status'] ?? 'completed'),
+        operatorQuota:
+          quotaRaw == null || quotaRaw === ''
+            ? undefined
+            : String(quotaRaw),
+        returnAt: row['returnAt'] ? new Date(String(row['returnAt'])) : undefined,
+        arrivedAt: row['arrivedAt']
+          ? new Date(String(row['arrivedAt']))
+          : undefined,
+        completedAt: row['completedAt']
+          ? new Date(String(row['completedAt']))
+          : undefined,
+        plannedCompletionAt: row['plannedCompletionAt']
+          ? new Date(String(row['plannedCompletionAt']))
+          : undefined,
+        creditDays: Number(row['creditDays'] ?? 0),
+      } as Trip);
+
+      if (Number.isFinite(paidAmount) && paidAmount > 0) {
+        expenses.push({
+          tripId,
+          kind: 'operator_payment',
+          amount: String(paidAmount),
+          discardedAt: null,
+        } as Expense);
+      }
+    }
+
+    return { trips, expenses };
   }
 
   private async loadLastTripsByOperatorId(

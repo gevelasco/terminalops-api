@@ -173,11 +173,17 @@ export class TripsService {
 
     const rowsQb = this.tripsRepo
       .createQueryBuilder('trip')
-      .leftJoinAndSelect('trip.client', 'client')
-      .leftJoinAndSelect('trip.unit', 'unit')
-      .leftJoinAndSelect('trip.operator', 'operator')
-      .leftJoinAndSelect('trip.tripEquipment', 'tripEquipment')
-      .leftJoinAndSelect('trip.incidents', 'incidents');
+      // client_id / client_name viven en trip; no hace falta join completo.
+      .leftJoin('trip.unit', 'unit')
+      .addSelect([
+        'unit.id',
+        'unit.trailerBrandAbbr',
+        'unit.trailerYear',
+        'unit.plate',
+      ])
+      .leftJoin('trip.operator', 'operator')
+      .addSelect(['operator.id', 'operator.name'])
+      .leftJoinAndSelect('trip.tripEquipment', 'tripEquipment');
     applyTripListFilters(rowsQb, companyId, query);
     rowsQb.orderBy('trip.createdAt', 'DESC');
 
@@ -193,18 +199,18 @@ export class TripsService {
         ),
       ),
     ];
-    const [equipment, authorLookup] = await Promise.all([
+    const equipment =
       equipmentIds.length > 0
-        ? this.equipmentRepo.find({
+        ? await this.equipmentRepo.find({
             where: { companyId, id: In(equipmentIds) },
             select: ['id', 'trailerBrandAbbr', 'trailerYear', 'plate'],
           })
-        : Promise.resolve([]),
-      this.loadAuthorLookup(companyId),
-    ]);
+        : [];
 
     return {
-      items: trips.map((t) => mapTripToResponse(t, equipment, authorLookup)),
+      items: trips.map((t) =>
+        mapTripToResponse(t, equipment, undefined, { list: true }),
+      ),
       total,
       page: limit > 0 ? page : 1,
       limit: limit > 0 ? limit : total,
@@ -847,9 +853,6 @@ export class TripsService {
       unitId,
       operatorId,
       operationType,
-      departureAt: _ignoredDepartureAt,
-      arrivedAt: _ignoredArrivedAt,
-      returnAt: _ignoredReturnAt,
       loadDate,
       loadPlace,
       emptyDeliveryAt,

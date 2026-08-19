@@ -1,6 +1,11 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { FileService } from 'src/common/file/file.service';
 import { serializeClient } from 'src/common/serializers/client.serializer';
 import { Client } from 'src/clients/entities/client.entity';
 import { ClientBilling } from 'src/clients/entities/client-billing.entity';
@@ -12,6 +17,18 @@ import { DestinationRatesService } from 'src/destination-rates/destination-rates
 import { ActivityEventsService } from 'src/activity-events/activity-events.service';
 import { COMPANY_ACTIVITY_KIND } from 'src/activity-events/company-activity-event.kinds';
 import type AuthUser from 'src/types/auth-user.type';
+import {
+  ListResourcePageQueryDto,
+  normalizeResourceListLimit,
+  normalizeResourceListPage,
+  toResourceListResult,
+  type ResourceListResult,
+} from 'src/common/dto/list-resource-page-query.dto';
+import {
+  CLIENT_DOCUMENT_SLOTS,
+  CLIENT_DOCUMENT_STORAGE_FOLDER,
+  type ClientDocumentSlot,
+} from './client-document.constants';
 import { CreateClientDto } from './dto/create-client.dto';
 import { UpdateClientDto } from './dto/update-client.dto';
 import type { ClientPickerOptionDto } from './dto/client-picker-option.dto';
@@ -23,6 +40,12 @@ const CLIENT_RELATIONS = [
   'contacts',
   'documents',
 ] as const;
+
+export type ClientsFindAllOptions = ListResourcePageQueryDto;
+
+export type ClientsListResult = ResourceListResult<
+  ReturnType<typeof serializeClient>
+>;
 
 @Injectable()
 export class ClientsService {
@@ -41,6 +64,7 @@ export class ClientsService {
     private readonly documentsRepo: Repository<ClientDocument>,
     private readonly destinationRatesService: DestinationRatesService,
     private readonly activityEvents: ActivityEventsService,
+    private readonly fileService: FileService,
   ) {}
 
   async create(companyId: number, dto: CreateClientDto, actor?: AuthUser) {
@@ -65,8 +89,16 @@ export class ClientsService {
     return this.findOne(companyId, saved.id);
   }
 
-  async findAll(companyId: number) {
-    const rows = await this.clientsRepo
+  async findAll(
+    companyId: number,
+    options?: ClientsFindAllOptions,
+  ): Promise<ClientsListResult> {
+    const limit = normalizeResourceListLimit(options?.limit);
+    const page = normalizeResourceListPage(options?.page);
+
+    const total = await this.clientsRepo.count({ where: { companyId } });
+
+    const qb = this.clientsRepo
       .createQueryBuilder('client')
       .leftJoinAndSelect('client.billing', 'billing')
       .leftJoinAndSelect('client.paymentTerms', 'paymentTerms')
@@ -76,10 +108,19 @@ export class ClientsService {
       .where('client.companyId = :companyId', { companyId })
       .orderBy('client.name', 'ASC')
       .addOrderBy('contacts.sortOrder', 'ASC')
-      .addOrderBy('documents.sortOrder', 'ASC')
-      .getMany();
+      .addOrderBy('documents.sortOrder', 'ASC');
 
-    return rows.map((row) => serializeClient(row));
+    if (limit > 0) {
+      qb.skip((page - 1) * limit).take(limit);
+    }
+
+    const rows = await qb.getMany();
+    return toResourceListResult(
+      rows.map((row) => serializeClient(row)),
+      total,
+      page,
+      limit,
+    );
   }
 
   async findPickerOptions(companyId: number): Promise<ClientPickerOptionDto[]> {
@@ -219,25 +260,161 @@ export class ClientsService {
       );
     }
     if (dto.documents !== undefined) {
+      // Prefer POST/DELETE /clients/:id/documents for binary files.
+      // Nested documents[] remains for legacy metadata sync and preserves storage_key.
+      const previous = await this.documentsRepo.find({ where: { clientId } });
+      const previousById = new Map(previous.map((d) => [d.id, d]));
+      const keptIds = new Set<number>();
+
+      const nextRows = await Promise.all(
+        dto.documents.map(async (doc, index) => {
+          const existingDocId = await this.resolveDocumentId(clientId, doc.id);
+          const previousRow = existingDocId
+            ? previousById.get(existingDocId)
+            : undefined;
+          if (existingDocId) {
+            keptIds.add(existingDocId);
+          }
+          return this.documentsRepo.create({
+            ...(existingDocId ? { id: existingDocId } : {}),
+            clientId,
+            fileName: doc.fileName,
+            slot: doc.slot,
+            addedAt: doc.addedAt ?? new Date().toISOString().slice(0, 10),
+            sortOrder: index,
+            storageKey: previousRow?.storageKey ?? null,
+            contentType: previousRow?.contentType ?? null,
+            sizeBytes: previousRow?.sizeBytes ?? null,
+          });
+        }),
+      );
+
+      for (const row of previous) {
+        if (keptIds.has(row.id)) {
+          continue;
+        }
+        if (row.storageKey) {
+          await this.fileService.remove(row.storageKey);
+        }
+      }
+
       await this.documentsRepo.delete({ clientId });
-      if (dto.documents.length > 0) {
-        await this.documentsRepo.save(
-          await Promise.all(
-            dto.documents.map(async (doc, index) => {
-              const existingDocId = await this.resolveDocumentId(clientId, doc.id);
-              return this.documentsRepo.create({
-                ...(existingDocId ? { id: existingDocId } : {}),
-                clientId,
-                fileName: doc.fileName,
-                slot: doc.slot,
-                addedAt: doc.addedAt ?? new Date().toISOString().slice(0, 10),
-                sortOrder: index,
-              });
-            }),
-          ),
-        );
+      if (nextRows.length > 0) {
+        await this.documentsRepo.save(nextRows);
       }
     }
+  }
+
+  async uploadDocument(
+    companyId: number,
+    clientId: number,
+    slot: ClientDocumentSlot,
+    file: Express.Multer.File,
+  ) {
+    if (!file?.buffer?.length) {
+      throw new BadRequestException('file is required');
+    }
+    if (!(CLIENT_DOCUMENT_SLOTS as readonly string[]).includes(slot)) {
+      throw new BadRequestException('Invalid slot');
+    }
+    await this.assertClientExists(companyId, clientId);
+
+    const uploaded = await this.fileService.upload(
+      CLIENT_DOCUMENT_STORAGE_FOLDER,
+      file,
+    );
+    const maxSort = await this.documentsRepo
+      .createQueryBuilder('d')
+      .select('MAX(d.sort_order)', 'max')
+      .where('d.client_id = :clientId', { clientId })
+      .getRawOne<{ max: string | null }>();
+    const sortOrder = Number(maxSort?.max ?? -1) + 1;
+
+    const saved = await this.documentsRepo.save(
+      this.documentsRepo.create({
+        clientId,
+        slot,
+        fileName: uploaded.originalName,
+        storageKey: uploaded.url,
+        contentType: file.mimetype || null,
+        sizeBytes: String(file.size),
+        addedAt: new Date().toISOString().slice(0, 10),
+        sortOrder: Number.isFinite(sortOrder) ? sortOrder : 0,
+      }),
+    );
+
+    return {
+      id: saved.id,
+      clientId: saved.clientId,
+      slot: saved.slot,
+      fileName: saved.fileName,
+      addedAt: saved.addedAt,
+      sortOrder: saved.sortOrder,
+      hasStoredFile: true,
+    };
+  }
+
+  async downloadDocument(
+    companyId: number,
+    clientId: number,
+    documentId: number,
+  ) {
+    const document = await this.findDocumentForClient(
+      companyId,
+      clientId,
+      documentId,
+    );
+    if (!document.storageKey) {
+      throw new NotFoundException(
+        `Document ${documentId} has no stored file`,
+      );
+    }
+    return this.fileService.presignedUrl(document.storageKey);
+  }
+
+  async removeDocument(
+    companyId: number,
+    clientId: number,
+    documentId: number,
+  ) {
+    const document = await this.findDocumentForClient(
+      companyId,
+      clientId,
+      documentId,
+    );
+    if (document.storageKey) {
+      await this.fileService.remove(document.storageKey);
+    }
+    await this.documentsRepo.delete({ id: documentId, clientId });
+    return { id: documentId, deleted: true };
+  }
+
+  private async assertClientExists(
+    companyId: number,
+    clientId: number,
+  ): Promise<void> {
+    const row = await this.clientsRepo.findOne({
+      where: { companyId, id: clientId },
+      select: ['id'],
+    });
+    if (!row) {
+      throw new NotFoundException(`Client ${clientId} not found`);
+    }
+  }
+
+  private async findDocumentForClient(
+    companyId: number,
+    clientId: number,
+    documentId: number,
+  ): Promise<ClientDocument> {
+    await this.assertClientExists(companyId, clientId);
+    const document = await this.documentsRepo.findOne({
+      where: { id: documentId, clientId },
+    });
+    if (!document) {
+      throw new NotFoundException(`Document ${documentId} not found`);
+    }
+    return document;
   }
 
   private async resolveDocumentId(

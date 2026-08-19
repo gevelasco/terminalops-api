@@ -39,13 +39,6 @@ function dbNumToApi(value?: string | null): number | undefined {
   return Number.isFinite(n) ? n : undefined;
 }
 
-const DOCUMENT_KINDS = [
-  ['documentMaintenanceNames', 'maintenance'],
-  ['documentVerificationNames', 'verification'],
-  ['documentPolicyNames', 'policy'],
-  ['documentOwnershipNames', 'ownership'],
-] as const;
-
 export function fleetMetaDtoToProfile(
   unitId: number,
   meta: CreateUnitFleetMetaDto,
@@ -80,33 +73,6 @@ export function fleetMetaDtoToProfile(
     gpsTrackingPortalUrl: meta.gpsTrackingPortalUrl?.trim() || undefined,
     gpsCoveredByInsuranceEndorsement: meta.gpsCoveredByInsuranceEndorsement,
   };
-}
-
-export function fleetMetaDtoToDocuments(
-  unitId: number,
-  meta: CreateUnitFleetMetaDto,
-): Partial<UnitFleetDocument>[] {
-  const rows: Partial<UnitFleetDocument>[] = [];
-  let sort = 0;
-  for (const [field, kind] of DOCUMENT_KINDS) {
-    const names = meta[field];
-    if (!names?.length) {
-      continue;
-    }
-    for (const fileName of names) {
-      const trimmed = fileName.trim();
-      if (!trimmed) {
-        continue;
-      }
-      rows.push({
-        unitId,
-        documentKind: kind,
-        fileName: trimmed,
-        sortOrder: sort++,
-      });
-    }
-  }
-  return rows;
 }
 
 export function lastMaintenanceScalarsProvided(meta: CreateUnitFleetMetaDto): boolean {

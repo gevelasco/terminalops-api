@@ -7,12 +7,31 @@ import { toIsoString } from 'src/common/utils/iso-date.util';
 
 export type OperatorApiResponse = Record<string, unknown>;
 
-export function serializeOperator(operator: Operator): OperatorApiResponse {
+export type SerializeOperatorOptions = {
+  /**
+   * Listado: omite `photoDataUrl` (data URL puede ser MBs) y expone `hasPhoto`.
+   * Detalle / mutaciones: incluye `photoDataUrl`.
+   */
+  list?: boolean;
+};
+
+function operatorHasPhoto(operator: Operator): boolean {
+  return Boolean(operator.photoDataUrl?.trim());
+}
+
+export function serializeOperator(
+  operator: Operator,
+  options?: SerializeOperatorOptions,
+): OperatorApiResponse {
+  const list = options?.list === true;
+  const hasPhoto = operatorHasPhoto(operator);
+
   return {
     id: operator.id,
     companyId: operator.companyId,
     name: operator.name,
-    photoDataUrl: operator.photoDataUrl ?? '',
+    hasPhoto,
+    ...(list ? {} : { photoDataUrl: operator.photoDataUrl ?? '' }),
     birthDate: operator.birthDate ?? null,
     curp: operator.curp ?? '',
     rfc: operator.rfc ?? '',
@@ -126,5 +145,6 @@ function serializeOperatorDocument(
     slot: row.slot,
     addedAt: row.addedAt,
     sortOrder: row.sortOrder,
+    hasStoredFile: Boolean(row.storageKey),
   };
 }

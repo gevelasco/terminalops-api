@@ -46,6 +46,7 @@ import { TripLoadPlacesService } from '../trips/trip-load-places.service';
 import { CreateTripDto } from '../trips/dto/create-trip.dto';
 import { ListTripLinkOptionsQueryDto } from '../trips/dto/list-trip-link-options-query.dto';
 import { ListResourceLinkOptionsQueryDto } from '../common/dto/list-resource-link-options-query.dto';
+import { ListResourcePageQueryDto } from '../common/dto/list-resource-page-query.dto';
 import { ListTripsQueryDto } from '../trips/dto/list-trips-query.dto';
 import { FuelEstimateRequestDto } from '../trips/dto/fuel-estimate.dto';
 import { FuelEstimatorService } from '../trips/fuel/fuel-estimator.service';
@@ -254,6 +255,7 @@ export class CompaniesController {
   @Get(':companyId/clients')
   async listClients(
     @Param('companyId', ParseIntPipe) companyId: number,
+    @Query() query: ListResourcePageQueryDto,
     @LoggedUser() user: AuthUser,
   ) {
     assertModuleRead(user, APP_MODULE_CODES.CLIENTS);
@@ -261,7 +263,7 @@ export class CompaniesController {
       user,
       companyId,
     );
-    return this.clientsService.findAll(tenantId);
+    return this.clientsService.findAll(tenantId, query);
   }
 
   @Post(':companyId/clients')
@@ -298,6 +300,7 @@ export class CompaniesController {
   @Get(':companyId/operators')
   async listOperators(
     @Param('companyId', ParseIntPipe) companyId: number,
+    @Query() query: ListResourcePageQueryDto,
     @Query('available') available: string | undefined,
     @LoggedUser() user: AuthUser,
   ) {
@@ -307,6 +310,7 @@ export class CompaniesController {
       companyId,
     );
     return this.operatorsService.findAll(tenantId, {
+      ...query,
       available: parseAvailableQuery(available),
     });
   }
@@ -348,6 +352,7 @@ export class CompaniesController {
   @Get(':companyId/units')
   async listUnits(
     @Param('companyId', ParseIntPipe) companyId: number,
+    @Query() query: ListResourcePageQueryDto,
     @Query('includeFleetTenure') includeFleetTenure: string | undefined,
     @Query('available') available: string | undefined,
     @LoggedUser() user: AuthUser,
@@ -358,6 +363,7 @@ export class CompaniesController {
       companyId,
     );
     return this.unitsService.findAll(tenantId, {
+      ...query,
       includeTenure: parseIncludeFleetTenure(includeFleetTenure),
       available: parseAvailableQuery(available),
     });
@@ -404,6 +410,7 @@ export class CompaniesController {
   @Get(':companyId/equipment')
   async listEquipment(
     @Param('companyId', ParseIntPipe) companyId: number,
+    @Query() query: ListResourcePageQueryDto,
     @Query('includeFleetTenure') includeFleetTenure: string | undefined,
     @LoggedUser() user: AuthUser,
   ) {
@@ -413,6 +420,7 @@ export class CompaniesController {
       companyId,
     );
     return this.equipmentService.findAll(tenantId, {
+      ...query,
       includeTenure: parseIncludeFleetTenure(includeFleetTenure),
     });
   }
@@ -604,7 +612,10 @@ export class CompaniesController {
   }
 
   @Get(':companyId/destination-rates')
-  @ApiOperation({ summary: 'Tarifas operativas por destino (CP)' })
+  @ApiOperation({
+    summary:
+      'Listado slim de tarifas por destino (tabla/mapa). Detalle completo: GET /destination-rates/:id',
+  })
   async listDestinationRates(
     @Param('companyId', ParseIntPipe) companyId: number,
     @LoggedUser() user: AuthUser,

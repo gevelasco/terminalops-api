@@ -20,6 +20,7 @@ import {
   ApiConsumes,
   ApiTags,
 } from '@nestjs/swagger';
+import { uploadFileMulterOptions } from 'src/common/file/upload-file.multer';
 import { rejectClientFleetStatusMutation } from 'src/fleet/fleet-status-lock.util';
 import { TenantContextService } from '../common/tenant/tenant-context.service';
 import { APP_MODULE_CODES } from '../common/constants/app-modules';
@@ -130,7 +131,7 @@ export class EquipmentController {
       },
     },
   })
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('file', uploadFileMulterOptions))
   async uploadDocument(
     @Param('equipmentId', ParseIntPipe) equipmentId: number,
     @Body() dto: UploadEquipmentFleetDocumentDto,

@@ -20,6 +20,7 @@ function serializeExpenseDocument(doc: ExpenseDocument): Record<string, unknown>
     fileName: doc.fileName,
     slot: doc.slot,
     addedAt: doc.addedAt,
+    hasStoredFile: Boolean(doc.storageKey),
   };
 }
 

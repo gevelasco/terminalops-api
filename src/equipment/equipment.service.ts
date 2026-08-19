@@ -72,10 +72,22 @@ import { ActivityEventsService } from 'src/activity-events/activity-events.servi
 import { COMPANY_ACTIVITY_KIND } from 'src/activity-events/company-activity-event.kinds';
 import { buildEquipmentOperationalId } from 'src/common/utils/unit-operational-id.util';
 import type AuthUser from 'src/types/auth-user.type';
+import {
+  ListResourcePageQueryDto,
+  normalizeResourceListLimit,
+  normalizeResourceListPage,
+  toResourceListResult,
+  type ResourceListResult,
+} from 'src/common/dto/list-resource-page-query.dto';
 
-export type EquipmentFindAllOptions = FleetListAvailableOptions & {
-  includeTenure?: boolean;
-};
+export type EquipmentFindAllOptions = FleetListAvailableOptions &
+  ListResourcePageQueryDto & {
+    includeTenure?: boolean;
+  };
+
+export type EquipmentListResult = ResourceListResult<
+  ReturnType<typeof serializeEquipment>
+>;
 
 @Injectable()
 export class EquipmentService {
@@ -144,13 +156,24 @@ export class EquipmentService {
     return this.findOne(companyId, saved.id);
   }
 
-  async findAll(companyId: number, options?: EquipmentFindAllOptions) {
+  async findAll(
+    companyId: number,
+    options?: EquipmentFindAllOptions,
+  ): Promise<EquipmentListResult> {
+    const limit = normalizeResourceListLimit(options?.limit);
+    const page = normalizeResourceListPage(options?.page);
+    const where = options?.available
+      ? { companyId, isActive: true, status: FLEET_ASSIGNABLE_LIST_STATUS }
+      : { companyId, isActive: true };
+
+    const total = await this.repo.count({ where });
+
     const rows = await this.repo.find({
-      where: options?.available
-        ? { companyId, isActive: true, status: FLEET_ASSIGNABLE_LIST_STATUS }
-        : { companyId, isActive: true },
+      where,
       relations: ['fleetProfile'],
       order: { name: 'ASC' },
+      skip: limit > 0 ? (page - 1) * limit : undefined,
+      take: limit > 0 ? limit : undefined,
     });
     const equipmentIds = rows.map((row) => row.id);
     const schema = this.repo.metadata.schema ?? 'terminalops';
@@ -172,7 +195,12 @@ export class EquipmentService {
       row.maintenanceEntries = maint.get(row.id) ?? [];
       row.verificationEntries = verif.get(row.id) ?? [];
     }
-    return rows.map((row) => serializeEquipment(row, { list: true }));
+    return toResourceListResult(
+      rows.map((row) => serializeEquipment(row, { list: true })),
+      total,
+      page,
+      limit,
+    );
   }
 
   async findLinkOptions(
