@@ -251,6 +251,12 @@ async function main() {
         ON CONFLICT (code) DO NOTHING;
       `);
       console.log('Schema ensure: invitation_codes OK');
+      // Hard ensure: trip.created_by (covers duplicate-timestamp skip of 175090).
+      await dataSource.query(`
+        ALTER TABLE terminalops.trips
+          ADD COLUMN IF NOT EXISTS created_by text NULL;
+      `);
+      console.log('Schema ensure: trips.created_by OK');
       // Hard ensure: bitácora incident images table.
       await dataSource.query(`
         CREATE TABLE IF NOT EXISTS terminalops.trip_incident_images (

@@ -3,9 +3,11 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
 /**
  * Borrar una unidad no debe vaciar el unit_id de maniobras ni gastos históricos.
  * La baja de flota es lógica (is_active); un DELETE físico debe fallar si hay historial.
+ *
+ * Timestamp propio: 175100 ya lo usa ClientDocumentStorage.
  */
-export class TripUnitDeleteRestrict1751000000000 implements MigrationInterface {
-  name = 'TripUnitDeleteRestrict1751000000000';
+export class TripUnitDeleteRestrict1751300000000 implements MigrationInterface {
+  name = 'TripUnitDeleteRestrict1751300000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`
