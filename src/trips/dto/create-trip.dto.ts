@@ -26,10 +26,9 @@ export class CreateTripDto {
   @IsString()
   clientId?: string;
 
-  @ApiPropertyOptional({ description: 'ID público numérico de la unidad' })
-  @IsOptional()
+  @ApiProperty({ description: 'ID público numérico de la unidad' })
   @IsString()
-  unitId?: string;
+  unitId: string;
 
   @ApiPropertyOptional({ description: 'ID público numérico del operador' })
   @IsOptional()

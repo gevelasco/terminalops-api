@@ -7,13 +7,16 @@ import { Equipment } from 'src/equipment/entities/equipment.entity';
 import { ExpensesService } from 'src/expenses/expenses.service';
 import { Operator } from 'src/operators/entities/operator.entity';
 import { Trip } from 'src/trips/entities/trip.entity';
+import { TripDocument } from 'src/trips/entities/trip-document.entity';
 import { TripEquipment } from 'src/trips/entities/trip-equipment.entity';
 import { TripIncident } from 'src/trips/entities/trip-incident.entity';
+import { TripIncidentImage } from 'src/trips/entities/trip-incident-image.entity';
 import { Unit } from 'src/units/entities/unit.entity';
 import { AppUser } from 'src/users/entities/app-user.entity';
 import { DestinationRatesService } from 'src/destination-rates/destination-rates.service';
 import { OperationConfigurationsService } from 'src/operation-configurations/operation-configurations.service';
 import { OperationalCentersService } from 'src/operational-centers/operational-centers.service';
+import { FileService } from 'src/common/file/file.service';
 import { TripFleetStatusSyncService } from './lifecycle/trip-fleet-status-sync.service';
 import { TripLifecycleService } from './lifecycle/trip-lifecycle.service';
 import { UnitTripOdometerService } from 'src/units/unit-trip-odometer.service';
@@ -54,8 +57,10 @@ describe('TripsService.update (A4 snapshot immutability)', () => {
       providers: [
         TripsService,
         { provide: getRepositoryToken(Trip), useValue: { findOne: tripsFindOne, update: tripsUpdate, save: jest.fn(), delete: jest.fn(), createQueryBuilder: jest.fn() } },
+        { provide: getRepositoryToken(TripDocument), useValue: { find: jest.fn(), save: jest.fn(), delete: jest.fn() } },
         { provide: getRepositoryToken(TripEquipment), useValue: { delete: jest.fn(), save: jest.fn(), create: jest.fn() } },
         { provide: getRepositoryToken(TripIncident), useValue: { save: jest.fn(), create: jest.fn() } },
+        { provide: getRepositoryToken(TripIncidentImage), useValue: { save: jest.fn(), create: jest.fn() } },
         { provide: getRepositoryToken(Equipment), useValue: { find: jest.fn(), findOne: jest.fn() } },
         { provide: getRepositoryToken(Client), useValue: { findOne: jest.fn() } },
         { provide: getRepositoryToken(Company), useValue: { findOne: jest.fn() } },
@@ -71,6 +76,7 @@ describe('TripsService.update (A4 snapshot immutability)', () => {
         { provide: ExpensesService, useValue: {} },
         { provide: ActivityEventsService, useValue: { record: jest.fn() } },
         { provide: TripLoadPlacesService, useValue: { findOrCreate: jest.fn() } },
+        { provide: FileService, useValue: { upload: jest.fn(), presignedUrl: jest.fn() } },
       ],
     }).compile();
 
@@ -119,5 +125,12 @@ describe('TripsService.update (A4 snapshot immutability)', () => {
       }),
     );
     expect(unitsFindOne).toHaveBeenCalled();
+  });
+
+  it('rechaza PATCH que vacía unitId', async () => {
+    await expect(
+      service.update(1, 10, { unitId: '' }, { unitId: '' }),
+    ).rejects.toThrow(BadRequestException);
+    expect(tripsUpdate).not.toHaveBeenCalled();
   });
 });

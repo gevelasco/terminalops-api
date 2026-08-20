@@ -174,13 +174,9 @@ export class TripsService {
     const rowsQb = this.tripsRepo
       .createQueryBuilder('trip')
       // client_id / client_name viven en trip; no hace falta join completo.
-      .leftJoin('trip.unit', 'unit')
-      .addSelect([
-        'unit.id',
-        'unit.trailerBrandAbbr',
-        'unit.trailerYear',
-        'unit.plate',
-      ])
+      // Join completo de unidad: un addSelect parcial a veces no hidrata la
+      // relación y TypeORM deja unitId vacío en memoria aunque el FK exista.
+      .leftJoinAndSelect('trip.unit', 'unit')
       .leftJoin('trip.operator', 'operator')
       .addSelect(['operator.id', 'operator.name'])
       .leftJoinAndSelect('trip.tripEquipment', 'tripEquipment');
@@ -636,6 +632,7 @@ export class TripsService {
     companyId: number,
     dto: CreateTripDto,
     rawBody: Record<string, unknown> = {},
+    actor?: AuthUser,
   ) {
     rejectLegacyScheduleFields(rawBody);
     rejectClientTripStatusMutation(rawBody);
@@ -699,9 +696,13 @@ export class TripsService {
       dto.operationType,
     );
 
-    const resolvedUnitId = dto.unitId
-      ? await this.resolveUnitId(companyId, dto.unitId)
-      : undefined;
+    if (!dto.unitId?.trim()) {
+      throw new BadRequestException('unitId is required');
+    }
+    const resolvedUnitId = await this.resolveUnitId(companyId, dto.unitId);
+    if (resolvedUnitId == null) {
+      throw new BadRequestException('unitId is required');
+    }
     const resolvedOperatorId = dto.operatorId
       ? await this.resolveOperatorId(companyId, dto.operatorId)
       : undefined;
@@ -724,6 +725,8 @@ export class TripsService {
       plannedCompletionAt: planned.plannedCompletionAt,
       statusChangedAt: createdAt,
       statusChangedBy: 'system',
+      createdBy:
+        actor?.name?.trim() || actor?.username?.trim() || undefined,
       operationType: operationConfig.code,
       operationConfigurationId: operationConfig.id,
       loadType: dto.loadType,
@@ -899,9 +902,14 @@ export class TripsService {
     let resolvedOperatorIdForPatch: number | undefined | null = undefined;
 
     if (unitId !== undefined) {
-      resolvedUnitIdForPatch = unitId
-        ? await this.resolveUnitId(companyId, unitId, tripId)
-        : undefined;
+      if (!String(unitId).trim()) {
+        throw new BadRequestException('unitId cannot be cleared');
+      }
+      resolvedUnitIdForPatch = await this.resolveUnitId(
+        companyId,
+        unitId,
+        tripId,
+      );
     }
 
     if (operatorId !== undefined) {
@@ -1533,7 +1541,7 @@ export class TripsService {
     }
   }
 
-  /** Entrega de vacío solo aplica en curso/completada y con contenedor real. */
+  /** Entrega de vacío: opcional; solo en curso o completada. */
   private assertEmptyDeliveryAllowed(
     trip: Trip,
     emptyDeliveryAt: string | undefined,
@@ -1546,21 +1554,6 @@ export class TripsService {
     if (trip.status !== 'in_transit' && trip.status !== 'completed') {
       throw new BadRequestException(
         'La entrega de vacío solo puede registrarse cuando la maniobra está en curso o completada.',
-      );
-    }
-    const containerType = trip.containerType
-      ?.trim()
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '');
-    if (
-      !containerType ||
-      containerType === 'na' ||
-      containerType === 'n/a' ||
-      containerType === 'no aplica'
-    ) {
-      throw new BadRequestException(
-        'La entrega de vacío solo aplica a maniobras con contenedor.',
       );
     }
     if (!emptyDeliveryAt?.trim() || !emptyDeliveryPlace?.trim()) {

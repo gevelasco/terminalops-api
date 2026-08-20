@@ -162,6 +162,19 @@ async function main() {
           WHERE storage_key IS NOT NULL;
       `);
       console.log('Schema ensure: client_documents OK');
+      // Hard ensure: operator documents storage (covers migrations_list drift).
+      await dataSource.query(`
+        ALTER TABLE terminalops.operator_documents
+          ADD COLUMN IF NOT EXISTS storage_key text NULL,
+          ADD COLUMN IF NOT EXISTS content_type text NULL,
+          ADD COLUMN IF NOT EXISTS size_bytes bigint NULL;
+      `);
+      await dataSource.query(`
+        CREATE INDEX IF NOT EXISTS operator_documents_storage_key_idx
+          ON terminalops.operator_documents (storage_key)
+          WHERE storage_key IS NOT NULL;
+      `);
+      console.log('Schema ensure: operator_documents storage columns OK');
       // Hard ensure: checklist personal por usuario.
       await dataSource.query(`
         CREATE TABLE IF NOT EXISTS terminalops.user_checklist_todos (

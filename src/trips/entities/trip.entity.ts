@@ -186,6 +186,10 @@ export class Trip {
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 
+  /** Usuario que programó la maniobra (nombre visible o username). */
+  @Column({ name: 'created_by', type: 'text', nullable: true })
+  createdBy?: string | null;
+
   @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
   updatedAt: Date;
 

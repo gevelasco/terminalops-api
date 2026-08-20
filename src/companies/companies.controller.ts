@@ -47,6 +47,7 @@ import { CreateTripDto } from '../trips/dto/create-trip.dto';
 import { ListTripLinkOptionsQueryDto } from '../trips/dto/list-trip-link-options-query.dto';
 import { ListResourceLinkOptionsQueryDto } from '../common/dto/list-resource-link-options-query.dto';
 import { ListResourcePageQueryDto } from '../common/dto/list-resource-page-query.dto';
+import { ListFleetResourcePageQueryDto } from '../fleet/dto/list-fleet-resource-page-query.dto';
 import { ListTripsQueryDto } from '../trips/dto/list-trips-query.dto';
 import { FuelEstimateRequestDto } from '../trips/dto/fuel-estimate.dto';
 import { FuelEstimatorService } from '../trips/fuel/fuel-estimator.service';
@@ -300,8 +301,7 @@ export class CompaniesController {
   @Get(':companyId/operators')
   async listOperators(
     @Param('companyId', ParseIntPipe) companyId: number,
-    @Query() query: ListResourcePageQueryDto,
-    @Query('available') available: string | undefined,
+    @Query() query: ListFleetResourcePageQueryDto,
     @LoggedUser() user: AuthUser,
   ) {
     assertModuleRead(user, APP_MODULE_CODES.OPERATORS);
@@ -310,8 +310,9 @@ export class CompaniesController {
       companyId,
     );
     return this.operatorsService.findAll(tenantId, {
-      ...query,
-      available: parseAvailableQuery(available),
+      page: query.page,
+      limit: query.limit,
+      available: parseAvailableQuery(query.available),
     });
   }
 
@@ -352,9 +353,7 @@ export class CompaniesController {
   @Get(':companyId/units')
   async listUnits(
     @Param('companyId', ParseIntPipe) companyId: number,
-    @Query() query: ListResourcePageQueryDto,
-    @Query('includeFleetTenure') includeFleetTenure: string | undefined,
-    @Query('available') available: string | undefined,
+    @Query() query: ListFleetResourcePageQueryDto,
     @LoggedUser() user: AuthUser,
   ) {
     assertModuleRead(user, APP_MODULE_CODES.FLEET);
@@ -363,9 +362,10 @@ export class CompaniesController {
       companyId,
     );
     return this.unitsService.findAll(tenantId, {
-      ...query,
-      includeTenure: parseIncludeFleetTenure(includeFleetTenure),
-      available: parseAvailableQuery(available),
+      page: query.page,
+      limit: query.limit,
+      includeTenure: parseIncludeFleetTenure(query.includeFleetTenure),
+      available: parseAvailableQuery(query.available),
     });
   }
 
@@ -410,8 +410,7 @@ export class CompaniesController {
   @Get(':companyId/equipment')
   async listEquipment(
     @Param('companyId', ParseIntPipe) companyId: number,
-    @Query() query: ListResourcePageQueryDto,
-    @Query('includeFleetTenure') includeFleetTenure: string | undefined,
+    @Query() query: ListFleetResourcePageQueryDto,
     @LoggedUser() user: AuthUser,
   ) {
     assertModuleRead(user, APP_MODULE_CODES.FLEET);
@@ -420,8 +419,10 @@ export class CompaniesController {
       companyId,
     );
     return this.equipmentService.findAll(tenantId, {
-      ...query,
-      includeTenure: parseIncludeFleetTenure(includeFleetTenure),
+      page: query.page,
+      limit: query.limit,
+      includeTenure: parseIncludeFleetTenure(query.includeFleetTenure),
+      available: parseAvailableQuery(query.available),
     });
   }
 
@@ -505,7 +506,12 @@ export class CompaniesController {
     );
     await this.planEnforcement.assertCanAddTripThisMonth(tenantId);
     rejectClientTripStatusMutation(req.body as Record<string, unknown>);
-    return this.tripsService.create(tenantId, dto, req.body as Record<string, unknown>);
+    return this.tripsService.create(
+      tenantId,
+      dto,
+      req.body as Record<string, unknown>,
+      user,
+    );
   }
 
   @Post(':companyId/trips/fuel-estimate')
