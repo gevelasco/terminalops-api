@@ -1,3 +1,4 @@
+import { DataSource } from 'typeorm';
 import dataSource from '../config/migration.config';
 
 /**
@@ -7,12 +8,32 @@ import dataSource from '../config/migration.config';
  * fallaría. Con el lock la segunda espera y luego no encuentra nada pendiente.
  */
 const MIGRATION_LOCK_KEY = 74_027_002;
+const MIGRATION_LOCK_TIMEOUT_MS = 90_000;
+
+async function acquireMigrationLock(ds: DataSource): Promise<boolean> {
+  const deadline = Date.now() + MIGRATION_LOCK_TIMEOUT_MS;
+  while (Date.now() < deadline) {
+    const rows = (await ds.query(`SELECT pg_try_advisory_lock($1) AS locked`, [
+      MIGRATION_LOCK_KEY,
+    ])) as { locked: boolean | string }[];
+    const locked = rows[0]?.locked;
+    if (locked === true || locked === 't') {
+      return true;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+  }
+  return false;
+}
 
 async function main() {
   await dataSource.initialize();
   try {
-    // Lock bloqueante sobre la conexión: la segunda instancia espera aquí.
-    await dataSource.query(`SELECT pg_advisory_lock($1)`, [MIGRATION_LOCK_KEY]);
+    const locked = await acquireMigrationLock(dataSource);
+    if (!locked) {
+      throw new Error(
+        `No se pudo tomar el lock de migraciones en ${MIGRATION_LOCK_TIMEOUT_MS / 1000}s. Reintenta el deploy.`,
+      );
+    }
     try {
       const executed = await dataSource.runMigrations();
       console.log(
@@ -280,6 +301,32 @@ async function main() {
           WHERE storage_key IS NOT NULL;
       `);
       console.log('Schema ensure: trip_incident_images OK');
+      await dataSource.query(`CREATE EXTENSION IF NOT EXISTS pgcrypto`);
+      await dataSource.query(`
+        CREATE TABLE IF NOT EXISTS terminalops.refresh_tokens (
+          id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+          user_id int NOT NULL REFERENCES terminalops.app_user (id) ON DELETE CASCADE,
+          jti uuid NOT NULL,
+          token_hash text NOT NULL,
+          expires_at timestamptz NOT NULL,
+          revoked_at timestamptz NULL,
+          replaced_by_jti uuid NULL,
+          created_at timestamptz NOT NULL DEFAULT now()
+        );
+      `);
+      await dataSource.query(`
+        CREATE UNIQUE INDEX IF NOT EXISTS refresh_tokens_jti_uidx
+          ON terminalops.refresh_tokens (jti);
+      `);
+      await dataSource.query(`
+        CREATE UNIQUE INDEX IF NOT EXISTS refresh_tokens_token_hash_uidx
+          ON terminalops.refresh_tokens (token_hash);
+      `);
+      await dataSource.query(`
+        CREATE INDEX IF NOT EXISTS refresh_tokens_user_id_idx
+          ON terminalops.refresh_tokens (user_id);
+      `);
+      console.log('Schema ensure: refresh_tokens OK');
     } finally {
       await dataSource.query(`SELECT pg_advisory_unlock($1)`, [
         MIGRATION_LOCK_KEY,
