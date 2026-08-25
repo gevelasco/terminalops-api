@@ -10,7 +10,7 @@ export class SeedDevTenant1740600000000 implements MigrationInterface {
 
     await queryRunner.query(`
       INSERT INTO terminalops.companies (id, name, subscription_status, subscription_plan)
-      VALUES (1, 'TerminalOps Demo', 'active', 'trial')
+      VALUES (1, 'TerminalOps Demo', 'active', 'pro')
       ON CONFLICT (id) DO NOTHING;
 
       SELECT setval(

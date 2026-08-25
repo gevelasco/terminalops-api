@@ -13,7 +13,9 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { compare } from 'bcrypt';
 import { FindOptionsWhere, Repository } from 'typeorm';
 import { hashPassword } from '../auth/auth.utils';
+import { isAppUserLoginAllowed } from '../auth/auth-login.util';
 import { buildPasswordResetPayload } from '../auth/password-reset-token.util';
+import { RefreshTokensService } from '../auth/refresh-tokens.service';
 import { EmailService } from '../email/email.service';
 import { AppUser } from 'src/users/entities/app-user.entity';
 import { UserPreferences } from 'src/users/entities/user-preferences.entity';
@@ -59,6 +61,7 @@ export class UsersService {
     private readonly config: ConfigService<EnvConfig>,
     private readonly jwtService: JwtService,
     private readonly emailService: EmailService,
+    private readonly refreshTokens: RefreshTokensService,
   ) {}
 
   findOne(where: FindOptionsWhere<AppUser>) {
@@ -202,6 +205,7 @@ export class UsersService {
 
     user.passwordHash = await hashPassword(newPassword, this.saltRounds);
     await this.usersRepo.save(user);
+    await this.revokeUserSessions(user.id);
   }
 
   /** Restablecimiento / set password por token (sin contraseña actual). */
@@ -212,6 +216,7 @@ export class UsersService {
     }
     user.passwordHash = await hashPassword(newPassword, this.saltRounds);
     await this.usersRepo.save(user);
+    await this.revokeUserSessions(user.id);
   }
 
   /** Correo único en toda la app (cualquier empresa). */
@@ -709,6 +714,9 @@ export class UsersService {
       user.status = data.status;
     }
     await this.usersRepo.save(user);
+    if (data.newPassword || (data.status && !isAppUserLoginAllowed(user.status))) {
+      await this.revokeUserSessions(user.id);
+    }
     if (user.role === 'staff' && (data.moduleGrants || data.moduleCodes)) {
       await this.replaceModuleAccess(
         user.id,
@@ -785,5 +793,16 @@ export class UsersService {
   private resolveUserWorkLocation(user: AppUser): string {
     return operationalCenterGeoForApi(user.company?.primaryOperationalCenter)
       .operationalCenterName;
+  }
+
+  private async revokeUserSessions(userId: number): Promise<void> {
+    try {
+      await this.refreshTokens.revokeAllForUser(userId);
+    } catch (err: unknown) {
+      this.logger.warn(
+        `No se pudieron revocar sesiones del usuario ${userId}`,
+        err instanceof Error ? err.message : err,
+      );
+    }
   }
 }

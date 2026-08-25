@@ -9,6 +9,7 @@ import { UsersModule } from '../users/users.module';
 import EnvConfig from '../types/env-config.type';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
+import { RefreshTokensModule } from './refresh-tokens.module';
 
 @Global()
 @Module({
@@ -17,6 +18,7 @@ import { AuthService } from './auth.service';
     CompaniesModule,
     OperationalCentersModule,
     EmailModule,
+    RefreshTokensModule,
     JwtModule.registerAsync({
       inject: [ConfigService],
       global: true,

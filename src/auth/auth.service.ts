@@ -8,6 +8,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { compare } from 'bcrypt';
+import { randomUUID } from 'crypto';
 import { invitationLicenseEndsAt } from '../common/constants/invitation-codes';
 import { CompaniesService } from '../companies/companies.service';
 import { EmailService } from '../email/email.service';
@@ -17,6 +18,7 @@ import { UsersService } from '../users/users.service';
 import EnvConfig from '../types/env-config.type';
 import { AppUser } from 'src/users/entities/app-user.entity';
 import { LoginDto } from './dto/login.dto';
+import { LogoutDto } from './dto/logout.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { SignUpDto } from './dto/sign-up.dto';
 import { isAppUserLoginAllowed } from './auth-login.util';
@@ -25,6 +27,13 @@ import {
   isPasswordResetPayload,
   type PasswordResetJwtPayload,
 } from './password-reset-token.util';
+import {
+  hashRefreshToken,
+  parseRefreshJwtPayload,
+  REFRESH_TOKEN_TTL,
+  REFRESH_TOKEN_TTL_MS,
+} from './refresh-token.util';
+import { RefreshTokensService } from './refresh-tokens.service';
 
 @Injectable()
 export class AuthService {
@@ -38,6 +47,7 @@ export class AuthService {
     private readonly emailService: EmailService,
     private readonly jwtService: JwtService,
     private readonly config: ConfigService<EnvConfig>,
+    private readonly refreshTokens: RefreshTokensService,
   ) {}
 
   async login(dto: LoginDto) {
@@ -53,20 +63,45 @@ export class AuthService {
   }
 
   async refresh(dto: RefreshTokenDto) {
-    let payload: { sub: string | number };
-    try {
-      payload = await this.jwtService.verifyAsync(dto.refreshToken, {
-        secret: this.config.get('JWT_REFRESH_SECRET', { infer: true }),
-      });
-    } catch {
-      throw new HttpException('Invalid refresh token', HttpStatus.UNAUTHORIZED);
-    }
-    const userId = Number(payload.sub);
-    const user = await this.usersService.findOne({ id: userId });
+    const parsed = await this.verifyRefreshToken(dto.refreshToken);
+    const user = await this.usersService.findOne({ id: parsed.userId });
     if (!user || !isAppUserLoginAllowed(user.status)) {
+      await this.refreshTokens.revokeAllForUser(parsed.userId);
       throw new HttpException('Invalid refresh token', HttpStatus.UNAUTHORIZED);
     }
-    return this.buildAuthResponse(user);
+    const decision = await this.refreshTokens.inspect(
+      parsed.jti,
+      hashRefreshToken(dto.refreshToken),
+    );
+    if (decision === 'reuse') {
+      await this.refreshTokens.revokeAllForUser(parsed.userId);
+      throw new HttpException('Invalid refresh token', HttpStatus.UNAUTHORIZED);
+    }
+    if (decision === 'invalid') {
+      throw new HttpException('Invalid refresh token', HttpStatus.UNAUTHORIZED);
+    }
+    const response = await this.buildAuthResponse(user);
+    if (decision === 'active') {
+      const nextJti = parseRefreshJwtPayload(
+        this.jwtService.decode(response.refresh_token),
+      )?.jti;
+      await this.refreshTokens.markRotated(parsed.jti, nextJti);
+    }
+    return response;
+  }
+
+  async logout(dto: LogoutDto): Promise<{ ok: true }> {
+    const token = dto.refreshToken?.trim();
+    if (!token) {
+      return { ok: true };
+    }
+    try {
+      const parsed = await this.verifyRefreshToken(token);
+      await this.refreshTokens.revokeByJti(parsed.jti);
+    } catch {
+      /* ya estaba inválido o expirado */
+    }
+    return { ok: true };
   }
 
   async signUp(dto: SignUpDto) {
@@ -208,14 +243,47 @@ export class AuthService {
     const { photoDataUrl: _photo, ...jwtClaims } = authUser;
     return {
       access_token: this.jwtService.sign(jwtClaims, { expiresIn: '1h' }),
-      refresh_token: this.jwtService.sign(
-        { sub: user.id },
-        {
-          secret: this.config.get('JWT_REFRESH_SECRET', { infer: true }),
-          expiresIn: '7d',
-        },
-      ),
+      refresh_token: await this.issueRefreshToken(user.id),
       user: authUser,
     };
+  }
+
+  private async issueRefreshToken(userId: number): Promise<string> {
+    const jti = randomUUID();
+    const token = this.jwtService.sign(
+      { sub: userId },
+      {
+        secret: this.refreshSecret(),
+        expiresIn: REFRESH_TOKEN_TTL,
+        jwtid: jti,
+      },
+    );
+    await this.refreshTokens.persist({
+      userId,
+      jti,
+      tokenHash: hashRefreshToken(token),
+      expiresAt: new Date(Date.now() + REFRESH_TOKEN_TTL_MS),
+    });
+    return token;
+  }
+
+  private async verifyRefreshToken(token: string) {
+    let payload: unknown;
+    try {
+      payload = await this.jwtService.verifyAsync(token, {
+        secret: this.refreshSecret(),
+      });
+    } catch {
+      throw new HttpException('Invalid refresh token', HttpStatus.UNAUTHORIZED);
+    }
+    const parsed = parseRefreshJwtPayload(payload);
+    if (!parsed) {
+      throw new HttpException('Invalid refresh token', HttpStatus.UNAUTHORIZED);
+    }
+    return parsed;
+  }
+
+  private refreshSecret(): string {
+    return this.config.get('JWT_REFRESH_SECRET', { infer: true }) ?? '';
   }
 }

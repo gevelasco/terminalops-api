@@ -1,9 +1,12 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
+import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { AppUser } from 'src/users/entities/app-user.entity';
 import { UserPreferences } from 'src/users/entities/user-preferences.entity';
 import { UserModuleAccess } from 'src/users/entities/user-module-access.entity';
+import { EmailService } from '../email/email.service';
+import { RefreshTokensService } from '../auth/refresh-tokens.service';
 import { UsersService } from './users.service';
 
 describe('UsersService (A3 operational analysis SSOT)', () => {
@@ -49,6 +52,18 @@ describe('UsersService (A3 operational analysis SSOT)', () => {
           useValue: {
             get: jest.fn(() => 10),
           },
+        },
+        {
+          provide: JwtService,
+          useValue: { sign: jest.fn(), signAsync: jest.fn() },
+        },
+        {
+          provide: EmailService,
+          useValue: { sendWelcome: jest.fn(), sendPasswordReset: jest.fn() },
+        },
+        {
+          provide: RefreshTokensService,
+          useValue: { revokeAllForUser: jest.fn() },
         },
       ],
     }).compile();
