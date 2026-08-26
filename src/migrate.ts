@@ -278,6 +278,12 @@ async function main() {
           ADD COLUMN IF NOT EXISTS created_by text NULL;
       `);
       console.log('Schema ensure: trips.created_by OK');
+      // Hard ensure: viáticos en tarifas por destino (covers start:dev skip).
+      await dataSource.query(`
+        ALTER TABLE terminalops.destination_rate_prices
+          ADD COLUMN IF NOT EXISTS per_diem_amount numeric(12, 2) NOT NULL DEFAULT 0;
+      `);
+      console.log('Schema ensure: destination_rate_prices.per_diem_amount OK');
       // Hard ensure: bitácora incident images table.
       await dataSource.query(`
         CREATE TABLE IF NOT EXISTS terminalops.trip_incident_images (
