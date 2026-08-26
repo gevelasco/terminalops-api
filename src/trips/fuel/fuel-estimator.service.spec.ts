@@ -14,6 +14,20 @@ describe('FuelEstimatorService', () => {
     getCurrentDieselPrice.mockResolvedValue(25.5);
   });
 
+  it('usa 2.8 km/L de referencia en sencillo vacío foránea (720 km ida → 514.3 L)', async () => {
+    const res = await service.estimate({
+      distanceKm: 720,
+      configuration: 'sencillo',
+      approximateWeightTons: 0,
+      cargoType: 'vacio',
+      containerType: 'na',
+    });
+    expect(res.calculationProfile).toBe('sencillo_vacio');
+    expect(res.operationalDistanceKm).toBe(1440);
+    expect(res.estimatedKmPerLiter).toBe(2.8);
+    expect(res.estimatedLiters).toBe(514.3);
+  });
+
   it('estimates sencillo vacío local', async () => {
     const res = await service.estimate({
       distanceKm: 20,

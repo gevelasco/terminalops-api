@@ -38,6 +38,12 @@ export class DestinationRatePriceInputDto {
   @Min(0)
   estimatedTollAmount?: number;
 
+  @ApiPropertyOptional({ example: 350, description: 'Viáticos del operador (MXN)' })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  perDiemAmount?: number;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()

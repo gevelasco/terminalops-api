@@ -43,6 +43,15 @@ export class DestinationRatePrice {
   })
   estimatedTollAmount: string;
 
+  @Column({
+    name: 'per_diem_amount',
+    type: 'numeric',
+    precision: 12,
+    scale: 2,
+    default: 0,
+  })
+  perDiemAmount: string;
+
   @Column({ type: 'text', nullable: true })
   notes?: string;
 

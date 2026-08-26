@@ -15,6 +15,7 @@ export function serializeDestinationRatePrice(
     clientCharge: price.clientCharge,
     operatorPaymentEstimate: price.operatorPaymentEstimate,
     estimatedTollAmount: price.estimatedTollAmount,
+    perDiemAmount: price.perDiemAmount,
     notes: price.notes ?? undefined,
     createdAt: toIsoString(price.createdAt),
     updatedAt: toIsoString(price.updatedAt),

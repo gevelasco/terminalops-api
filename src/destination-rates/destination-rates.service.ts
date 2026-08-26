@@ -644,6 +644,7 @@ export class DestinationRatesService {
           clientCharge: String(input.clientCharge),
           operatorPaymentEstimate: String(input.operatorPaymentEstimate),
           estimatedTollAmount: String(input.estimatedTollAmount ?? 0),
+          perDiemAmount: String(input.perDiemAmount ?? 0),
           notes: input.notes?.trim() || undefined,
         }),
       );
