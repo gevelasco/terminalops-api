@@ -53,7 +53,7 @@ function fleetAssetCode(asset: FleetNotificationAsset): string {
     id: asset.id,
     trailerBrandAbbr: asset.trailerBrandAbbr ?? undefined,
     trailerYear: asset.trailerYear ?? undefined,
-    plate: asset.plate ?? undefined,
+    plate: asset.plate ?? '',
   });
   if (code === String(asset.id)) {
     const plate = asset.plate?.trim();
