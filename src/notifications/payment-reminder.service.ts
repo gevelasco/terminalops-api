@@ -32,6 +32,11 @@ function operationalTodayYmd(now = new Date()): string {
   }).format(now);
 }
 
+/**
+ * Avisos de pagos pendientes. Nunca escribe `paid_at`.
+ * Pendiente → Vencido es derivado al leer (`incurred_at` < hoy MX).
+ * Pendiente/Vencido → Realizado solo lo hace el usuario al confirmar.
+ */
 @Injectable()
 export class PaymentReminderService {
   private readonly logger = new Logger(PaymentReminderService.name);
