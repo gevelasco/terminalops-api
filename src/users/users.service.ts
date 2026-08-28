@@ -349,6 +349,14 @@ export class UsersService {
       ),
       dieselControlEnabled: user.company?.dieselControlEnabled ?? true,
       dieselControlChangedAt: toIsoString(user.company?.dieselControlChangedAt),
+      paymentReminderDaysBefore: (() => {
+        const raw = user.company?.paymentReminderDaysBefore;
+        const n = Number(raw);
+        if (!Number.isFinite(n)) {
+          return 5;
+        }
+        return Math.min(15, Math.max(1, Math.round(n)));
+      })(),
       controlAutomaticRecognition:
         user.company?.tripAssistPrefillEnabled ??
         user.preferences?.controlAutomaticRecognition ??

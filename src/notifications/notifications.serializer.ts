@@ -38,6 +38,13 @@ function iconForActivityKind(kind: string): string {
 export function serializeActivityEventRow(
   row: CompanyActivityEvent,
 ): NotificationFeedItemDto {
+  const tone = row.kind === 'payment.overdue'
+    ? 'danger'
+    : row.kind === 'payment.due_today' || row.kind === 'payment.due_soon'
+      ? 'warning'
+      : row.kind.startsWith('incident.')
+        ? 'danger'
+        : 'neutral';
   return {
     id: `event:${row.id}`,
     kind: row.kind,
@@ -47,7 +54,7 @@ export function serializeActivityEventRow(
     subjectLabel: row.subjectLabel,
     occurredAt: row.occurredAt.toISOString(),
     actorLabel: row.actorLabel?.trim() || 'Sistema',
-    tone: row.kind.startsWith('incident.') ? 'danger' : 'neutral',
+    tone,
     entityType: row.entityType,
     entityId: row.entityId,
   };
@@ -58,7 +65,18 @@ export function mergeNotificationFeedItems(
   computed: NotificationFeedItemDto[],
   limit: number,
 ): NotificationFeedItemDto[] {
-  const merged = [...events, ...computed];
+  const persistedPaymentKeys = new Set(
+    events
+      .filter((item) => item.kind.startsWith('payment.') && item.entityId)
+      .map((item) => `${item.kind}:${item.entityId}`),
+  );
+  const computedWithoutDupes = computed.filter((item) => {
+    if (!item.kind.startsWith('payment.') || !item.entityId) {
+      return true;
+    }
+    return !persistedPaymentKeys.has(`${item.kind}:${item.entityId}`);
+  });
+  const merged = [...events, ...computedWithoutDupes];
   merged.sort(
     (a, b) =>
       b.occurredAt.localeCompare(a.occurredAt) ||

@@ -1,13 +1,7 @@
 import type { Expense } from 'src/expenses/entities/expense.entity';
 import type { Trip } from 'src/trips/entities/trip.entity';
+import { formatOperationalIncurredDateYmd } from 'src/expenses/expenses-incurred-at.util';
 import type { OperatorPayDueVariant } from './operator-list-enrichment.util';
-import {
-  normalizeOperatorPaymentSchedule,
-  resolveOperatorPayAlertDueYmd,
-  resolveTripPayRowDueYmd,
-  tripCompletionAnchorYmd,
-  type OperatorPaymentSchedule,
-} from './operator-payment-schedule.util';
 
 export const OPERATOR_PAYMENT_RECENT_DAYS = 30;
 
@@ -60,7 +54,7 @@ function addDaysYmd(ymd: string, days: number): string {
   return localYmd(d);
 }
 
-function parseMoney(raw?: string | null): number {
+function parseMoney(raw?: string | number | null): number {
   if (raw == null || raw === '') {
     return 0;
   }
@@ -80,13 +74,18 @@ function dateLabel(ymd: string): string {
   }).format(d);
 }
 
-function expenseIncurredYmd(expense: Expense): string | null {
-  const raw = expense.incurredAt;
-  if (!raw) {
+function expenseDueYmd(expense: Expense): string | null {
+  if (!expense.incurredAt) {
     return null;
   }
-  const d = raw instanceof Date ? raw : new Date(raw);
-  return Number.isNaN(d.getTime()) ? null : localYmd(d);
+  return formatOperationalIncurredDateYmd(expense.incurredAt);
+}
+
+function expensePaidYmd(expense: Expense): string | null {
+  if (!expense.paidAt) {
+    return null;
+  }
+  return formatOperationalIncurredDateYmd(expense.paidAt);
 }
 
 function isActiveExpense(expense: Expense): boolean {
@@ -95,45 +94,6 @@ function isActiveExpense(expense: Expense): boolean {
 
 function isOperatorPayExpenseKind(kind: string): boolean {
   return kind === 'operator_payment' || kind === 'operator_commission';
-}
-
-function operatorPaidOnTrip(tripId: number, expenses: readonly Expense[]): number {
-  let sum = 0;
-  for (const e of expenses) {
-    if (!isActiveExpense(e)) {
-      continue;
-    }
-    if (!isOperatorPayExpenseKind(e.kind)) {
-      continue;
-    }
-    if (e.tripId !== tripId) {
-      continue;
-    }
-    sum += parseMoney(e.amount);
-  }
-  return sum;
-}
-
-function primaryOperatorPaymentExpense(
-  tripId: number,
-  expenses: readonly Expense[],
-): Expense | null {
-  const matches = expenses.filter(
-    (e) =>
-      isActiveExpense(e) &&
-      e.tripId === tripId &&
-      isOperatorPayExpenseKind(e.kind) &&
-      parseMoney(e.amount) > 0,
-  );
-  if (matches.length === 0) {
-    return null;
-  }
-  matches.sort((a, b) => {
-    const aYmd = expenseIncurredYmd(a) ?? '';
-    const bYmd = expenseIncurredYmd(b) ?? '';
-    return bYmd.localeCompare(aYmd);
-  });
-  return matches[0] ?? null;
 }
 
 function dueBadgeVariant(dueYmd: string, asOfYmd: string): OperatorPayDueVariant {
@@ -164,11 +124,11 @@ function paymentStatusHint(
 }
 
 function resolvePaymentStatus(
-  balance: number,
+  paid: boolean,
   dueYmd: string,
   asOfYmd: string,
 ): OperatorPaymentRowStatus {
-  if (balance <= 0) {
+  if (paid) {
     return 'paid';
   }
   if (dueYmd < asOfYmd) {
@@ -180,16 +140,16 @@ function resolvePaymentStatus(
   return 'pending';
 }
 
-function isCompletionWithinRecentDays(
-  completionYmd: string | null,
+function isDateWithinRecentDays(
+  ymd: string | null,
   asOfYmd: string,
   dayCount: number,
 ): boolean {
-  if (!completionYmd) {
+  if (!ymd) {
     return false;
   }
   const fromYmd = addDaysYmd(asOfYmd, -(dayCount - 1));
-  return completionYmd >= fromYmd && completionYmd <= asOfYmd;
+  return ymd >= fromYmd && ymd <= asOfYmd;
 }
 
 function sortPendingRows(rows: OperatorPaymentRow[]): OperatorPaymentRow[] {
@@ -209,118 +169,73 @@ function sortPendingRows(rows: OperatorPaymentRow[]): OperatorPaymentRow[] {
 
 function sortRecentRows(rows: OperatorPaymentRow[]): OperatorPaymentRow[] {
   return [...rows].sort((a, b) => {
-    const aKey = a.paidAtYmd ?? a.completionYmd ?? a.dueYmd;
-    const bKey = b.paidAtYmd ?? b.completionYmd ?? b.dueYmd;
+    const aKey = a.paidAtYmd ?? a.dueYmd;
+    const bKey = b.paidAtYmd ?? b.dueYmd;
     return bKey.localeCompare(aKey);
   });
 }
 
-function buildPaymentRow(
-  trip: TripLike,
-  quota: number,
-  paid: number,
-  balance: number,
-  completionYmd: string | null,
-  schedule: OperatorPaymentSchedule,
-  asOfYmd: string,
-  batchDueYmd: string | null,
-  expenses: readonly Expense[],
-): OperatorPaymentRow {
-  const dueYmd = resolveTripPayRowDueYmd(
-    schedule,
-    asOfYmd,
-    completionYmd,
-    batchDueYmd,
-  );
-  const status = resolvePaymentStatus(balance, dueYmd, asOfYmd);
-  const paymentExpense = primaryOperatorPaymentExpense(trip.id, expenses);
-  const paidAtYmd = paymentExpense ? expenseIncurredYmd(paymentExpense) : null;
-
-  return {
-    tripId: trip.id,
-    maneuverCode: trip.maneuverCode,
-    dueYmd,
-    dueLabel: dateLabel(dueYmd),
-    quotaAmount: quota,
-    balance,
-    paidAmount: paid,
-    status,
-    badgeVariant:
-      status === 'paid' ? 'success' : dueBadgeVariant(dueYmd, asOfYmd),
-    statusHint: paymentStatusHint(status, dueYmd, asOfYmd),
-    expenseId: paymentExpense?.id ?? null,
-    paidAtYmd,
-    canConfirm: balance > 0,
-    completionYmd,
-  };
-}
-
+/**
+ * Filas de pago a operador: solo gastos del ledger.
+ * El trip se usa para etiqueta de maniobra y si ya se puede confirmar.
+ */
 export function buildOperatorPaymentRows(
   trips: readonly TripLike[],
   expenses: readonly Expense[],
-  paymentScheduleRaw: string | null | undefined,
   asOf: Date = new Date(),
   periodFrom?: string,
   periodTo?: string,
 ): OperatorPaymentRowSections {
   const asOfYmd = localYmd(asOf);
-  const schedule = normalizeOperatorPaymentSchedule(paymentScheduleRaw);
-
-  const unpaidCompletionYmds: string[] = [];
-  const candidates: Array<{
-    trip: TripLike;
-    quota: number;
-    paid: number;
-    balance: number;
-    completionYmd: string | null;
-  }> = [];
-
-  for (const trip of trips) {
-    if (trip.status !== 'completed') {
-      continue;
-    }
-    const quota = parseMoney(trip.operatorQuota);
-    if (quota <= 0) {
-      continue;
-    }
-    const paid = operatorPaidOnTrip(trip.id, expenses);
-    const balance = Math.max(0, quota - paid);
-    const completionYmd = tripCompletionAnchorYmd(trip);
-    if (balance > 0 && completionYmd) {
-      unpaidCompletionYmds.push(completionYmd);
-    }
-    candidates.push({ trip, quota, paid, balance, completionYmd });
-  }
-
-  const batchDueYmd =
-    unpaidCompletionYmds.length > 0
-      ? resolveOperatorPayAlertDueYmd(schedule, asOfYmd, unpaidCompletionYmds)
-      : null;
-
+  const tripsById = new Map(trips.map((trip) => [trip.id, trip]));
   const pendingPaymentRows: OperatorPaymentRow[] = [];
   const recentPaymentRows: OperatorPaymentRow[] = [];
 
-  for (const { trip, quota, paid, balance, completionYmd } of candidates) {
-    const row = buildPaymentRow(
-      trip,
-      quota,
-      paid,
-      balance,
+  for (const expense of expenses) {
+    if (!isActiveExpense(expense) || !isOperatorPayExpenseKind(expense.kind)) {
+      continue;
+    }
+    const amount = parseMoney(expense.amount);
+    if (amount <= 0) {
+      continue;
+    }
+    const dueYmd = expenseDueYmd(expense);
+    if (!dueYmd) {
+      continue;
+    }
+    const trip = expense.tripId != null ? tripsById.get(expense.tripId) : undefined;
+    const paid = expense.paidAt != null;
+    const status = resolvePaymentStatus(paid, dueYmd, asOfYmd);
+    const paidAtYmd = expensePaidYmd(expense);
+    const completionYmd = trip?.completedAt
+      ? formatOperationalIncurredDateYmd(trip.completedAt)
+      : null;
+    const row: OperatorPaymentRow = {
+      tripId: expense.tripId ?? 0,
+      maneuverCode: trip?.maneuverCode?.trim() || (expense.tripId != null ? `#${expense.tripId}` : '—'),
+      dueYmd,
+      dueLabel: dateLabel(dueYmd),
+      quotaAmount: amount,
+      balance: paid ? 0 : amount,
+      paidAmount: paid ? amount : 0,
+      status,
+      badgeVariant: paid ? 'success' : dueBadgeVariant(dueYmd, asOfYmd),
+      statusHint: paymentStatusHint(status, dueYmd, asOfYmd),
+      expenseId: expense.id,
+      paidAtYmd,
+      canConfirm: !paid && trip?.status === 'completed',
       completionYmd,
-      schedule,
-      asOfYmd,
-      batchDueYmd,
-      expenses,
-    );
+    };
 
-    if (balance > 0) {
+    if (!paid) {
       pendingPaymentRows.push(row);
       continue;
     }
 
-    const inScope = periodFrom && periodTo
-      ? (completionYmd != null && completionYmd >= periodFrom && completionYmd <= periodTo)
-      : isCompletionWithinRecentDays(completionYmd, asOfYmd, OPERATOR_PAYMENT_RECENT_DAYS);
+    const inScope =
+      periodFrom && periodTo
+        ? dueYmd >= periodFrom && dueYmd <= periodTo
+        : isDateWithinRecentDays(paidAtYmd ?? dueYmd, asOfYmd, OPERATOR_PAYMENT_RECENT_DAYS);
     if (inScope) {
       recentPaymentRows.push(row);
     }

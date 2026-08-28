@@ -6,7 +6,13 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { QueryFailedError, Repository } from 'typeorm';
+import {
+  In,
+  QueryFailedError,
+  Repository,
+  type ObjectLiteral,
+  type SelectQueryBuilder,
+} from 'typeorm';
 import { FileService } from 'src/common/file/file.service';
 import { serializeUnit } from 'src/common/serializers/unit.serializer';
 import { FleetTenureService } from 'src/fleet/fleet-tenure.service';
@@ -70,6 +76,12 @@ import {
   FLEET_ASSIGNABLE_LIST_STATUS,
   type FleetListAvailableOptions,
 } from 'src/fleet/fleet-available-list.util';
+import {
+  applyNotOnActiveTripFilter,
+  applyUnitManeuverAssignmentFilter,
+  applyUnitManeuverReadyFilter,
+  fleetListSchema,
+} from 'src/fleet/fleet-assignable-list.filter';
 import type { ListResourceLinkOptionsQueryDto } from 'src/common/dto/list-resource-link-options-query.dto';
 import { isFleetLinkOptionsSearchAllowed } from 'src/fleet/fleet-link-options-search.util';
 import { mapUnitLinkOption } from './unit-link-option.mapper';
@@ -197,21 +209,54 @@ export class UnitsService {
   ): Promise<UnitsListResult> {
     const limit = normalizeResourceListLimit(options?.limit);
     const page = normalizeResourceListPage(options?.page);
-    const where = options?.available
-      ? { companyId, isActive: true, status: FLEET_ASSIGNABLE_LIST_STATUS }
-      : { companyId, isActive: true };
+    const schema = fleetListSchema(this.repo.metadata.schema);
 
-    const total = await this.repo.count({ where });
+    const applyScope = <T extends ObjectLiteral>(
+      qb: SelectQueryBuilder<T>,
+    ): SelectQueryBuilder<T> => {
+      qb.where('unit.companyId = :companyId', { companyId }).andWhere(
+        'unit.isActive = :isActive',
+        { isActive: true },
+      );
+      if (!options?.available) {
+        return qb;
+      }
+      qb.andWhere('unit.status = :assignableStatus', {
+        assignableStatus: FLEET_ASSIGNABLE_LIST_STATUS,
+      });
+      applyNotOnActiveTripFilter(qb, schema, 'unit', 'unit_id');
+      applyUnitManeuverReadyFilter(qb, schema, 'unit');
+      applyUnitManeuverAssignmentFilter(
+        qb,
+        schema,
+        'unit',
+        options.operationType,
+        options.containerType,
+      );
+      return qb;
+    };
 
-    const rows = await this.repo.find({
-      where,
-      relations: [...UNIT_LIST_RELATIONS],
-      order: { plate: 'ASC' },
-      skip: limit > 0 ? (page - 1) * limit : undefined,
-      take: limit > 0 ? limit : undefined,
-    });
+    const total = await applyScope(
+      this.repo.createQueryBuilder('unit'),
+    ).getCount();
+
+    const idQb = applyScope(this.repo.createQueryBuilder('unit')).orderBy(
+      'unit.plate',
+      'ASC',
+    );
+    if (limit > 0) {
+      idQb.skip((page - 1) * limit).take(limit);
+    }
+    const paged = await idQb.getMany();
+    const rows =
+      paged.length === 0
+        ? []
+        : await this.repo.find({
+            where: { companyId, id: In(paged.map((row) => row.id)) },
+            relations: [...UNIT_LIST_RELATIONS],
+            order: { plate: 'ASC' },
+          });
     const unitIds = rows.map((row) => row.id);
-    const schema = this.repo.metadata.schema ?? 'terminalops';
     const [maint, verif] = await Promise.all([
       loadLatestMaintenanceByOwnerIds(
         this.repo.manager,

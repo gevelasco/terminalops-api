@@ -16,8 +16,10 @@ import { Expense } from 'src/expenses/entities/expense.entity';
 import { ExpenseDocument } from 'src/expenses/entities/expense-document.entity';
 import {
   expenseTextColumn,
+  isExpenseVerificationScope,
   mergeExpenseRelationForNormalize,
   normalizeExpenseRelationFields,
+  verificationScopeFromExpenseText,
 } from 'src/expenses/expense-payload.util';
 import { Operator } from 'src/operators/entities/operator.entity';
 import { Trip } from 'src/trips/entities/trip.entity';
@@ -38,13 +40,20 @@ import {
   EXPENSE_CALENDAR_ACTUAL_MAX_ROWS,
 } from './expenses-calendar-range.util';
 import {
-  buildExpenseCalendarProjection,
-  paginateExpenseCalendarEntries,
+  actualEntryFromSerialized,
+  buildLedgerCalendar,
   type ExpenseCalendarEntry,
   type ExpenseCalendarMarker,
 } from './expenses-calendar-projection.util';
+import { applyScheduledExpenseAssetFilter } from './expenses-scheduled-asset-filter.util';
+import { applyUnpaidScheduledLedgerRange } from './unpaid-scheduled-ledger.query';
 import { buildTripAutoExpenses } from 'src/trips/trip-auto-expenses.util';
-import { parseOperationalIncurredAt } from './expenses-incurred-at.util';
+import { VERIFICATION_RENEWAL_MONTHS } from 'src/fleet/fleet-verification-expense-sync.util';
+import {
+  addOperationalMonthsYmd,
+  formatOperationalIncurredDateYmd,
+  parseOperationalIncurredAt,
+} from './expenses-incurred-at.util';
 import { fleetInsuranceIncurredAtMatchSql } from './expenses-insurance-dedup.util';
 import { ExpensesInsuranceFleetReconcileService } from './expenses-insurance-fleet-reconcile.service';
 import { ExpensesMaintenanceFleetReconcileService } from './expenses-maintenance-fleet-reconcile.service';
@@ -55,7 +64,6 @@ import {
   expenseActivityOnUpdate,
   expenseActivitySubjectLabel,
 } from 'src/activity-events/activity-events.expense.util';
-import { loadLatestVerificationByOwnerIds } from 'src/fleet/fleet-latest-entries.loader';
 import {
   EXPENSE_DOCUMENT_SLOTS,
   EXPENSE_DOCUMENT_STORAGE_FOLDER,
@@ -85,8 +93,6 @@ export interface ExpensesCalendarResult {
   summary: {
     actualCount: number;
     actualTotalAmount: string;
-    projectedCount: number;
-    projectedTotalAmount: string;
     grandCount: number;
     grandTotalAmount: string;
   };
@@ -173,6 +179,7 @@ export class ExpensesService {
         actor,
       });
     }
+    await this.syncNextVerificationInstallment(saved);
     return this.findOne(companyId, saved.id);
   }
 
@@ -209,6 +216,7 @@ export class ExpensesService {
           relatedUnitId: draft.relatedUnitId,
           relatedOperatorId: draft.relatedOperatorId,
           paymentMethod: draft.paymentMethod,
+          ...(draft.paidAt !== undefined ? { paidAt: draft.paidAt } : {}),
         }),
       ),
     );
@@ -218,13 +226,14 @@ export class ExpensesService {
     companyId: number,
     query?: ListExpensesQueryDto,
     options: {
+      /** Default false — documentos solo en GET /expenses/:id. */
       includeDocuments?: boolean;
       skipAggregates?: boolean;
     } = {},
   ): Promise<ExpensesListResult> {
     const limit = normalizeExpenseListLimit(query?.limit);
     const page = Math.max(1, query?.page ?? 1);
-    const includeDocuments = options.includeDocuments !== false;
+    const includeDocuments = options.includeDocuments === true;
     const skipAggregates = options.skipAggregates === true;
     const tripFilter = await this.resolveExpenseListTripFilter(
       companyId,
@@ -318,327 +327,131 @@ export class ExpensesService {
     query: ExpensesCalendarQueryDto,
   ): Promise<ExpensesCalendarResult> {
     const { from, to } = assertExpenseCalendarDateRange(query.from, query.to);
-    const limit = normalizeExpenseListLimit(query.limit);
-    const page = Math.max(1, query.page ?? 1);
-
-    // Maniobras activas / completadas con saldo a operador (no historial completo).
-    const tripsQb = this.tripsRepo
-      .createQueryBuilder('trip')
-      .leftJoin('trip.unit', 'unit')
-      .addSelect([
-        'trip.id',
-        'trip.companyId',
-        'trip.status',
-        'trip.maneuverCode',
-        'trip.dieselAmount',
-        'trip.casetasAmount',
-        'trip.perDiemAmount',
-        'trip.operatorQuota',
-        'trip.unitId',
-        'trip.operatorId',
-        'trip.plannedDepartureAt',
-        'trip.plannedCompletionAt',
-        'trip.returnAt',
-        'trip.completedAt',
-        'trip.arrivedAt',
-      ])
-      .addSelect([
-        'unit.id',
-        'unit.trailerBrandAbbr',
-        'unit.trailerYear',
-        'unit.plate',
-      ])
-      .where('trip.companyId = :companyId', { companyId })
-      .andWhere('trip.deleted_at IS NULL')
-      .andWhere(
-        `(
-          trip.status IN ('scheduled', 'in_transit')
-          OR (
-            trip.status = 'completed'
-            AND COALESCE(trip.operator_quota, 0) > 0
-            AND COALESCE(trip.operator_quota, 0) > (
-              SELECT COALESCE(SUM(pe.amount), 0)
-              FROM ${this.repo.metadata.schema}.expenses pe
-              WHERE pe.company_id = trip.company_id
-                AND pe.trip_id = trip.id
-                AND pe.discarded_at IS NULL
-                AND pe.kind IN ('operator_payment', 'operator_commission')
-            )
-          )
-        )`,
-      );
-
-    const [actualItems, trips, units, equipment] = await Promise.all([
-      this.loadCalendarActualExpenses(companyId, from, to),
-      tripsQb.getMany(),
-      this.loadCalendarScheduleUnits(companyId),
-      this.loadCalendarScheduleEquipment(companyId),
-    ]);
-
-    const operatorIds = [
-      ...new Set(
-        trips
-          .map((t) => t.operatorId)
-          .filter((id): id is number => id != null && id > 0),
-      ),
-    ];
-    const operators =
-      operatorIds.length > 0
-        ? await this.operatorsRepo.find({
-            where: { companyId, id: In(operatorIds) },
-            select: ['id', 'name', 'paymentSchedule', 'paymentMethod'],
-          })
-        : [];
-
-    const tripIds = trips.map((t) => t.id);
-    const unitIds = units.map((u) => u.id);
-    const equipmentIds = equipment.map((e) => e.id);
-
-    const [
-      tripDedupExpenses,
-      verificationDedupExpenses,
-      insuranceDedupExpenses,
-      gpsDedupExpenses,
-    ] = await Promise.all([
-      tripIds.length > 0
-        ? this.repo.find({
-            where: {
-              companyId,
-              discardedAt: IsNull(),
-              tripId: In(tripIds),
-              kind: In([
-                'fuel',
-                'tolls',
-                'per_diem',
-                'operator_payment',
-                'operator_commission',
-              ]),
-            },
-            select: [
-              'id',
-              'tripId',
-              'kind',
-              'amount',
-              'category',
-              'description',
-              'relatedUnitId',
-              'relatedEquipmentId',
-              'incurredAt',
-              'discardedAt',
-            ],
-          })
-        : Promise.resolve([] as Expense[]),
-      this.repo
-        .createQueryBuilder('e')
-        .where('e.companyId = :companyId', { companyId })
-        .andWhere('e.discarded_at IS NULL')
-        .andWhere(`e.kind = 'verification'`)
-        .andWhere(
-          `(e.incurred_at AT TIME ZONE 'America/Mexico_City')::date BETWEEN :from::date AND :to::date`,
-          { from, to },
-        )
-        .getMany(),
-      unitIds.length > 0 || equipmentIds.length > 0
-        ? this.repo
-            .createQueryBuilder('e')
-            .where('e.companyId = :companyId', { companyId })
-            .andWhere('e.discarded_at IS NULL')
-            .andWhere(`e.kind = 'insurance'`)
-            .andWhere(
-              `(
-                (e.related_unit_id IS NOT NULL AND e.related_unit_id IN (:...unitIds))
-                OR (e.related_equipment_id IS NOT NULL AND e.related_equipment_id IN (:...equipmentIds))
-              )`,
-              {
-                unitIds: unitIds.length > 0 ? unitIds : [0],
-                equipmentIds: equipmentIds.length > 0 ? equipmentIds : [0],
-              },
-            )
-            .getMany()
-        : Promise.resolve([] as Expense[]),
-      unitIds.length > 0
-        ? this.repo.find({
-            where: {
-              companyId,
-              discardedAt: IsNull(),
-              kind: 'gps',
-              relatedUnitId: In(unitIds),
-            },
-          })
-        : Promise.resolve([] as Expense[]),
-    ]);
-    const dedupExpenses = [
-      ...tripDedupExpenses,
-      ...verificationDedupExpenses,
-      ...insuranceDedupExpenses,
-      ...gpsDedupExpenses,
-    ];
-
-    const projection = buildExpenseCalendarProjection({
-      from,
-      to,
-      trips,
-      units,
-      equipment,
-      operators,
-      tenures: [],
-      expenses: dedupExpenses,
-      actualItems: actualItems,
-    });
-
-    const paginated = paginateExpenseCalendarEntries(
-      projection.entries,
-      page,
-      limit,
-    );
-    const expenseById = new Map(
-      actualItems.map((item) => [Number(item['id']), item]),
-    );
-
-    const items: ExpensesCalendarItem[] = paginated.items.map((entry) => ({
-      ...entry,
-      expense:
-        entry.entryType === 'actual' && entry.expenseId != null
-          ? expenseById.get(entry.expenseId)
-          : undefined,
-    }));
-
     const formatTotal = (value: number) => value.toFixed(2);
 
+    if (query.all === true) {
+      const actualItems = await this.loadCalendarActualExpenses(companyId, from, to);
+      return this.toLedgerCalendarResult(from, to, actualItems, {
+        page: 1,
+        limit: actualItems.length,
+        total: actualItems.length,
+      });
+    }
+
+    const limit = normalizeExpenseListLimit(query.limit);
+    const page = Math.max(1, query.page ?? 1);
+    const [list, markerFacts] = await Promise.all([
+      this.findAll(companyId, { from, to, page, limit }),
+      this.loadCalendarMarkerFacts(companyId, from, to),
+    ]);
+    const view = buildLedgerCalendar(markerFacts);
+    const expenseById = new Map(
+      list.items.map((item) => [Number(item['id']), item]),
+    );
+    const items: ExpensesCalendarItem[] = list.items.map((row) => {
+      const entry = actualEntryFromSerialized(row);
+      return {
+        ...entry,
+        expense:
+          entry.expenseId != null ? expenseById.get(entry.expenseId) : undefined,
+      };
+    });
     return {
       from,
       to,
       items,
-      total: paginated.total,
-      page: paginated.page,
-      limit: paginated.limit,
-      markers: projection.markers,
+      total: list.total,
+      page: list.page,
+      limit: list.limit,
+      markers: view.markers,
       summary: {
-        actualCount: projection.summary.actualCount,
-        actualTotalAmount: formatTotal(projection.summary.actualTotalAmount),
-        projectedCount: projection.summary.projectedCount,
-        projectedTotalAmount: formatTotal(
-          projection.summary.projectedTotalAmount,
-        ),
-        grandCount: projection.summary.grandCount,
-        grandTotalAmount: formatTotal(projection.summary.grandTotalAmount),
+        actualCount: view.summary.actualCount,
+        actualTotalAmount: formatTotal(view.summary.actualTotalAmount),
+        grandCount: view.summary.grandCount,
+        grandTotalAmount: formatTotal(view.summary.grandTotalAmount),
       },
     };
   }
 
-  /** Units con schedule de GPS, seguro o entradas de verificación. */
-  private async loadCalendarScheduleUnits(companyId: number): Promise<Unit[]> {
-    const rows = await this.unitsRepo
-      .createQueryBuilder('u')
-      .leftJoinAndSelect('u.fleetProfile', 'fp')
-      .where('u.companyId = :companyId', { companyId })
-      .andWhere(
-        `(
-          EXISTS (
-            SELECT 1 FROM ${this.unitsRepo.metadata.schema}.unit_fleet_profiles p
-            WHERE p.unit_id = u.id
-              AND (
-                (p.has_gps = true AND COALESCE(p.gps_price, 0) > 0)
-                OR COALESCE(p.insurance_cost, 0) > 0
-              )
-          )
-          OR EXISTS (
-            SELECT 1 FROM ${this.unitsRepo.metadata.schema}.fleet_verification_entries v
-            WHERE v.unit_id = u.id
-              AND v.entry_date IS NOT NULL
-              AND COALESCE(v.cost, 0) > 0
-          )
-        )`,
-      )
-      .getMany();
-    const schema = this.unitsRepo.metadata.schema ?? 'terminalops';
-    const verif = await loadLatestVerificationByOwnerIds(
-      this.unitsRepo.manager,
-      schema,
-      'unit_id',
-      rows.map((r) => r.id),
+  private toLedgerCalendarResult(
+    from: string,
+    to: string,
+    actualItems: ReturnType<typeof serializeExpense>[],
+    paging: { page: number; limit: number; total: number },
+  ): ExpensesCalendarResult {
+    const view = buildLedgerCalendar(actualItems);
+    const expenseById = new Map(
+      actualItems.map((item) => [Number(item['id']), item]),
     );
-    for (const row of rows) {
-      row.verificationEntries = verif.get(row.id) ?? [];
-    }
-    return rows;
-  }
-
-  /** Equipment con schedule de seguro o verificación. */
-  private async loadCalendarScheduleEquipment(
-    companyId: number,
-  ): Promise<Equipment[]> {
-    const rows = await this.equipmentRepo
-      .createQueryBuilder('eq')
-      .leftJoinAndSelect('eq.fleetProfile', 'fp')
-      .where('eq.companyId = :companyId', { companyId })
-      .andWhere(
-        `(
-          EXISTS (
-            SELECT 1 FROM ${this.equipmentRepo.metadata.schema}.equipment_fleet_profiles p
-            WHERE p.equipment_id = eq.id
-              AND COALESCE(p.insurance_cost, 0) > 0
-          )
-          OR EXISTS (
-            SELECT 1 FROM ${this.equipmentRepo.metadata.schema}.fleet_verification_entries v
-            WHERE v.equipment_id = eq.id
-              AND v.entry_date IS NOT NULL
-              AND COALESCE(v.cost, 0) > 0
-          )
-        )`,
-      )
-      .getMany();
-    const schema = this.equipmentRepo.metadata.schema ?? 'terminalops';
-    const verif = await loadLatestVerificationByOwnerIds(
-      this.equipmentRepo.manager,
-      schema,
-      'equipment_id',
-      rows.map((r) => r.id),
-    );
-    for (const row of rows) {
-      row.verificationEntries = verif.get(row.id) ?? [];
-    }
-    return rows;
+    const items: ExpensesCalendarItem[] = view.entries.map((entry) => ({
+      ...entry,
+      expense:
+        entry.expenseId != null ? expenseById.get(entry.expenseId) : undefined,
+    }));
+    const formatTotal = (value: number) => value.toFixed(2);
+    return {
+      from,
+      to,
+      items,
+      total: paging.total,
+      page: paging.page,
+      limit: paging.limit,
+      markers: view.markers,
+      summary: {
+        actualCount: view.summary.actualCount,
+        actualTotalAmount: formatTotal(view.summary.actualTotalAmount),
+        grandCount: view.summary.grandCount,
+        grandTotalAmount: formatTotal(view.summary.grandTotalAmount),
+      },
+    };
   }
 
   /**
-   * Proyecciones de pagos programados para el feed de notificaciones.
-   * Evita el calendario completo (sin docs, sin agregados de listado).
+   * Hechos mínimos del mes para marcadores/totales (sin joins de flota).
+   */
+  private async loadCalendarMarkerFacts(
+    companyId: number,
+    from: string,
+    to: string,
+  ): Promise<ReturnType<typeof serializeExpense>[]> {
+    const qb = this.repo
+      .createQueryBuilder('e')
+      .select([
+        'e.id',
+        'e.kind',
+        'e.amount',
+        'e.currency',
+        'e.paidAt',
+        'e.tripId',
+        'e.incurredAt',
+        'e.category',
+      ]);
+    applyExpenseListFilters(qb, companyId, { from, to });
+    const rows = await qb.getMany();
+    return rows.map((row) => serializeExpense(row));
+  }
+
+  /**
+   * Solo cuotas programadas pendientes del ledger (notificaciones).
+   * No usa el calendario completo: pagados y eventuales no aplican.
    */
   async getPaymentDueItemsForNotifications(
     companyId: number,
     from: string,
     to: string,
-  ): Promise<ExpensesCalendarResult> {
-    const first = await this.getCalendar(companyId, {
-      from,
-      to,
-      page: 1,
-      limit: 100,
-    });
-    if (first.total <= first.limit) {
-      return first;
-    }
-    const pages = Math.ceil(first.total / first.limit);
-    const rest = await Promise.all(
-      Array.from({ length: pages - 1 }, (_, i) =>
-        this.getCalendar(companyId, {
-          from,
-          to,
-          page: i + 2,
-          limit: 100,
-        }),
-      ),
-    );
+  ): Promise<{ items: ExpenseCalendarEntry[] }> {
+    const rows = await applyUnpaidScheduledLedgerRange(
+      this.repo
+        .createQueryBuilder('e')
+        .where('e.companyId = :companyId', { companyId }),
+      { from, to },
+    ).getMany();
     return {
-      ...first,
-      items: [...first.items, ...rest.flatMap((page) => page.items)],
-      page: 1,
-      limit: first.total,
+      items: rows.map((row) => actualEntryFromSerialized(serializeExpense(row))),
     };
   }
 
-  /** Gastos reales del periodo para proyectar el calendario (sin docs; con tope). */
+  /** Gastos del periodo para `all=true` (sin docs; con tope). */
   private async loadCalendarActualExpenses(
     companyId: number,
     from: string,
@@ -851,25 +664,7 @@ export class ExpensesService {
       .where('e.companyId = :companyId', { companyId })
       .andWhere('e.kind = :kind', { kind })
       .andWhere('e.discardedAt IS NULL');
-    if (params.insuranceTarget === 'unit' && params.relatedUnitId != null) {
-      qb.andWhere('e.relatedUnitId = :uid', { uid: params.relatedUnitId });
-    } else if (
-      params.insuranceTarget === 'equipment' &&
-      params.relatedEquipmentId != null
-    ) {
-      qb.andWhere('e.relatedEquipmentId = :eid', {
-        eid: params.relatedEquipmentId,
-      });
-    } else {
-      if (params.relatedUnitId != null) {
-        qb.andWhere('e.relatedUnitId = :uid', { uid: params.relatedUnitId });
-      }
-      if (params.relatedEquipmentId != null) {
-        qb.andWhere('e.relatedEquipmentId = :eid', {
-          eid: params.relatedEquipmentId,
-        });
-      }
-    }
+    applyScheduledExpenseAssetFilter(qb, params);
     return qb.orderBy('e.incurredAt', 'ASC').getMany();
   }
 
@@ -941,6 +736,127 @@ export class ExpensesService {
       }),
     );
     await repo.save(entities);
+  }
+
+  async findActiveVerificationOnDate(params: {
+    companyId: number;
+    relatedUnitId?: number;
+    relatedEquipmentId?: number;
+    scope: string;
+    incurredYmd: string;
+  }): Promise<Expense | null> {
+    const rows = await this.findScheduledExpenses(params.companyId, 'verification', {
+      relatedUnitId: params.relatedUnitId,
+      relatedEquipmentId: params.relatedEquipmentId,
+    });
+    return (
+      rows.find((row) => {
+        const scope = verificationScopeFromExpenseText(row.category, row.description);
+        return (
+          scope === params.scope &&
+          formatOperationalIncurredDateYmd(row.incurredAt) === params.incurredYmd
+        );
+      }) ?? null
+    );
+  }
+
+  async ensureNextVerificationInstallment(params: {
+    companyId: number;
+    relatedUnitId?: number;
+    relatedEquipmentId?: number;
+    scope: string;
+    lastVerificationYmd: string;
+    amount: number;
+    category: string;
+    description?: string | null;
+  }): Promise<void> {
+    if (!isExpenseVerificationScope(params.scope) || params.amount <= 0) {
+      return;
+    }
+    const nextYmd = addOperationalMonthsYmd(
+      params.lastVerificationYmd,
+      VERIFICATION_RENEWAL_MONTHS,
+    );
+    if (!nextYmd || nextYmd === params.lastVerificationYmd) {
+      return;
+    }
+    const existing = await this.findScheduledExpenses(params.companyId, 'verification', {
+      relatedUnitId: params.relatedUnitId,
+      relatedEquipmentId: params.relatedEquipmentId,
+    });
+    const scoped = existing.filter(
+      (row) =>
+        verificationScopeFromExpenseText(row.category, row.description) ===
+        params.scope,
+    );
+    const staleUnpaid = scoped.filter((row) => {
+      if (row.paidAt != null) {
+        return false;
+      }
+      const ymd = formatOperationalIncurredDateYmd(row.incurredAt);
+      return ymd > params.lastVerificationYmd && ymd !== nextYmd;
+    });
+    if (staleUnpaid.length > 0) {
+      await this.repo
+        .createQueryBuilder()
+        .update(Expense)
+        .set({ discardedAt: new Date() })
+        .whereInIds(staleUnpaid.map((row) => row.id))
+        .execute();
+    }
+    const atNext = scoped.find(
+      (row) => formatOperationalIncurredDateYmd(row.incurredAt) === nextYmd,
+    );
+    if (atNext) {
+      if (atNext.paidAt == null && Number(atNext.amount) !== params.amount) {
+        atNext.amount = String(params.amount);
+        await this.repo.save(atNext);
+      }
+      return;
+    }
+    await this.bulkCreateScheduledExpenses(params.companyId, [
+      {
+        category: params.category,
+        amount: params.amount,
+        incurredAt: nextYmd,
+        kind: 'verification',
+        verificationScope: params.scope,
+        relatedUnitId:
+          params.relatedUnitId != null ? String(params.relatedUnitId) : undefined,
+        relatedEquipmentId:
+          params.relatedEquipmentId != null
+            ? String(params.relatedEquipmentId)
+            : undefined,
+        description: params.description?.trim() || undefined,
+        paidAt: null,
+      },
+    ]);
+  }
+
+  private async syncNextVerificationInstallment(expense: Expense): Promise<void> {
+    if (expense.kind !== 'verification' || expense.discardedAt) {
+      return;
+    }
+    const scope = verificationScopeFromExpenseText(
+      expense.category,
+      expense.description,
+    );
+    if (!scope) {
+      return;
+    }
+    if (expense.relatedUnitId == null && expense.relatedEquipmentId == null) {
+      return;
+    }
+    await this.ensureNextVerificationInstallment({
+      companyId: expense.companyId,
+      relatedUnitId: expense.relatedUnitId,
+      relatedEquipmentId: expense.relatedEquipmentId,
+      scope,
+      lastVerificationYmd: formatOperationalIncurredDateYmd(expense.incurredAt),
+      amount: Number(expense.amount) || 0,
+      category: expense.category,
+      description: expense.description,
+    });
   }
 
   /**
@@ -1107,6 +1023,9 @@ export class ExpensesService {
           },
         });
       }
+    }
+    if (updated) {
+      await this.syncNextVerificationInstallment(updated);
     }
     return this.findOne(companyId, expenseId);
   }

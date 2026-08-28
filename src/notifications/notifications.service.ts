@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ActivityEventsService } from 'src/activity-events/activity-events.service';
+import { Company } from 'src/companies/entities/company.entity';
 import { ExpensesService } from 'src/expenses/expenses.service';
 import { Trip } from 'src/trips/entities/trip.entity';
 import { OPERATIONAL_TZ } from 'src/reports/reports-filter.util';
@@ -9,6 +10,7 @@ import { NotificationsQueryDto } from './dto/notifications-query.dto';
 import {
   notificationOverdueFetchFrom,
   resolveNotificationPeriodRange,
+  ymdAddDays,
 } from './notification-period.util';
 import {
   buildComputedPaymentNotifications,
@@ -23,6 +25,7 @@ import {
   allowedNotificationEntityTypes,
   canSeeNotificationItem,
 } from './notification-access.util';
+import { normalizePaymentReminderDays } from './payment-reminder.util';
 import type AuthUser from 'src/types/auth-user.type';
 
 export interface NotificationsFeedResult {
@@ -40,6 +43,8 @@ export class NotificationsService {
     private readonly expensesService: ExpensesService,
     @InjectRepository(Trip)
     private readonly tripsRepo: Repository<Trip>,
+    @InjectRepository(Company)
+    private readonly companies: Repository<Company>,
   ) {}
 
   async getFeed(
@@ -87,7 +92,8 @@ export class NotificationsService {
 
   /**
    * Badge ligero: eventos de actividad posteriores a `since` (ISO).
-   * No incluye vencimientos calculados (eso vive en el feed completo).
+   * Incluye avisos de pago que el cron persistió. El drawer calcula
+   * vencimientos pendientes en vivo; el badge espera al job horario.
    * Staff: solo entityTypes de módulos con lectura.
    */
   async getSummary(
@@ -134,12 +140,24 @@ export class NotificationsService {
       );
 
     const paymentFetchFrom = notificationOverdueFetchFrom(range.today);
-    const [calendar, receivableRows] = await Promise.all([
+    const company = canSeePayments
+      ? await this.companies.findOne({
+          where: { id: companyId },
+          select: ['id', 'paymentReminderDaysBefore'],
+        })
+      : null;
+    const daysBefore = normalizePaymentReminderDays(
+      company?.paymentReminderDaysBefore,
+    );
+    const soonUntil = ymdAddDays(range.today, daysBefore);
+    const paymentFetchTo =
+      soonUntil > range.to ? soonUntil : range.to;
+    const [dueItems, receivableRows] = await Promise.all([
       canSeePayments
         ? this.expensesService.getPaymentDueItemsForNotifications(
             companyId,
             paymentFetchFrom,
-            range.to,
+            paymentFetchTo,
           )
         : Promise.resolve({ items: [] }),
       canSeeTrips
@@ -147,10 +165,9 @@ export class NotificationsService {
         : Promise.resolve([]),
     ]);
 
-    const payments = buildComputedPaymentNotifications(calendar.items, {
-      from: range.from,
-      to: range.to,
+    const payments = buildComputedPaymentNotifications(dueItems.items, {
       today: range.today,
+      soonUntil,
     }).filter((item) => canSeeNotificationItem(user, item));
     const receivables = buildReceivableDueNotifications(receivableRows).filter(
       (item) => canSeeNotificationItem(user, item),

@@ -1,5 +1,7 @@
 import type { ExpenseVerificationScope } from 'src/expenses/expense-payload.util';
 
+export const VERIFICATION_RENEWAL_MONTHS = 6;
+
 export type VerificationExpenseCandidate = {
   scope: ExpenseVerificationScope;
   date: string;

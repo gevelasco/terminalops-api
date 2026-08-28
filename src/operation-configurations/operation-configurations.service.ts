@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import {
   normalizeOperationConfigCode,
   normalizeOperationConfigName,
@@ -39,6 +39,17 @@ export class OperationConfigurationsService {
       order: { name: 'ASC' },
     });
     return rows.map((row) => serializeOperationConfiguration(row));
+  }
+
+  async findDisplayByIds(companyId: number, ids: number[]) {
+    const unique = [...new Set(ids.filter((id) => Number.isFinite(id) && id > 0))];
+    if (unique.length === 0) {
+      return [];
+    }
+    return this.repo.find({
+      where: { companyId, id: In(unique) },
+      select: ['id', 'name', 'code', 'maxEquipmentCount'],
+    });
   }
 
   async findOne(companyId: number, configId: number) {

@@ -712,6 +712,59 @@ export class DestinationRatesService {
     return qb.getOne();
   }
 
+  /**
+   * Una tarifa + su centro de origen (sin prices ni catálogo completo).
+   * Para el drawer de maniobra: no sustituye GET /destination-rates.
+   */
+  async findTripDrawerDisplay(
+    companyId: number,
+    destinationRateId: number | null | undefined,
+  ): Promise<{
+    destinationRateSummary: string | null;
+    originOperationalCenterId: number | null;
+    originOperationalCenterLabel: string | null;
+  }> {
+    if (destinationRateId == null) {
+      return {
+        destinationRateSummary: null,
+        originOperationalCenterId: null,
+        originOperationalCenterLabel: null,
+      };
+    }
+    const rate = await this.repo.findOne({
+      where: { companyId, id: destinationRateId },
+      relations: ['originOperationalCenter'],
+    });
+    if (!rate) {
+      return {
+        destinationRateSummary: null,
+        originOperationalCenterId: null,
+        originOperationalCenterLabel: null,
+      };
+    }
+    const origin =
+      rate.originLocality?.trim() ||
+      rate.originOperationalCenter?.name?.trim() ||
+      'Origen';
+    const dest = rate.locality?.trim() || rate.postalCode?.trim() || 'Destino';
+    const summary = `${origin} → ${dest}`;
+    const cp = rate.postalCode?.trim();
+    const center = rate.originOperationalCenter;
+    const name = center?.name?.trim();
+    const code = center?.code?.trim();
+    let originOperationalCenterLabel: string | null = null;
+    if (name && code) {
+      originOperationalCenterLabel = `${name} (${code})`;
+    } else {
+      originOperationalCenterLabel = name || code || null;
+    }
+    return {
+      destinationRateSummary: cp ? `${summary} · CP ${cp}` : summary,
+      originOperationalCenterId: center?.id ?? rate.originOperationalCenterId ?? null,
+      originOperationalCenterLabel,
+    };
+  }
+
   private async assertUniqueRoute(
     companyId: number,
     originOperationalCenterId: number,

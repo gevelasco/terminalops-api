@@ -57,7 +57,6 @@ describe('operator-operation-summary.util', () => {
       [] as Expense[],
       new Map(),
       new Date('2026-06-20T12:00:00Z'),
-      'maneuver',
     );
 
     expect(OPERATOR_SUMMARY_RECENT_DAYS).toBe(30);

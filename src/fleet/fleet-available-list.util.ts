@@ -3,6 +3,10 @@ export const FLEET_ASSIGNABLE_LIST_STATUS = 'available';
 
 export type FleetListAvailableOptions = {
   available?: boolean;
+  /** Código de configuración (sencillo, full, plana). Solo unidades. */
+  operationType?: string;
+  /** Tipo de contenedor de la maniobra. Solo unidades. */
+  containerType?: string;
 };
 
 export function parseAvailableQuery(value?: string): boolean {

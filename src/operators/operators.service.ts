@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, IsNull, Repository } from 'typeorm';
+import { In, IsNull, Repository, type SelectQueryBuilder } from 'typeorm';
 import { FileService } from 'src/common/file/file.service';
 import { serializeOperator } from 'src/common/serializers/operator.serializer';
 import { TERMINALOPS_SCHEMA } from 'src/common/constants/schema-name';
@@ -47,6 +47,10 @@ import {
   FLEET_ASSIGNABLE_LIST_STATUS,
   type FleetListAvailableOptions,
 } from 'src/fleet/fleet-available-list.util';
+import {
+  applyNotOnActiveTripFilter,
+  fleetListSchema,
+} from 'src/fleet/fleet-assignable-list.filter';
 import { rejectClientFleetStatusMutation } from 'src/fleet/fleet-status-lock.util';
 import type { ListResourceLinkOptionsQueryDto } from 'src/common/dto/list-resource-link-options-query.dto';
 import { isFleetLinkOptionsSearchAllowed } from 'src/fleet/fleet-link-options-search.util';
@@ -123,44 +127,39 @@ export class OperatorsService {
     const limit = normalizeResourceListLimit(options?.limit);
     const page = normalizeResourceListPage(options?.page);
 
-    const countQb = this.repo
-      .createQueryBuilder('operator')
-      .where('operator.companyId = :companyId', { companyId });
-
-    if (options?.available) {
-      countQb
-        .andWhere('operator.isActive = :isActive', { isActive: true })
-        .andWhere('operator.status = :status', {
+    const schema = fleetListSchema(this.repo.metadata.schema);
+    const applyScope = (qb: SelectQueryBuilder<Operator>) => {
+      qb.where('operator.companyId = :companyId', { companyId }).andWhere(
+        'operator.isActive = :isActive',
+        { isActive: true },
+      );
+      if (options?.available) {
+        qb.andWhere('operator.status = :status', {
           status: FLEET_ASSIGNABLE_LIST_STATUS,
         });
-    } else {
-      countQb.andWhere('operator.isActive = :isActive', { isActive: true });
-    }
+        applyNotOnActiveTripFilter(qb, schema, 'operator', 'operator_id');
+      }
+      return qb;
+    };
 
-    const total = await countQb.getCount();
+    const total = await applyScope(
+      this.repo.createQueryBuilder('operator'),
+    ).getCount();
 
-    const qb = this.repo
-      .createQueryBuilder('operator')
-      .leftJoinAndSelect('operator.emergencyContact', 'emergencyContact')
-      .leftJoinAndSelect('operator.publicInsurance', 'publicInsurance')
-      .leftJoinAndSelect('operator.privateInsurance', 'privateInsurance')
-      .leftJoinAndSelect('operator.documents', 'documents')
-      .loadRelationCountAndMap(
-        'operator.maneuverCount',
-        'operator.trips',
-        'trip',
-        (qb) => qb.andWhere('trip.deleted_at IS NULL'),
-      )
-      .where('operator.companyId = :companyId', { companyId });
-
-    if (options?.available) {
-      qb.andWhere('operator.isActive = :isActive', { isActive: true }).andWhere(
-        'operator.status = :status',
-        { status: FLEET_ASSIGNABLE_LIST_STATUS },
-      );
-    } else {
-      qb.andWhere('operator.isActive = :isActive', { isActive: true });
-    }
+    const qb = applyScope(
+      this.repo
+        .createQueryBuilder('operator')
+        .leftJoinAndSelect('operator.emergencyContact', 'emergencyContact')
+        .leftJoinAndSelect('operator.publicInsurance', 'publicInsurance')
+        .leftJoinAndSelect('operator.privateInsurance', 'privateInsurance')
+        .leftJoinAndSelect('operator.documents', 'documents')
+        .loadRelationCountAndMap(
+          'operator.maneuverCount',
+          'operator.trips',
+          'trip',
+          (inner) => inner.andWhere('trip.deleted_at IS NULL'),
+        ),
+    );
 
     qb.orderBy('operator.name', 'ASC').addOrderBy('documents.sortOrder', 'ASC');
     if (limit > 0) {
@@ -244,7 +243,7 @@ export class OperatorsService {
   ): Promise<OperatorOperationSummaryDto> {
     const operator = await this.repo.findOne({
       where: { companyId, id: operatorId },
-      select: ['id', 'paymentSchedule'],
+      select: ['id'],
     });
     if (!operator) {
       throw new NotFoundException(`Operator ${operatorId} not found`);
@@ -295,6 +294,7 @@ export class OperatorsService {
                 AND pe.trip_id = trip.id
                 AND pe.discarded_at IS NULL
                 AND pe.kind IN ('operator_payment', 'operator_commission')
+                AND pe.paid_at IS NOT NULL
             )
           )
         )`,
@@ -329,7 +329,6 @@ export class OperatorsService {
       expenses,
       unitsById,
       now,
-      operator.paymentSchedule,
       periodFrom,
       periodTo,
     );
@@ -376,9 +375,10 @@ export class OperatorsService {
 
       const expenses = await em.getRepository(Expense).find({
         where: { companyId, tripId, discardedAt: IsNull() },
-        select: ['id', 'tripId', 'kind', 'amount'],
+        select: ['id', 'tripId', 'kind', 'amount', 'paidAt'],
       });
       let paid = 0;
+      const pending: Expense[] = [];
       for (const expense of expenses) {
         if (
           expense.kind !== 'operator_payment' &&
@@ -387,8 +387,13 @@ export class OperatorsService {
           continue;
         }
         const amount = Number(expense.amount ?? 0);
-        if (Number.isFinite(amount) && amount > 0) {
+        if (!Number.isFinite(amount) || amount <= 0) {
+          continue;
+        }
+        if (expense.paidAt != null) {
           paid += amount;
+        } else {
+          pending.push(expense);
         }
       }
       const balance = Math.max(0, quota - paid);
@@ -400,23 +405,36 @@ export class OperatorsService {
         tripCompletionAnchorYmd(trip) ?? new Date().toISOString().slice(0, 10);
       const maneuverRef = trip.maneuverCode?.trim() || `#${trip.id}`;
       const paymentMethod = expenseTextColumn(operator.paymentMethod);
+      const amountStr = (Math.round(balance * 100) / 100).toFixed(2);
+      const incurredAt = parseOperationalIncurredAt(completionYmd);
 
       const expenseRepo = em.getRepository(Expense);
-      const savedExpense = await expenseRepo.save(
-        expenseRepo.create({
-          companyId,
-          tripId: trip.id,
-          category: 'Pago a operador',
-          amount: (Math.round(balance * 100) / 100).toFixed(2),
-          currency: 'MXN',
-          incurredAt: parseOperationalIncurredAt(completionYmd),
-          kind: 'operator_payment',
-          description: `Pago a operador — maniobra ${maneuverRef}`,
-          relatedOperatorId: operatorId,
-          relatedUnitId: trip.unitId ?? undefined,
-          ...(paymentMethod != null ? { paymentMethod } : {}),
-        }),
-      );
+      const existingPending = pending[0];
+      const savedExpense = existingPending
+        ? await expenseRepo.save(
+            expenseRepo.merge(existingPending, {
+              amount: amountStr,
+              incurredAt,
+              paidAt: incurredAt,
+              ...(paymentMethod != null ? { paymentMethod } : {}),
+            }),
+          )
+        : await expenseRepo.save(
+            expenseRepo.create({
+              companyId,
+              tripId: trip.id,
+              category: 'Pago a operador',
+              amount: amountStr,
+              currency: 'MXN',
+              incurredAt,
+              paidAt: incurredAt,
+              kind: 'operator_payment',
+              description: `Pago a operador — maniobra ${maneuverRef}`,
+              relatedOperatorId: operatorId,
+              relatedUnitId: trip.unitId ?? undefined,
+              ...(paymentMethod != null ? { paymentMethod } : {}),
+            }),
+          );
       return { savedExpense, balance, maneuverRef };
     });
 
@@ -466,23 +484,24 @@ export class OperatorsService {
 
     // Un solo UPDATE atómico: antes se descartaba gasto por gasto y un fallo
     // a la mitad dejaba la reversión incompleta.
-    const discardedRows: Array<{ id: number; amount: string }> =
+    const revertedRows: Array<{ id: number; amount: string }> =
       await this.expenseRepo
         .createQueryBuilder()
         .update(Expense)
-        .set({ discardedAt: new Date() })
+        .set({ paidAt: null })
         .where('company_id = :companyId', { companyId })
         .andWhere('trip_id = :tripId', { tripId })
         .andWhere('discarded_at IS NULL')
+        .andWhere('paid_at IS NOT NULL')
         .andWhere(`kind IN ('operator_payment', 'operator_commission')`)
         .returning(['id', 'amount'])
         .execute()
         .then((result) => result.raw as Array<{ id: number; amount: string }>);
 
-    const discarded = discardedRows.length;
+    const discarded = revertedRows.length;
     let revertedAmount = 0;
     let revertedExpenseId: number | null = null;
-    for (const row of discardedRows) {
+    for (const row of revertedRows) {
       revertedAmount += Number(row.amount ?? 0);
       revertedExpenseId ??= row.id;
     }
@@ -885,15 +904,9 @@ export class OperatorsService {
       }
     }
 
-    const paymentScheduleByOperatorId = new Map(
-      operators.map(
-        (operator) => [operator.id, operator.paymentSchedule] as const,
-      ),
-    );
     const nextPayByOperator = buildNextPayDueByOperatorId(
       unpaid.trips,
       unpaid.expenses,
-      paymentScheduleByOperatorId,
     );
 
     for (const operator of operators) {
@@ -941,6 +954,7 @@ export class OperatorsService {
             AND e.company_id = t.company_id
             AND e.discarded_at IS NULL
             AND e.kind IN ('operator_payment', 'operator_commission')
+            AND e.paid_at IS NOT NULL
         ) paid ON TRUE
         WHERE t.company_id = $1
           AND t.deleted_at IS NULL
@@ -999,6 +1013,7 @@ export class OperatorsService {
     return { trips, expenses };
   }
 
+  /** Última maniobra completada por operador (misma regla de idle que flota). */
   private async loadLastTripsByOperatorId(
     companyId: number,
     operatorIds: readonly number[],
@@ -1020,21 +1035,16 @@ export class OperatorsService {
           t.destination_postal_code AS "destinationPostalCode",
           t.status,
           t.completed_at AS "completedAt",
-          t.return_at AS "returnAt",
-          t.arrived_at AS "arrivedAt",
-          t.planned_departure_at AS "plannedDepartureAt"
+          t.return_at AS "returnAt"
         FROM ${TERMINALOPS_SCHEMA}.trips t
         WHERE t.company_id = $1
           AND t.deleted_at IS NULL
+          AND t.status = 'completed'
           AND t.operator_id = ANY($2::int[])
+          AND COALESCE(t.return_at, t.completed_at) IS NOT NULL
         ORDER BY
           t.operator_id,
-          COALESCE(
-            t.completed_at,
-            t.return_at,
-            t.arrived_at,
-            t.planned_departure_at
-          ) DESC NULLS LAST
+          COALESCE(t.return_at, t.completed_at) DESC NULLS LAST
       `,
       [companyId, operatorIds],
     );
@@ -1054,10 +1064,6 @@ export class OperatorsService {
           status: row.status,
           completedAt: row.completedAt ? new Date(row.completedAt) : undefined,
           returnAt: row.returnAt ? new Date(row.returnAt) : undefined,
-          arrivedAt: row.arrivedAt ? new Date(row.arrivedAt) : undefined,
-          plannedDepartureAt: row.plannedDepartureAt
-            ? new Date(row.plannedDepartureAt)
-            : undefined,
         }) as unknown as Trip,
     );
   }

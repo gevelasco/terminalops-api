@@ -4,12 +4,6 @@ import {
   buildTripDestinationCityPostalLabel,
   buildTripOriginCityPostalLabel,
 } from 'src/trips/trip-route-label.util';
-import {
-  normalizeOperatorPaymentSchedule,
-  resolveOperatorPayAlertDueYmd,
-  tripCompletionAnchorYmd,
-  type OperatorPaymentSchedule,
-} from './operator-payment-schedule.util';
 
 export type OperatorPayDueVariant = 'success' | 'warning' | 'danger';
 
@@ -51,13 +45,21 @@ function parseMoney(raw?: string | null): number {
 }
 
 function tripActivityDate(trip: Trip): Date | null {
-  const anchor =
-    trip.completedAt ?? trip.returnAt ?? trip.arrivedAt ?? trip.plannedDepartureAt;
+  const anchor = trip.returnAt ?? trip.completedAt;
   if (!anchor) {
     return null;
   }
   const d = anchor instanceof Date ? anchor : new Date(anchor);
   return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function operationalYmdMx(d: Date): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Mexico_City',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(d);
 }
 
 export function buildOperatorLastManeuverSnapshot(
@@ -70,7 +72,7 @@ export function buildOperatorLastManeuverSnapshot(
     origin: buildTripOriginCityPostalLabel(trip),
     destination: buildTripDestinationCityPostalLabel(trip),
     status: trip.status,
-    occurredOn: activity ? localYmd(activity) : undefined,
+    occurredOn: activity ? operationalYmdMx(activity) : undefined,
   };
 }
 
@@ -95,87 +97,69 @@ function isOperatorPayExpenseKind(kind: string): boolean {
   return kind === 'operator_payment' || kind === 'operator_commission';
 }
 
-function operatorPaidOnTrip(tripId: number, expenses: readonly Expense[]): number {
-  let sum = 0;
-  for (const e of expenses) {
-    if (!isActiveExpense(e)) {
-      continue;
-    }
-    if (!isOperatorPayExpenseKind(e.kind)) {
-      continue;
-    }
-    if (e.tripId !== tripId) {
-      continue;
-    }
-    sum += parseMoney(e.amount);
-  }
-  return sum;
-}
-
-interface OwedOperatorTrips {
+interface OwedOperatorLedger {
   owedAmount: number;
-  completionYmds: string[];
+  nextDueYmd: string | null;
 }
 
-/** Próximo vencimiento y saldo pendiente al operador según método de cobro. */
+/** Próximo vencimiento y saldo pendiente: solo filas del ledger sin pagar. */
 export function buildNextPayDueByOperatorId(
   trips: readonly Trip[],
   expenses: readonly Expense[],
-  paymentScheduleByOperatorId: ReadonlyMap<
-    number,
-    string | OperatorPaymentSchedule | null | undefined
-  > = new Map(),
   asOf: Date = new Date(),
 ): Map<number, OperatorNextPayDueSnapshot> {
   const asOfYmd = localYmd(asOf);
-  const owedByOperator = new Map<number, OwedOperatorTrips>();
-
+  const operatorIdByTripId = new Map<number, number>();
   for (const trip of trips) {
-    if (trip.status != null && trip.status !== 'completed') {
+    if (trip.operatorId != null) {
+      operatorIdByTripId.set(trip.id, trip.operatorId);
+    }
+  }
+
+  const owedByOperator = new Map<number, OwedOperatorLedger>();
+  for (const expense of expenses) {
+    if (!isActiveExpense(expense) || !isOperatorPayExpenseKind(expense.kind)) {
       continue;
     }
-    const operatorId = trip.operatorId;
+    if (expense.paidAt != null) {
+      continue;
+    }
+    const amount = parseMoney(expense.amount);
+    if (amount <= 0) {
+      continue;
+    }
+    const operatorId =
+      expense.relatedOperatorId ??
+      (expense.tripId != null ? operatorIdByTripId.get(expense.tripId) : undefined);
     if (operatorId == null) {
       continue;
     }
-    const quota = parseMoney(trip.operatorQuota);
-    if (quota <= 0) {
-      continue;
-    }
-    const paid = operatorPaidOnTrip(trip.id, expenses);
-    const balance = Math.max(0, quota - paid);
-    if (balance <= 0) {
-      continue;
-    }
-
+    const dueYmd = expense.incurredAt
+      ? operationalYmdMx(
+          expense.incurredAt instanceof Date
+            ? expense.incurredAt
+            : new Date(expense.incurredAt),
+        )
+      : null;
     const entry = owedByOperator.get(operatorId) ?? {
       owedAmount: 0,
-      completionYmds: [],
+      nextDueYmd: null,
     };
-    entry.owedAmount += balance;
-    const completionYmd = tripCompletionAnchorYmd(trip);
-    if (completionYmd) {
-      entry.completionYmds.push(completionYmd);
+    entry.owedAmount += amount;
+    if (dueYmd && (!entry.nextDueYmd || dueYmd < entry.nextDueYmd)) {
+      entry.nextDueYmd = dueYmd;
     }
     owedByOperator.set(operatorId, entry);
   }
 
   const byOperator = new Map<number, OperatorNextPayDueSnapshot>();
-  for (const [operatorId, { owedAmount, completionYmds }] of owedByOperator) {
-    const schedule = normalizeOperatorPaymentSchedule(
-      paymentScheduleByOperatorId.get(operatorId),
-    );
-    const dueOn = resolveOperatorPayAlertDueYmd(
-      schedule,
-      asOfYmd,
-      completionYmds,
-    );
-    if (!dueOn) {
+  for (const [operatorId, { owedAmount, nextDueYmd }] of owedByOperator) {
+    if (!nextDueYmd) {
       continue;
     }
     byOperator.set(operatorId, {
-      dueOn,
-      variant: dueBadgeVariant(dueOn, asOfYmd),
+      dueOn: nextDueYmd,
+      variant: dueBadgeVariant(nextDueYmd, asOfYmd),
       owedAmount,
     });
   }

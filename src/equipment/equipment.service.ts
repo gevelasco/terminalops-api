@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, type ObjectLiteral, type SelectQueryBuilder } from 'typeorm';
 import { FileService } from 'src/common/file/file.service';
 import { serializeEquipment } from 'src/common/serializers/equipment.serializer';
 import { parseOptionalNumericId } from 'src/common/utils/tenant.util';
@@ -29,6 +29,10 @@ import {
   FLEET_ASSIGNABLE_LIST_STATUS,
   type FleetListAvailableOptions,
 } from 'src/fleet/fleet-available-list.util';
+import {
+  applyEquipmentNotOnActiveTripFilter,
+  fleetListSchema,
+} from 'src/fleet/fleet-assignable-list.filter';
 import {
   loadLatestMaintenanceByOwnerIds,
   loadLatestVerificationByOwnerIds,
@@ -162,21 +166,39 @@ export class EquipmentService {
   ): Promise<EquipmentListResult> {
     const limit = normalizeResourceListLimit(options?.limit);
     const page = normalizeResourceListPage(options?.page);
-    const where = options?.available
-      ? { companyId, isActive: true, status: FLEET_ASSIGNABLE_LIST_STATUS }
-      : { companyId, isActive: true };
+    const schema = fleetListSchema(this.repo.metadata.schema);
 
-    const total = await this.repo.count({ where });
+    const applyScope = <T extends ObjectLiteral>(
+      qb: SelectQueryBuilder<T>,
+    ): SelectQueryBuilder<T> => {
+      qb.where('equipment.companyId = :companyId', { companyId }).andWhere(
+        'equipment.isActive = :isActive',
+        { isActive: true },
+      );
+      if (!options?.available) {
+        return qb;
+      }
+      qb.andWhere('equipment.status = :assignableStatus', {
+        assignableStatus: FLEET_ASSIGNABLE_LIST_STATUS,
+      });
+      applyEquipmentNotOnActiveTripFilter(qb, schema, 'equipment');
+      return qb;
+    };
 
-    const rows = await this.repo.find({
-      where,
-      relations: ['fleetProfile'],
-      order: { name: 'ASC' },
-      skip: limit > 0 ? (page - 1) * limit : undefined,
-      take: limit > 0 ? limit : undefined,
-    });
+    const total = await applyScope(
+      this.repo.createQueryBuilder('equipment'),
+    ).getCount();
+
+    const dataQb = applyScope(
+      this.repo
+        .createQueryBuilder('equipment')
+        .leftJoinAndSelect('equipment.fleetProfile', 'fleetProfile'),
+    ).orderBy('equipment.name', 'ASC');
+    if (limit > 0) {
+      dataQb.skip((page - 1) * limit).take(limit);
+    }
+    const rows = await dataQb.getMany();
     const equipmentIds = rows.map((row) => row.id);
-    const schema = this.repo.metadata.schema ?? 'terminalops';
     const [maint, verif] = await Promise.all([
       loadLatestMaintenanceByOwnerIds(
         this.repo.manager,
@@ -254,7 +276,14 @@ export class EquipmentService {
   async findOne(companyId: number, equipmentId: number) {
     const row = await this.repo.findOne({
       where: { companyId, id: equipmentId },
-      relations: ['unit', 'fleetProfile', 'maintenanceEntries', 'verificationEntries', 'fleetDocuments'],
+      relations: [
+        'unit',
+        'unit.fleetProfile',
+        'fleetProfile',
+        'maintenanceEntries',
+        'verificationEntries',
+        'fleetDocuments',
+      ],
     });
     if (!row) {
       throw new NotFoundException(`Equipment ${equipmentId} not found`);

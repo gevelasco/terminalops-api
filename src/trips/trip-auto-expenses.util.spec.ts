@@ -18,7 +18,7 @@ describe('trip-auto-expenses.util', () => {
     );
   });
 
-  it('buildTripAutoExpenses creates expense drafts without operator payment', () => {
+  it('buildTripAutoExpenses creates fuel, tolls, pending operator pay and control', () => {
     const drafts = buildTripAutoExpenses(
       tripStub({
         dieselAmount: '2500',
@@ -31,12 +31,19 @@ describe('trip-auto-expenses.util', () => {
       }),
     );
 
-    expect(drafts).toHaveLength(3);
     expect(drafts.map((d) => d.kind)).toEqual([
       'fuel',
       'tolls',
+      'operator_payment',
       'operational_control',
     ]);
+    expect(drafts.find((d) => d.kind === 'operator_payment')).toEqual(
+      expect.objectContaining({
+        amount: '1200.00',
+        relatedOperatorId: 7,
+        paidAt: null,
+      }),
+    );
     expect(drafts.find((d) => d.kind === 'fuel')?.description).toBe(
       'Diesel 312.5 L — maniobra ACME-001',
     );

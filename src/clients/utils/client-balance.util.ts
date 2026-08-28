@@ -99,10 +99,20 @@ export type ClientCommercialHealthDto =
   | 'good_standing'
   | 'restricted';
 
+/** Campos de cartera que pintan las tarjetas del tab Clientes. */
+export type ClientBalanceOverviewCardSummaryDto = {
+  hasTrips: boolean;
+  completedCount: number;
+  receivable: number;
+  nextDueYmd: string | null;
+  upcomingPayments: ClientUpcomingPaymentRowDto[];
+};
+
 export interface ClientBalanceOverviewItemDto {
   clientId: string;
-  summary: ClientBalanceSummaryDto;
+  name: string;
   commercialHealth: ClientCommercialHealthDto;
+  summary: ClientBalanceOverviewCardSummaryDto;
 }
 
 export interface ClientBalanceOverviewResponseDto {
@@ -477,24 +487,51 @@ export function buildClientBalancePeriodSummary(
   };
 }
 
+export function toBalanceOverviewCardSummary(
+  summary: ClientBalanceSummaryDto,
+): ClientBalanceOverviewCardSummaryDto {
+  return {
+    hasTrips: summary.hasTrips,
+    completedCount: summary.completedCount,
+    receivable: summary.receivable,
+    nextDueYmd: summary.nextDueYmd,
+    upcomingPayments: summary.upcomingPayments,
+  };
+}
+
+export function toBalanceOverviewItem(
+  clientId: string,
+  name: string,
+  summary: ClientBalanceSummaryDto,
+): ClientBalanceOverviewItemDto {
+  return {
+    clientId,
+    name,
+    commercialHealth: deriveClientCommercialHealthFromSummary(summary),
+    summary: toBalanceOverviewCardSummary(summary),
+  };
+}
+
 export function buildClientBalanceOverview(
-  clientIds: readonly string[],
+  clients: readonly { id: string; name: string }[],
   trips: readonly ClientBalanceTripRow[],
   expenses: readonly ClientBalanceExpenseRow[],
   asOf: Date = new Date(),
 ): ClientBalanceOverviewResponseDto {
-  const items: ClientBalanceOverviewItemDto[] = [...clientIds]
-    .map((id) => id.trim())
-    .filter((id) => id.length > 0)
-    .sort((a, b) => a.localeCompare(b, 'es'))
-    .map((clientId) => {
-      const summary = buildClientBalanceSummary(clientId, trips, expenses, asOf);
-      return {
-        clientId,
-        summary,
-        commercialHealth: deriveClientCommercialHealthFromSummary(summary),
-      };
-    });
+  const items: ClientBalanceOverviewItemDto[] = [...clients]
+    .map((client) => ({
+      id: String(client.id).trim(),
+      name: client.name.trim() || 'Sin nombre',
+    }))
+    .filter((client) => client.id.length > 0)
+    .sort((a, b) => a.name.localeCompare(b.name, 'es'))
+    .map((client) =>
+      toBalanceOverviewItem(
+        client.id,
+        client.name,
+        buildClientBalanceSummary(client.id, trips, expenses, asOf),
+      ),
+    );
 
   return {
     asOf: asOf.toISOString(),

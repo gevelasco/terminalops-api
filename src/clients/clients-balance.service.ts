@@ -14,7 +14,7 @@ import type {
 import {
   buildClientBalancePeriodSummary,
   buildClientBalanceSummary,
-  deriveClientCommercialHealthFromSummary,
+  toBalanceOverviewItem,
 } from './utils/client-balance.util';
 import { parseMoney } from './utils/client-balance-money.util';
 import {
@@ -80,7 +80,7 @@ export class ClientsBalanceService {
     const [clients, countRows, openTripEntities] = await Promise.all([
       this.clientsRepo.find({
         where: { companyId },
-        select: ['id'],
+        select: ['id', 'name'],
         order: { name: 'ASC' },
       }),
       countsQuery,
@@ -123,31 +123,22 @@ export class ClientsBalanceService {
     );
 
     const asOf = new Date();
-    const items: ClientBalanceOverviewItemDto[] = clients
-      .map((client) => String(client.id))
-      .sort((a, b) => a.localeCompare(b, 'es'))
-      .map((clientId) => {
-        const base = buildClientBalanceSummary(clientId, openRows, [], asOf);
-        const counts = countsByClientId.get(clientId);
-        const summary: ClientBalanceSummaryDto = {
-          ...base,
-          hasTrips: (counts?.total ?? 0) > 0,
-          hasBillable: (counts?.billable ?? 0) > 0,
-          completedCount: counts?.completed ?? 0,
-          statusCounts: {
-            completed: counts?.completed ?? 0,
-            inTransit: counts?.in_transit ?? 0,
-            scheduled: counts?.scheduled ?? 0,
-            cancelled: counts?.cancelled ?? 0,
-            total: counts?.total ?? 0,
-          },
-        };
-        return {
-          clientId,
-          summary,
-          commercialHealth: deriveClientCommercialHealthFromSummary(summary),
-        };
-      });
+    const items: ClientBalanceOverviewItemDto[] = clients.map((client) => {
+      const clientId = String(client.id);
+      const base = buildClientBalanceSummary(clientId, openRows, [], asOf);
+      const counts = countsByClientId.get(clientId);
+      const summary: ClientBalanceSummaryDto = {
+        ...base,
+        hasTrips: (counts?.total ?? 0) > 0,
+        hasBillable: (counts?.billable ?? 0) > 0,
+        completedCount: counts?.completed ?? 0,
+      };
+      return toBalanceOverviewItem(
+        clientId,
+        client.name?.trim() || 'Sin nombre',
+        summary,
+      );
+    });
 
     return { asOf: asOf.toISOString(), items };
   }

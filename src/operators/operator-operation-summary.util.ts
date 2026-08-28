@@ -10,9 +10,6 @@ import {
   buildOperatorPaymentRows,
   summarizeOperatorPaymentRows,
 } from './operator-payment-rows.util';
-import {
-  normalizeOperatorPaymentSchedule,
-} from './operator-payment-schedule.util';
 import type {
   OperatorActiveAssignmentDto,
   OperatorOperationSummaryDto,
@@ -198,12 +195,10 @@ export function buildOperatorOperationSummary(
   expenses: readonly Expense[],
   unitsById: ReadonlyMap<number, Unit>,
   asOf: Date = new Date(),
-  paymentScheduleRaw?: string | null,
   periodFrom?: string,
   periodTo?: string,
 ): OperatorOperationSummaryDto {
   const asOfYmd = localYmd(asOf);
-  const paymentSchedule = normalizeOperatorPaymentSchedule(paymentScheduleRaw);
 
   const usePeriod = !!periodFrom && !!periodTo;
   const scopedTrips = usePeriod
@@ -226,7 +221,6 @@ export function buildOperatorOperationSummary(
   const paymentSections = buildOperatorPaymentRows(
     trips,
     expenses,
-    paymentSchedule,
     asOf,
     usePeriod ? periodFrom : undefined,
     usePeriod ? periodTo : undefined,

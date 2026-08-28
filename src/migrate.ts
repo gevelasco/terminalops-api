@@ -333,6 +333,17 @@ async function main() {
           ON terminalops.refresh_tokens (user_id);
       `);
       console.log('Schema ensure: refresh_tokens OK');
+      await dataSource.query(`
+        CREATE INDEX IF NOT EXISTS idx_trips_company_created_alive
+          ON terminalops.trips (company_id, created_at DESC)
+          WHERE deleted_at IS NULL
+      `);
+      await dataSource.query(`
+        CREATE INDEX IF NOT EXISTS idx_trips_company_status_created_alive
+          ON terminalops.trips (company_id, status, created_at DESC)
+          WHERE deleted_at IS NULL
+      `);
+      console.log('Schema ensure: trips list created_at indexes OK');
     } finally {
       await dataSource.query(`SELECT pg_advisory_unlock($1)`, [
         MIGRATION_LOCK_KEY,

@@ -45,6 +45,7 @@ export type AuthUser = {
   maintenanceDateControlChangedAt?: string;
   dieselControlEnabled?: boolean;
   dieselControlChangedAt?: string;
+  paymentReminderDaysBefore?: number;
   controlAutomaticRecognition?: boolean;
   controlAutomaticRecognitionChangedAt?: string;
   /** ID público del centro operativo principal (único por empresa hoy). */

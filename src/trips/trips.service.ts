@@ -195,17 +195,33 @@ export class TripsService {
         ),
       ),
     ];
-    const equipment =
+    const configIds = [
+      ...new Set(
+        trips
+          .map((t) => t.operationConfigurationId)
+          .filter((id): id is number => id != null && id > 0),
+      ),
+    ];
+    const [equipment, configs] = await Promise.all([
       equipmentIds.length > 0
-        ? await this.equipmentRepo.find({
+        ? this.equipmentRepo.find({
             where: { companyId, id: In(equipmentIds) },
             select: ['id', 'trailerBrandAbbr', 'trailerYear', 'plate'],
           })
-        : [];
+        : Promise.resolve([]),
+      this.operationConfigurations.findDisplayByIds(companyId, configIds),
+    ]);
+    const configById = new Map(configs.map((c) => [c.id, c]));
 
     return {
       items: trips.map((t) =>
-        mapTripToResponse(t, equipment, undefined, { list: true }),
+        mapTripToResponse(t, equipment, undefined, {
+          list: true,
+          operationConfig:
+            t.operationConfigurationId != null
+              ? configById.get(t.operationConfigurationId) ?? null
+              : null,
+        }),
       ),
       total,
       page: limit > 0 ? page : 1,
@@ -424,23 +440,48 @@ export class TripsService {
     return Number.isFinite(lat) && Number.isFinite(lng);
   }
 
+  /**
+   * Detalle de drawer: trip + placas/licencia/tarifa/centro de esa maniobra.
+   * No descarga catálogos; los listados de equipo/tarifas/unidades siguen
+   * en sus propios endpoints de mantenimiento.
+   */
   async findOne(companyId: number, tripId: number) {
     await this.tripLifecycle.ensureTripLifecycleFresh(companyId, tripId);
 
-    const trip = await this.getTripEntity(companyId, tripId);
+    const trip = await this.getTripEntityForDrawer(companyId, tripId);
     const equipmentIds = [
       ...new Set((trip.tripEquipment ?? []).map((te) => te.equipmentId)),
     ];
-    const [equipment, authorLookup] = await Promise.all([
-      equipmentIds.length > 0
-        ? this.equipmentRepo.find({
-            where: { companyId, id: In(equipmentIds) },
-            select: ['id', 'trailerBrandAbbr', 'trailerYear', 'plate'],
-          })
-        : Promise.resolve([]),
-      this.loadAuthorLookup(companyId),
-    ]);
-    return mapTripToResponse(trip, equipment, authorLookup);
+    const incidentPosters = [
+      ...new Set(
+        (trip.incidents ?? [])
+          .map((i) => i.postedBy?.trim())
+          .filter((name): name is string => Boolean(name)),
+      ),
+    ];
+    const [equipment, authorLookup, drawerDisplay, operationConfig] =
+      await Promise.all([
+        equipmentIds.length > 0
+          ? this.equipmentRepo.find({
+              where: { companyId, id: In(equipmentIds) },
+              select: ['id', 'trailerBrandAbbr', 'trailerYear', 'plate'],
+            })
+          : Promise.resolve([]),
+        this.loadAuthorLookupForUsernames(companyId, incidentPosters),
+        this.destinationRates.findTripDrawerDisplay(
+          companyId,
+          trip.destinationRateId,
+        ),
+        trip.operationConfigurationId != null
+          ? this.operationConfigurations
+              .findDisplayByIds(companyId, [trip.operationConfigurationId])
+              .then((rows) => rows[0] ?? null)
+          : Promise.resolve(null),
+      ]);
+    return mapTripToResponse(trip, equipment, authorLookup, {
+      operationConfig,
+      drawerDisplay,
+    });
   }
 
   async uploadDocument(
@@ -1636,11 +1677,52 @@ export class TripsService {
     return trip;
   }
 
-  private async loadAuthorLookup(
+  /**
+   * Drawer: sin foto de operador ni unidad completa. Mutaciones siguen
+   * usando `getTripEntity` con relaciones enteras.
+   */
+  private async getTripEntityForDrawer(companyId: number, tripId: number) {
+    const trip = await this.tripsRepo.findOne({
+      where: { companyId, id: tripId },
+      relations: [
+        'client',
+        'tripEquipment',
+        'incidents',
+        'incidents.images',
+        'documents',
+      ],
+    });
+    if (!trip || trip.deletedAt) {
+      throw new NotFoundException(`Trip ${tripId} not found`);
+    }
+    const [unit, operator] = await Promise.all([
+      trip.unitId
+        ? this.unitsRepo.findOne({
+            where: { companyId, id: trip.unitId },
+            select: ['id', 'plate', 'trailerBrandAbbr', 'trailerYear'],
+          })
+        : Promise.resolve(null),
+      trip.operatorId
+        ? this.operatorsRepo.findOne({
+            where: { companyId, id: trip.operatorId },
+            select: ['id', 'name', 'licenseNumber', 'licenseExpiresOn'],
+          })
+        : Promise.resolve(null),
+    ]);
+    trip.unit = unit ?? undefined;
+    trip.operator = operator ?? undefined;
+    return trip;
+  }
+
+  private async loadAuthorLookupForUsernames(
     companyId: number,
+    usernames: readonly string[],
   ): Promise<IncidentAuthorLookup> {
+    if (usernames.length === 0) {
+      return buildIncidentAuthorLookup([]);
+    }
     const users = await this.usersRepo.find({
-      where: { companyId },
+      where: { companyId, username: In([...usernames]) },
       select: ['username', 'displayName', 'jobTitle', 'role'],
     });
     return buildIncidentAuthorLookup(users);

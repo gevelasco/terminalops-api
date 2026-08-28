@@ -50,6 +50,20 @@ export class TripsController {
     private readonly tenantContext: TenantContextService,
   ) {}
 
+  @Get(':tripId/details')
+  @ApiOperation({
+    summary:
+      'Detalle de drawer: la misma forma que GET /trips/:id, con placas/licencia/tarifa/centro de esa maniobra',
+  })
+  async findDetails(
+    @Param('tripId', ParseIntPipe) tripId: number,
+    @LoggedUser() user: AuthUser,
+  ) {
+    assertModuleRead(user, APP_MODULE_CODES.TRIPS);
+    const companyId = await this.tenantContext.resolveInternalIdFromAuthUser(user);
+    return this.service.findOne(companyId, tripId);
+  }
+
   @Get(':tripId')
   async findOne(
     @Param('tripId', ParseIntPipe) tripId: number,

@@ -119,6 +119,10 @@ export class Company {
   })
   dieselControlChangedAt?: Date;
 
+  /** Días de anticipación para avisos de pagos programados (1–15). */
+  @Column({ name: 'payment_reminder_days_before', type: 'int', default: 5 })
+  paymentReminderDaysBefore: number;
+
   @Column({
     name: 'diesel_reference_price_per_liter',
     type: 'numeric',

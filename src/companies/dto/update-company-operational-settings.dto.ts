@@ -145,4 +145,17 @@ export class UpdateCompanyOperationalSettingsDto {
   @IsOptional()
   @IsLongitude()
   operationalCenterLongitude?: number;
+
+  @ApiPropertyOptional({
+    description:
+      'Días de anticipación para avisar pagos programados (seguro, GPS, verificación, financiamiento, operador)',
+    minimum: 1,
+    maximum: 15,
+    example: 5,
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  @Max(15)
+  paymentReminderDaysBefore?: number;
 }

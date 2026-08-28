@@ -63,6 +63,7 @@ export class CompaniesService {
         tripAutoControlPaymentMethod: 'cash',
         dieselControlEnabled: false,
         dieselControlChangedAt: now,
+        paymentReminderDaysBefore: 5,
       }),
     );
     await this.operationalCenters.ensureDefaultCenterForCompany(company.id);
@@ -169,6 +170,12 @@ export class CompaniesService {
         company.dieselControlChangedAt = new Date();
       }
       company.dieselControlEnabled = dto.dieselControlEnabled;
+    }
+    if (dto.paymentReminderDaysBefore !== undefined) {
+      company.paymentReminderDaysBefore = Math.min(
+        15,
+        Math.max(1, Math.round(dto.paymentReminderDaysBefore)),
+      );
     }
     if (dto.maintenanceKmControlEnabled !== undefined) {
       if (dto.maintenanceKmControlEnabled) {

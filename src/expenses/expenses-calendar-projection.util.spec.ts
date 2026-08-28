@@ -1,412 +1,85 @@
 import {
-  buildExpenseCalendarProjection,
+  actualEntryFromSerialized,
+  buildLedgerCalendar,
   paginateExpenseCalendarEntries,
-  type ExpenseCalendarEntry,
-  type ExpenseCalendarMarker,
-  type ProjectedExpenseRow,
 } from './expenses-calendar-projection.util';
 
-function tripStub(overrides: Partial<Parameters<typeof buildExpenseCalendarProjection>[0]['trips'][number]> = {}) {
-  return {
-    id: 1,
-    companyId: 1,
-    maneuverCode: 'M-100',
-    originLocality: 'A',
-    destinationLocality: 'B',
-    clientName: 'Cliente',
-    status: 'scheduled',
-    operationType: 'import',
-    operatorQuota: '0',
-    dieselAmount: '5000',
-    casetasAmount: '2000',
-    perDiemAmount: '0',
-    plannedDepartureAt: new Date('2026-07-10T18:00:00.000Z'),
-    unitId: 10,
-    operatorId: 20,
-    ...overrides,
-  } as never;
-}
-
 describe('expenses-calendar-projection.util', () => {
-  it('projects committed trip fuel and tolls when maneuver is scheduled and ledger is empty', () => {
-    const result = buildExpenseCalendarProjection({
-      from: '2026-07-01',
-      to: '2026-07-31',
-      trips: [tripStub()],
-      units: [],
-      equipment: [],
-      operators: [],
-      tenures: [],
-      expenses: [],
-      actualItems: [],
-    });
-
-    expect(result.projected).toHaveLength(2);
-    expect(result.projected.map((row) => row.source).sort()).toEqual(['trip_fuel', 'trip_tolls']);
-    expect(result.projected.find((row) => row.source === 'trip_fuel')?.conceptLabel).toBe(
-      'Diésel / combustible',
-    );
-    expect(result.projected.find((row) => row.source === 'trip_tolls')?.conceptLabel).toBe(
-      'Casetas',
-    );
-    expect(result.summary.projectedTotalAmount).toBe(7000);
-  });
-
-  it('uses the same GPS concept label as fleet expense sync', () => {
-    const result = buildExpenseCalendarProjection({
-      from: '2026-07-01',
-      to: '2026-07-31',
-      trips: [],
-      units: [
-        {
-          id: 10,
-          plate: '233-SDCV-34',
-          trailerBrandAbbr: 'fre',
-          trailerYear: '2022',
-          fleetProfile: {
-            hasGps: true,
-            gpsContractDate: '2026-01-15',
-            gpsPaymentCadence: 'monthly',
-            gpsPrice: '500',
-            gpsProviderBrand: 'SkyBitz',
-            gpsPaymentMethod: 'transfer',
-          },
-        } as never,
-      ],
-      equipment: [],
-      operators: [],
-      tenures: [],
-      expenses: [],
-      actualItems: [],
-    });
-
-    const gpsRow = result.projected.find((row) => row.source === 'gps');
-    expect(gpsRow?.conceptLabel).toBe('GPS - mensual');
-    expect(gpsRow?.relatedUnitLabel).toBe('FRE-2022-233-SDCV-34');
-    expect(gpsRow?.vendor).toBe('SkyBitz');
-    expect(gpsRow?.paymentMethod).toBe('transfer');
-    expect(gpsRow?.invoiceRequired).toBe(false);
-    expect(gpsRow?.hint).toMatch(/^Pago de GPS · SkyBitz \(Mensualidad \d+\/12\)$/);
-  });
-
-  it('treats the initial GPS contract expense as the first paid cycle (not overdue)', () => {
-    const result = buildExpenseCalendarProjection({
-      from: '2025-07-08',
-      to: '2026-07-31',
-      trips: [],
-      units: [
-        {
-          id: 10,
-          plate: '98BL2L',
-          trailerBrandAbbr: 'fre',
-          trailerYear: '2012',
-          fleetProfile: {
-            hasGps: true,
-            gpsContractDate: '2026-01-24',
-            gpsPaymentCadence: 'monthly',
-            gpsPrice: '805.14',
-            gpsProviderBrand: 'SkyBitz',
-          },
-        } as never,
-      ],
-      equipment: [],
-      operators: [],
-      tenures: [],
-      expenses: [
-        {
-          id: 700,
-          kind: 'gps',
-          amount: '805.14',
-          description: 'Contratación de GPS · SkyBitz (Mensualidad 1/12)',
-          incurredAt: new Date('2026-01-24T18:00:00.000Z'),
-          discardedAt: null,
-        } as never,
-      ],
-      actualItems: [],
-      asOf: new Date('2026-07-08T18:00:00.000Z'),
-    });
-
-    const gpsCycleOne = result.projected.find(
-      (row) => row.source === 'gps' && row.dueDate === '2026-01-24',
-    );
-    expect(gpsCycleOne).toBeUndefined();
-  });
-
-  it('projects insurance payment preview fields for equipment', () => {
-    const result = buildExpenseCalendarProjection({
-      from: '2026-07-01',
-      to: '2026-07-31',
-      trips: [],
-      units: [],
-      equipment: [
-        {
-          id: 5,
-          plate: 'EQ-99',
-          trailerBrandAbbr: 'hyt',
-          trailerYear: '2020',
-          fleetProfile: {
-            insuranceContractDate: '2026-01-15',
-            insurancePaymentCadence: 'monthly',
-            insuranceCost: '1200',
-            insuranceCarrierName: 'Qualitas',
-            insurancePolicyNumber: '0008345312',
-            insurancePaymentMethod: 'check',
-          },
-        } as never,
-      ],
-      operators: [],
-      tenures: [],
-      expenses: [],
-      actualItems: [],
-    });
-
-    const insuranceRow = result.projected.find((row) => row.source === 'insurance');
-    expect(insuranceRow?.conceptLabel).toBe('Póliza - mensual');
-    expect(insuranceRow?.relatedEquipmentLabel).toBe('HYT-2020-EQ-99');
-    expect(insuranceRow?.vendor).toBe('Qualitas');
-    expect(insuranceRow?.paymentMethod).toBe('check');
-    expect(insuranceRow?.invoiceRequired).toBe(false);
-    expect(insuranceRow?.hint).toMatch(/^Pago de póliza · /);
-    expect(insuranceRow?.hint).toMatch(/\(Mensualidad \d+\/12\)$/);
-  });
-
-  it('does not duplicate trip fuel when ledger already has the expense', () => {
-    const result = buildExpenseCalendarProjection({
-      from: '2026-07-01',
-      to: '2026-07-31',
-      trips: [tripStub()],
-      units: [],
-      equipment: [],
-      operators: [],
-      tenures: [],
-      expenses: [
-        {
-          id: 99,
-          tripId: 1,
-          kind: 'fuel',
-          amount: '5000',
-          incurredAt: new Date('2026-07-08T18:00:00.000Z'),
-          discardedAt: null,
-        } as never,
-      ],
-      actualItems: [],
-    });
-
-    expect(result.projected).toHaveLength(1);
-    expect(result.projected[0]?.source).toBe('trip_tolls');
-  });
-
-  it('projects operator payment for scheduled maneuver using planned completion and weekly Saturday', () => {
-    const result = buildExpenseCalendarProjection({
-      from: '2026-07-01',
-      to: '2026-07-31',
-      trips: [
-        tripStub({
-          status: 'scheduled',
-          operatorQuota: '3000',
-          plannedCompletionAt: new Date('2026-07-07T18:00:00.000Z'),
-        }),
-      ],
-      units: [],
-      equipment: [],
-      operators: [
-        {
-          id: 20,
-          paymentSchedule: 'weekly',
-        } as never,
-      ],
-      tenures: [],
-      expenses: [],
-      actualItems: [],
-    });
-
-    const operatorRow = result.projected.find((row) => row.source === 'operator_payment');
-    expect(operatorRow).toBeDefined();
-    expect(operatorRow?.conceptLabel).toBe('Pago a operador');
-    expect(operatorRow?.amount).toBe('3000.00');
-    expect(operatorRow?.nature).toBe('committed');
-    // Término planeado martes 7 jul → pago semanal sábado 11 jul
-    expect(operatorRow?.dueDate).toBe('2026-07-11');
-  });
-
-  it('projects operator payment on planned completion date for maneuver schedule', () => {
-    const result = buildExpenseCalendarProjection({
-      from: '2026-07-01',
-      to: '2026-07-31',
-      trips: [
-        tripStub({
-          status: 'scheduled',
-          operatorQuota: '2500',
-          plannedCompletionAt: new Date('2026-07-15T18:00:00.000Z'),
-        }),
-      ],
-      units: [],
-      equipment: [],
-      operators: [
-        {
-          id: 20,
-          paymentSchedule: 'maneuver',
-        } as never,
-      ],
-      tenures: [],
-      expenses: [],
-      actualItems: [],
-    });
-
-    const operatorRow = result.projected.find((row) => row.source === 'operator_payment');
-    expect(operatorRow?.dueDate).toBe('2026-07-15');
-  });
-
-  it('projects operator payment only after maneuver completion within range', () => {
-    const result = buildExpenseCalendarProjection({
-      from: '2026-07-01',
-      to: '2026-07-31',
-      trips: [
-        tripStub({
-          id: 2,
-          status: 'completed',
-          operatorQuota: '3000',
-          returnAt: new Date('2026-07-03T18:00:00.000Z'),
-          plannedDepartureAt: new Date('2026-07-01T18:00:00.000Z'),
-        }),
-      ],
-      units: [],
-      equipment: [],
-      operators: [
-        {
-          id: 20,
-          paymentSchedule: 'maneuver',
-        } as never,
-      ],
-      tenures: [],
-      expenses: [],
-      actualItems: [],
-      asOf: new Date('2026-07-05T12:00:00.000Z'),
-    });
-
-    expect(result.projected.some((row) => row.source === 'operator_payment')).toBe(true);
-  });
-
-  it('merges actual and projected entries sorted by date desc', () => {
-    const result = buildExpenseCalendarProjection({
-      from: '2026-07-01',
-      to: '2026-07-31',
-      trips: [tripStub()],
-      units: [],
-      equipment: [],
-      operators: [],
-      tenures: [],
-      expenses: [],
-      actualItems: [
-        {
-          id: 5,
-          kind: 'fuel',
-          category: 'Diésel',
-          amount: '1200',
-          currency: 'MXN',
-          incurredDate: '2026-07-12',
-          tripId: null,
-        },
-      ],
-    });
-
-    expect(result.entries[0]?.entryType).toBe('actual');
-    expect(result.entries[0]?.dateYmd).toBe('2026-07-12');
-    expect(result.summary.grandCount).toBe(3);
-  });
-
-  it('classifies calendar markers: directos, eventuales, recurrentes y por pagar', () => {
-    const result = buildExpenseCalendarProjection({
-      from: '2026-07-01',
-      to: '2026-07-31',
-      trips: [
-        tripStub({
-          operatorQuota: '1500',
-          plannedCompletionAt: new Date('2026-07-15T18:00:00.000Z'),
-        }),
-      ],
-      units: [
-        {
-          id: 10,
-          plate: 'ABC-12',
-          fleetProfile: {
-            insuranceContractDate: '2026-01-15',
-            insurancePaymentCadence: 'monthly',
-            insuranceCost: '5000',
-          },
-        } as never,
-      ],
-      equipment: [],
-      operators: [{ id: 20, paymentSchedule: 'maneuver' } as never],
-      tenures: [],
-      expenses: [],
-      actualItems: [
-        {
-          id: 1,
-          kind: 'fuel',
-          category: 'Diésel',
-          amount: '4000',
-          currency: 'MXN',
-          incurredDate: '2026-07-05',
-          tripId: 1,
-        },
-        {
-          id: 2,
-          kind: 'repair',
-          category: 'Fuga hidráulica',
-          amount: '8500',
-          currency: 'MXN',
-          incurredDate: '2026-07-06',
-          tripId: null,
-        },
-        {
-          id: 3,
-          kind: 'insurance',
-          category: 'Póliza',
-          amount: '5000',
-          currency: 'MXN',
-          incurredDate: '2026-07-03',
-          paidAt: '2026-07-03T18:00:00.000Z',
-          tripId: null,
-        },
-      ],
-    });
-
-    const byLabel = Object.fromEntries(result.markers.map((m) => [m.label, m]));
-    expect(Number(byLabel['Directos']?.amount)).toBe(4000);
-    expect(Number(byLabel['Eventuales']?.amount)).toBe(8500);
-    expect(Number(byLabel['Recurrentes']?.amount)).toBe(5000);
-    expect(Number(byLabel['Por pagar']?.amount)).toBe(
-      Number(result.summary.projectedTotalAmount),
-    );
-  });
-
-  it('paginates merged entries', () => {
-    const entries: ExpenseCalendarEntry[] = [
+  it('buildLedgerCalendar lists only ledger rows and never invents projected ones', () => {
+    const result = buildLedgerCalendar([
       {
-        entryType: 'actual',
-        sortDate: '2026-07-03',
-        id: 'a1',
-        rubroLabel: 'Maniobra',
-        conceptLabel: 'Casetas',
-        amount: '100.00',
+        id: 9,
+        kind: 'operator_payment',
+        category: 'Pago a operador',
+        amount: '1200',
         currency: 'MXN',
-        dateYmd: '2026-07-03',
-        statusLabel: 'Realizado',
+        incurredDate: '2099-01-15',
+        paidAt: null,
+        tripId: 1,
       },
       {
-        entryType: 'projected',
-        sortDate: '2026-07-02',
-        id: 'p1',
-        rubroLabel: 'Seguros',
-        conceptLabel: 'Póliza',
-        amount: '200.00',
+        id: 10,
+        kind: 'fuel',
+        category: 'Diésel',
+        amount: '800',
         currency: 'MXN',
-        dateYmd: '2026-07-02',
-        statusLabel: 'Pendiente',
+        incurredDate: '2026-08-10',
+        paidAt: '2026-08-10T18:00:00.000Z',
+        tripId: 1,
       },
+    ]);
+
+    expect(result.entries).toHaveLength(2);
+    expect(result.entries.every((row) => row.entryType === 'actual')).toBe(true);
+    expect(result.entries[0]?.statusLabel).toBe('Pendiente');
+    expect(result.entries[1]?.statusLabel).toBe('Realizado');
+    expect(result.markers.some((marker) => marker.label === 'Por pagar')).toBe(true);
+  });
+
+  it('marks unpaid insurance as Por pagar and paid insurance as Recurrentes', () => {
+    const result = buildLedgerCalendar([
+      {
+        id: 1,
+        kind: 'insurance',
+        category: 'Póliza',
+        amount: '10000',
+        incurredDate: '2026-08-10',
+        paidAt: null,
+      },
+      {
+        id: 2,
+        kind: 'insurance',
+        category: 'Póliza',
+        amount: '10000',
+        incurredDate: '2026-07-10',
+        paidAt: '2026-07-10T18:00:00.000Z',
+      },
+    ]);
+
+    const porPagar = result.markers.find((marker) => marker.label === 'Por pagar');
+    const recurrentes = result.markers.find((marker) => marker.label === 'Recurrentes');
+    expect(porPagar?.amount).toBe('10000.00');
+    expect(recurrentes?.amount).toBe('10000.00');
+  });
+
+  it('actualEntryFromSerialized keeps kind for downstream ledger filters', () => {
+    const entry = actualEntryFromSerialized({
+      id: 3,
+      kind: 'gps',
+      category: 'GPS',
+      amount: 450,
+      incurredDate: '2026-08-30',
+      paidAt: null,
+    });
+    expect(entry.kind).toBe('gps');
+    expect(entry.statusLabel).toBe('Pendiente');
+  });
+
+  it('paginates ledger entries without mixing invented rows', () => {
+    const entries = [
+      { id: 'a1', amount: '10' },
+      { id: 'a2', amount: '20' },
     ];
-
     const page = paginateExpenseCalendarEntries(entries, 1, 1);
     expect(page.total).toBe(2);
     expect(page.items).toHaveLength(1);

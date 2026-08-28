@@ -38,6 +38,18 @@ describe('operator-list-enrichment.util', () => {
     expect(snap.occurredOn).toBe('2026-03-10');
   });
 
+  it('buildOperatorLastManeuverSnapshot prefers returnAt over completedAt', () => {
+    const snap = buildOperatorLastManeuverSnapshot(
+      trip({
+        id: 12,
+        operatorId: 2,
+        returnAt: new Date('2026-08-10T15:00:00Z'),
+        completedAt: new Date('2026-08-12T15:00:00Z'),
+      }),
+    );
+    expect(snap.occurredOn).toBe('2026-08-10');
+  });
+
   it('buildOperatorLastManeuverSnapshot omits locality from route labels', () => {
     const snap = buildOperatorLastManeuverSnapshot(
       trip({
@@ -56,108 +68,96 @@ describe('operator-list-enrichment.util', () => {
     expect(snap.destination).toBe('Naucalpan de Juárez, México · 53470');
   });
 
-  it('buildNextPayDueByOperatorId picks earliest completion for maneuver schedule', () => {
+  it('buildNextPayDueByOperatorId uses unpaid ledger rows, not trip quota', () => {
     const trips = [
       trip({
         id: 1,
         operatorId: 5,
         operatorQuota: '1000',
-        returnAt: new Date('2026-03-01T12:00:00Z'),
+        returnAt: new Date('2026-03-01T18:00:00Z'),
       }),
       trip({
         id: 2,
         operatorId: 5,
         operatorQuota: '800',
-        returnAt: new Date('2026-02-20T12:00:00Z'),
+        returnAt: new Date('2026-02-20T18:00:00Z'),
       }),
     ];
-    const expenses: Expense[] = [];
+    const expenses: Expense[] = [
+      {
+        id: 11,
+        tripId: 1,
+        relatedOperatorId: 5,
+        kind: 'operator_payment',
+        amount: '1000',
+        incurredAt: new Date('2026-03-01T18:00:00Z'),
+        paidAt: null,
+        discardedAt: null,
+      } as Expense,
+      {
+        id: 12,
+        tripId: 2,
+        relatedOperatorId: 5,
+        kind: 'operator_payment',
+        amount: '800',
+        incurredAt: new Date('2026-02-20T18:00:00Z'),
+        paidAt: null,
+        discardedAt: null,
+      } as Expense,
+    ];
     const map = buildNextPayDueByOperatorId(
       trips,
       expenses,
-      new Map([[5, 'maneuver']]),
-      new Date('2026-03-05T12:00:00Z'),
+      new Date('2026-03-05T18:00:00Z'),
     );
     expect(map.get(5)?.dueOn).toBe('2026-02-20');
     expect(map.get(5)?.variant).toBe('danger');
     expect(map.get(5)?.owedAmount).toBe(1800);
   });
 
-  it('buildNextPayDueByOperatorId uses completion date for maneuver without grace days', () => {
+  it('buildNextPayDueByOperatorId ignores quota when the ledger has no pending row', () => {
     const trips = [
       trip({
         id: 3,
         operatorId: 5,
         operatorQuota: '2500',
-        plannedCompletionAt: new Date('2026-06-04T12:00:00Z'),
-        creditDays: 7,
+        plannedCompletionAt: new Date('2026-06-04T18:00:00Z'),
       }),
     ];
     const map = buildNextPayDueByOperatorId(
       trips,
       [],
-      new Map([[5, 'maneuver']]),
-      new Date('2026-06-17T12:00:00Z'),
+      new Date('2026-06-17T18:00:00Z'),
     );
-    expect(map.get(5)?.dueOn).toBe('2026-06-04');
-    expect(map.get(5)?.variant).toBe('danger');
-    expect(map.get(5)?.owedAmount).toBe(2500);
+    expect(map.get(5)).toBeUndefined();
   });
 
-  it('buildNextPayDueByOperatorId uses next Saturday for weekly schedule', () => {
+  it('buildNextPayDueByOperatorId uses the earliest unpaid ledger due date', () => {
     const trips = [
       trip({
         id: 4,
         operatorId: 1,
         operatorQuota: '2500',
-        returnAt: new Date('2026-03-03T12:00:00Z'),
+        returnAt: new Date('2026-03-03T18:00:00Z'),
       }),
     ];
     const map = buildNextPayDueByOperatorId(
       trips,
-      [],
-      new Map([[1, 'weekly']]),
-      new Date('2026-03-04T12:00:00Z'),
+      [
+        {
+          id: 20,
+          tripId: 4,
+          relatedOperatorId: 1,
+          kind: 'operator_payment',
+          amount: '2500',
+          incurredAt: new Date('2026-03-07T18:00:00Z'),
+          paidAt: null,
+          discardedAt: null,
+        } as Expense,
+      ],
+      new Date('2026-03-04T18:00:00Z'),
     );
     expect(map.get(1)?.dueOn).toBe('2026-03-07');
     expect(map.get(1)?.variant).toBe('warning');
-  });
-
-  it('buildNextPayDueByOperatorId uses biweekly pay dates', () => {
-    const trips = [
-      trip({
-        id: 5,
-        operatorId: 2,
-        operatorQuota: '1000',
-        returnAt: new Date('2026-03-10T12:00:00Z'),
-      }),
-    ];
-    const map = buildNextPayDueByOperatorId(
-      trips,
-      [],
-      new Map([[2, 'biweekly']]),
-      new Date('2026-03-12T12:00:00Z'),
-    );
-    expect(map.get(2)?.dueOn).toBe('2026-03-15');
-  });
-
-  it('buildNextPayDueByOperatorId treats missing status as completed when pre-filtered', () => {
-    const trips = [
-      trip({
-        id: 4,
-        operatorId: 1,
-        operatorQuota: '2500',
-        returnAt: new Date('2026-06-04T12:00:00Z'),
-        status: undefined as unknown as Trip['status'],
-      }),
-    ];
-    const map = buildNextPayDueByOperatorId(
-      trips,
-      [],
-      new Map([[1, 'maneuver']]),
-      new Date('2026-06-17T12:00:00Z'),
-    );
-    expect(map.get(1)?.dueOn).toBe('2026-06-04');
-    expect(map.get(1)?.owedAmount).toBe(2500);
   });
 });

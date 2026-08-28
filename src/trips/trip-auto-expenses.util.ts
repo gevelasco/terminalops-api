@@ -20,6 +20,8 @@ export interface TripAutoExpenseDraft {
   relatedUnitId?: number;
   relatedOperatorId?: number;
   paymentMethod?: string;
+  /** null = pendiente de confirmación (pago a operador). */
+  paidAt?: Date | null;
 }
 
 export type TripAutoExpenseBuildOptions = {
@@ -118,6 +120,23 @@ export function buildTripAutoExpenses(
       relatedOperatorId: trip.operatorId,
       relatedUnitId: trip.unitId,
       paymentMethod: perDiemPaymentMethod,
+    });
+  }
+
+  const operatorQuota = parseTripMoneyAmount(trip.operatorQuota);
+  if (operatorQuota > 0 && trip.operatorId) {
+    const payAt =
+      trip.plannedCompletionAt ?? trip.plannedDepartureAt ?? incurredAt;
+    drafts.push({
+      category: 'Pago a operador',
+      amount: formatExpenseAmount(operatorQuota),
+      currency: 'MXN',
+      incurredAt: payAt,
+      kind: TRIP_AUTO_EXPENSE_KIND.OPERATOR_FEE,
+      description: `Pago a operador — maniobra ${maneuverRef}`,
+      relatedOperatorId: trip.operatorId,
+      relatedUnitId: trip.unitId,
+      paidAt: null,
     });
   }
 

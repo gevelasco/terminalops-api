@@ -24,20 +24,15 @@ export function daysWithoutManeuverSince(lastEndedAt: Date, now = new Date()): n
   return Math.max(0, nowDay - endDay);
 }
 
+/**
+ * Fin real de la maniobra de la unidad: llegada a origen, o el sello de
+ * completada si aún no hay return. No usa plan, canceladas ni updated_at.
+ */
 export function resolveTripEndedAt(trip: {
-  completedAt?: Date | null;
   returnAt?: Date | null;
-  plannedCompletionAt?: Date | null;
-  statusChangedAt?: Date | null;
-  updatedAt?: Date;
+  completedAt?: Date | null;
 }): Date | null {
-  const candidates = [
-    trip.completedAt,
-    trip.returnAt,
-    trip.plannedCompletionAt,
-    trip.statusChangedAt,
-    trip.updatedAt,
-  ];
+  const candidates = [trip.returnAt, trip.completedAt];
   for (const value of candidates) {
     if (value instanceof Date && !Number.isNaN(value.getTime())) {
       return value;

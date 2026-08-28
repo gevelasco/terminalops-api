@@ -24,6 +24,7 @@ export type CompanyActivityKind =
 export const NOTIFICATION_COMPUTED_KIND = {
   PAYMENT_OVERDUE: 'payment.overdue',
   PAYMENT_DUE_TODAY: 'payment.due_today',
+  PAYMENT_DUE_SOON: 'payment.due_soon',
   RECEIVABLE_DUE: 'receivable.due',
 } as const;
 

@@ -1,15 +1,15 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, SelectQueryBuilder, IsNull } from 'typeorm';
-import { Equipment } from 'src/equipment/entities/equipment.entity';
 import { Expense } from 'src/expenses/entities/expense.entity';
-import { FleetAssetTenure } from 'src/fleet/entities/fleet-asset-tenure.entity';
 import { FleetOverviewService } from 'src/fleet/fleet-overview.service';
 import { CompanyOperationConfiguration } from 'src/operation-configurations/entities/company-operation-configuration.entity';
 import { Trip } from 'src/trips/entities/trip.entity';
-import { Unit } from 'src/units/entities/unit.entity';
 import { FleetMaintenanceEntry } from 'src/units/entities/fleet-maintenance-entry.entity';
-import { buildPayableItems } from './reports-payable-items.util';
+import {
+  buildPayableItems,
+  LEDGER_PAYABLE_KINDS,
+} from './reports-payable-items.util';
 import type { ReportsGeneralQueryDto } from './dto/reports-general-query.dto';
 import type { ReportsBalanceDto } from './dto/reports-balance.dto';
 import type { ReportsManiobrasDto } from './dto/reports-maniobras.dto';
@@ -139,12 +139,6 @@ export class ReportsService {
     private readonly expensesRepo: Repository<Expense>,
     @InjectRepository(FleetMaintenanceEntry)
     private readonly maintenanceEntriesRepo: Repository<FleetMaintenanceEntry>,
-    @InjectRepository(Unit)
-    private readonly unitsRepo: Repository<Unit>,
-    @InjectRepository(Equipment)
-    private readonly equipmentRepo: Repository<Equipment>,
-    @InjectRepository(FleetAssetTenure)
-    private readonly tenuresRepo: Repository<FleetAssetTenure>,
     private readonly fleetOverview: FleetOverviewService,
   ) {}
 
@@ -173,6 +167,7 @@ export class ReportsService {
       expenseEventRows,
       receivableEventRows,
       payableEventRows,
+      payableExpenses,
     ] = await Promise.all([
       this.sumCollectedInPeriod(scope),
       this.sumReceivableOpen(scope),
@@ -195,6 +190,17 @@ export class ReportsService {
       this.queryDailyExpenseEvents(scope),
       this.queryDailyReceivableEvents(scope),
       this.queryDailyPayableEvents(scope),
+      this.expensesRepo
+        .createQueryBuilder('e')
+        .where('e.companyId = :companyId', { companyId: scope.companyId })
+        .andWhere('e.discarded_at IS NULL')
+        .andWhere('e.paid_at IS NULL')
+        .andWhere('e.kind IN (:...kinds)', { kinds: [...LEDGER_PAYABLE_KINDS] })
+        .andWhere(
+          `(e.incurred_at AT TIME ZONE '${OPERATIONAL_TZ}')::date <= :to::date`,
+          { to: scope.to },
+        )
+        .getMany(),
     ]);
 
     const collectedInPeriod =
@@ -217,105 +223,8 @@ export class ReportsService {
         ? Math.round((accruedMargin / accruedRevenue) * 1000) / 10
         : null;
 
-    const projectionKinds = [
-      'fuel',
-      'tolls',
-      'per_diem',
-      'operator_payment',
-      'operator_commission',
-      'insurance',
-      'gps',
-      'verification',
-      'tenure_payment',
-    ] as const;
-
-    // Gastos acotados al periodo del reporte; `buildPayableItems` de todos
-    // modos descarta lo que cae fuera de [from, to], así que traer el ledger
-    // completo solo escalaba con el historial.
-    // La dedup de ciclos (seguro/GPS/cuotas) puede casar pagos con fecha
-    // distinta al vencimiento (índice de cuota, pago adelantado/atrasado):
-    // se usa una ventana de ±12 meses alrededor del periodo, no el histórico.
-    const unitSchema = this.unitsRepo.metadata.schema;
-    const [
-      payableUnits,
-      payableEquipment,
-      payableTenures,
-      projectionExpenses,
-      allExpenses,
-    ] = await Promise.all([
-      this.unitsRepo
-        .createQueryBuilder('u')
-        .leftJoinAndSelect('u.fleetProfile', 'fp')
-        .where('u.companyId = :companyId', { companyId: scope.companyId })
-        .andWhere(
-          `(
-            EXISTS (
-              SELECT 1 FROM ${unitSchema}.unit_fleet_profiles p
-              WHERE p.unit_id = u.id
-                AND (
-                  (p.has_gps = true AND COALESCE(p.gps_price, 0) > 0)
-                  OR COALESCE(p.insurance_cost, 0) > 0
-                )
-            )
-            OR EXISTS (
-              SELECT 1 FROM ${unitSchema}.fleet_verification_entries v
-              WHERE v.unit_id = u.id
-                AND v.entry_date IS NOT NULL
-                AND COALESCE(v.cost, 0) > 0
-            )
-          )`,
-        )
-        .getMany(),
-      this.equipmentRepo
-        .createQueryBuilder('eq')
-        .leftJoinAndSelect('eq.fleetProfile', 'fp')
-        .where('eq.companyId = :companyId', { companyId: scope.companyId })
-        .andWhere(
-          `(
-            EXISTS (
-              SELECT 1 FROM ${unitSchema}.equipment_fleet_profiles p
-              WHERE p.equipment_id = eq.id
-                AND COALESCE(p.insurance_cost, 0) > 0
-            )
-            OR EXISTS (
-              SELECT 1 FROM ${unitSchema}.fleet_verification_entries v
-              WHERE v.equipment_id = eq.id
-                AND v.entry_date IS NOT NULL
-                AND COALESCE(v.cost, 0) > 0
-            )
-          )`,
-        )
-        .getMany(),
-      this.tenuresRepo.find({ where: { companyId: scope.companyId } }),
-      this.expensesRepo
-        .createQueryBuilder('e')
-        .where('e.companyId = :companyId', { companyId: scope.companyId })
-        .andWhere('e.discarded_at IS NULL')
-        .andWhere('e.kind IN (:...kinds)', { kinds: [...projectionKinds] })
-        .andWhere(
-          `(e.incurred_at AT TIME ZONE '${OPERATIONAL_TZ}')::date
-               BETWEEN (:from::date - interval '12 months') AND (:to::date + interval '12 months')`,
-          { from: scope.from, to: scope.to },
-        )
-        .getMany(),
-      this.expensesRepo
-        .createQueryBuilder('e')
-        .where('e.companyId = :companyId', { companyId: scope.companyId })
-        .andWhere('e.discarded_at IS NULL')
-        .andWhere(
-          `(e.incurred_at AT TIME ZONE '${OPERATIONAL_TZ}')::date BETWEEN :from::date AND :to::date`,
-          { from: scope.from, to: scope.to },
-        )
-        .getMany(),
-    ]);
-
     const payableItems = buildPayableItems({
-      units: payableUnits,
-      equipment: payableEquipment,
-      tenures: payableTenures,
-      projectionExpenses,
-      allExpenses,
-      from: scope.from,
+      expenses: payableExpenses,
       to: scope.to,
     });
 
@@ -567,7 +476,7 @@ export class ReportsService {
       FROM ${schema}.expenses e
       WHERE e.company_id = $1
         AND e.discarded_at IS NULL
-        AND (e.kind NOT IN ('insurance','gps','tenure_payment') OR e.paid_at IS NOT NULL)
+        AND (e.kind NOT IN ('insurance','gps','tenure_payment','operator_payment','operator_commission') OR e.paid_at IS NOT NULL)
         AND (e.incurred_at AT TIME ZONE '${OPERATIONAL_TZ}')::date BETWEEN $2::date AND $3::date
       ORDER BY e.incurred_at ASC, e.id ASC
       `,
@@ -632,7 +541,7 @@ export class ReportsService {
       WHERE e.company_id = $1
         AND e.discarded_at IS NULL
         AND e.paid_at IS NULL
-        AND e.kind IN ('insurance','gps','tenure_payment')
+        AND e.kind IN ('insurance','gps','verification','tenure_payment','operator_payment','operator_commission')
         AND (e.incurred_at AT TIME ZONE '${OPERATIONAL_TZ}')::date BETWEEN $2::date AND $3::date
       ORDER BY e.incurred_at ASC, e.id ASC
       `,
@@ -1542,7 +1451,7 @@ export class ReportsService {
         { from: scope.from, to: scope.to },
       )
       .andWhere(
-        `(e.kind NOT IN ('insurance','gps','tenure_payment') OR e.paid_at IS NOT NULL)`,
+        `(e.kind NOT IN ('insurance','gps','tenure_payment','operator_payment','operator_commission') OR e.paid_at IS NOT NULL)`,
       )
       .groupBy('e.kind')
       .addGroupBy('CASE WHEN e.tripId IS NULL THEN 0 ELSE 1 END')
@@ -1607,7 +1516,7 @@ export class ReportsService {
         { from: scope.from, to: scope.to },
       )
       .andWhere(
-        `(e.kind NOT IN ('insurance','gps','tenure_payment') OR e.paid_at IS NOT NULL)`,
+        `(e.kind NOT IN ('insurance','gps','tenure_payment','operator_payment','operator_commission') OR e.paid_at IS NOT NULL)`,
       )
       .getRawOne<{ sum: string }>();
   }
@@ -1622,7 +1531,7 @@ export class ReportsService {
         { from: scope.from, to: scope.to },
       )
       .andWhere(
-        `(e.kind NOT IN ('insurance','gps','tenure_payment') OR e.paid_at IS NOT NULL)`,
+        `(e.kind NOT IN ('insurance','gps','tenure_payment','operator_payment','operator_commission') OR e.paid_at IS NOT NULL)`,
       )
       .getCount();
   }

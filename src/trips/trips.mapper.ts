@@ -11,12 +11,25 @@ import {
 
 export type TripResponse = Record<string, unknown>;
 
+export type TripOperationConfigDisplay = {
+  name: string;
+  maxEquipmentCount: number;
+};
+
+export type TripDrawerDisplayExtras = {
+  destinationRateSummary?: string | null;
+  originOperationalCenterId?: number | null;
+  originOperationalCenterLabel?: string | null;
+};
+
 export type MapTripToResponseOptions = {
   /**
    * Listado: sin `incidents[]` / `tripDocuments` (usar `hasIncident` denormalizado).
    * Detalle: hidrata bitácora y documentos.
    */
   list?: boolean;
+  operationConfig?: TripOperationConfigDisplay | null;
+  drawerDisplay?: TripDrawerDisplayExtras;
 };
 
 function resolveOperatorDisplayName(trip: Trip): string | undefined {
@@ -55,6 +68,10 @@ export function mapTripToResponse(
     const row = equipmentCatalog.find((e) => e.id === id);
     return row?.id ?? id;
   });
+  const equipmentPlates = equipmentIds.map((id) => {
+    const row = equipmentCatalog.find((e) => e.id === id);
+    return row?.plate?.trim() || '';
+  });
   const exposedActual = exposeTripActualSchedule(trip);
   const mappedIncidents = list
     ? []
@@ -70,6 +87,17 @@ export function mapTripToResponse(
     operatorId: trip.operator?.id ?? trip.operatorId ?? '',
     operatorName: resolveOperatorDisplayName(trip),
     unitOperationalCode: resolveUnitDisplayCode(trip),
+    unitPlate: list ? undefined : trip.unit?.plate?.trim() || null,
+    equipmentPlates: list ? undefined : equipmentPlates,
+    operatorLicenseNumber: list
+      ? undefined
+      : trip.operator?.licenseNumber?.trim() || null,
+    operatorLicenseExpiresOn: list
+      ? undefined
+      : trip.operator?.licenseExpiresOn?.trim() || null,
+    operationConfigurationName: options?.operationConfig?.name ?? null,
+    operationConfigurationMaxEquipmentCount:
+      options?.operationConfig?.maxEquipmentCount ?? null,
     status: trip.status,
     createdAt: trip.createdAt.toISOString(),
     createdByName: trip.createdBy?.trim() || null,
@@ -109,6 +137,15 @@ export function mapTripToResponse(
     destinationCityMunicipality: trip.destinationCityMunicipality,
     destinationLocality: trip.destinationLocality,
     destinationRateId: trip.destinationRateId ?? null,
+    destinationRateSummary: list
+      ? undefined
+      : options?.drawerDisplay?.destinationRateSummary ?? null,
+    originOperationalCenterId: list
+      ? undefined
+      : options?.drawerDisplay?.originOperationalCenterId ?? null,
+    originOperationalCenterLabel: list
+      ? undefined
+      : options?.drawerDisplay?.originOperationalCenterLabel ?? null,
     dieselLiters: trip.dieselLiters?.toString(),
     dieselAmount: trip.dieselAmount?.toString(),
     casetasAmount: trip.casetasAmount?.toString(),

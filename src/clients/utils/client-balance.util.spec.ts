@@ -1,6 +1,7 @@
 import {
   buildClientBalanceSummary,
   deriveClientCommercialHealthFromSummary,
+  toBalanceOverviewItem,
 } from './client-balance.util';
 import type {
   ClientBalanceExpenseRow,
@@ -45,6 +46,21 @@ describe('client-balance.util', () => {
     expect(summary.receivable).toBe(5000);
     expect(summary.collected).toBe(0);
     expect(deriveClientCommercialHealthFromSummary(summary)).toBe('good_standing');
+  });
+
+  it('serializa overview de tarjeta sin historial ni volumen', () => {
+    const summary = buildClientBalanceSummary(
+      '7',
+      [trip({ id: '1', clientId: '7', clientCharge: '5000' })],
+      [],
+      new Date('2026-06-10T12:00:00.000Z'),
+    );
+    const item = toBalanceOverviewItem('7', 'Cliente Demo', summary);
+    expect(item.name).toBe('Cliente Demo');
+    expect(item.summary.receivable).toBe(5000);
+    expect(item.summary.upcomingPayments.length).toBe(1);
+    expect(item.summary).not.toHaveProperty('paymentHistory');
+    expect(item.summary).not.toHaveProperty('totalKm');
   });
 
   it('usa gastos de ledger cuando cubren rubros programados', () => {

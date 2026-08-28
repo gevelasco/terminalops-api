@@ -68,7 +68,7 @@ function mxWeekday(now = new Date()): number {
   return map[weekday] ?? 1;
 }
 
-function ymdAddDays(ymd: string, days: number): string {
+export function ymdAddDays(ymd: string, days: number): string {
   const base = mxNoonDate(ymd);
   base.setDate(base.getDate() + days);
   return formatYmd(base);

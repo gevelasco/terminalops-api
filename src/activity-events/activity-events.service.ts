@@ -25,7 +25,7 @@ export class ActivityEventsService {
     private readonly repo: Repository<CompanyActivityEvent>,
   ) {}
 
-  async record(params: RecordCompanyActivityParams): Promise<void> {
+  async record(params: RecordCompanyActivityParams): Promise<boolean> {
     const actor = activityActorFromUser(params.actor);
     const row = this.repo.create({
       companyId: params.companyId,
@@ -42,7 +42,7 @@ export class ActivityEventsService {
     });
 
     if (row.dedupeKey) {
-      await this.repo
+      const result = await this.repo
         .createQueryBuilder()
         .insert()
         .into(CompanyActivityEvent)
@@ -60,11 +60,16 @@ export class ActivityEventsService {
           dedupeKey: row.dedupeKey,
         } as never)
         .orIgnore()
+        .returning('id')
         .execute();
-      return;
+      return (
+        (result.identifiers?.length ?? 0) > 0 ||
+        (result.generatedMaps?.length ?? 0) > 0
+      );
     }
 
     await this.repo.save(row);
+    return true;
   }
 
   /**

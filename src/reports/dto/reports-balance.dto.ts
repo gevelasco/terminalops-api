@@ -80,7 +80,7 @@ export type ReportsBalancePayableItemDto = {
   beneficiary: string | null;
   installmentLabel: string;
   dueDate: string;
-  status: 'paid' | 'pending' | 'overdue';
+  status: 'pending' | 'overdue';
 };
 
 export type ReportsBalanceInsightsDto = {

@@ -18,3 +18,27 @@ export function formatOperationalIncurredDateYmd(incurredAt: Date): string {
     day: '2-digit',
   }).format(incurredAt);
 }
+
+export function addOperationalMonthsYmd(
+  ymd: string,
+  months: number,
+): string | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd.trim());
+  if (!match) {
+    return null;
+  }
+  const year = Number(match[1]);
+  const monthIndex = Number(match[2]) - 1;
+  const day = Number(match[3]);
+  const target = new Date(year, monthIndex + months, 1, 12, 0, 0, 0);
+  const lastDay = new Date(
+    target.getFullYear(),
+    target.getMonth() + 1,
+    0,
+  ).getDate();
+  const clamped = Math.min(day, lastDay);
+  const y = target.getFullYear();
+  const m = String(target.getMonth() + 1).padStart(2, '0');
+  const d = String(clamped).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}

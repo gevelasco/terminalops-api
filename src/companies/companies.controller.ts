@@ -189,7 +189,7 @@ export class CompaniesController {
   }
 
   @Get(':companyId/clients/balance-overview')
-  @ApiOperation({ summary: 'Balance comercial agregado por cliente' })
+  @ApiOperation({ summary: 'Tarjetas de cartera: nombre, saldo y próximos cobros' })
   async getClientsBalanceOverview(
     @Param('companyId', ParseIntPipe) companyId: number,
     @LoggedUser() user: AuthUser,
@@ -366,6 +366,8 @@ export class CompaniesController {
       limit: query.limit,
       includeTenure: parseIncludeFleetTenure(query.includeFleetTenure),
       available: parseAvailableQuery(query.available),
+      operationType: query.operationType,
+      containerType: query.containerType,
     });
   }
 

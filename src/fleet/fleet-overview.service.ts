@@ -748,9 +748,8 @@ export class FleetOverviewService {
   }
 
   /**
-   * Última fecha de fin de maniobra por unidad (para «días sin maniobra»),
-   * agregada en SQL: antes se cargaba el historial completo de terminadas
-   * solo para calcular este máximo en JS.
+   * Última maniobra completada por unidad (no por chasis).
+   * Fin = llegada a origen, o completed_at si aún no hay return.
    */
   private async queryLastEndedAtByUnit(
     companyId: number,
@@ -773,18 +772,13 @@ export class FleetOverviewService {
       `
       SELECT
         trip.unit_id AS unit_id,
-        MAX(COALESCE(
-          trip.completed_at,
-          trip.return_at,
-          trip.planned_completion_at,
-          trip.status_changed_at,
-          trip.updated_at
-        )) AS last_ended_at
+        MAX(COALESCE(trip.return_at, trip.completed_at)) AS last_ended_at
       FROM ${schema}.trips trip
       WHERE trip.company_id = $1
         AND trip.deleted_at IS NULL
-        AND trip.status IN ('completed', 'cancelled')
+        AND trip.status = 'completed'
         AND trip.unit_id IS NOT NULL
+        AND COALESCE(trip.return_at, trip.completed_at) IS NOT NULL
         ${unitFilter}
       GROUP BY trip.unit_id
       `,

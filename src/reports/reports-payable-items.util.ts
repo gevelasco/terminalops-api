@@ -1,15 +1,8 @@
 import type { Expense } from 'src/expenses/entities/expense.entity';
-import type { Unit } from 'src/units/entities/unit.entity';
-import type { Equipment } from 'src/equipment/entities/equipment.entity';
-import type { FleetAssetTenure } from 'src/fleet/entities/fleet-asset-tenure.entity';
-import type { Operator } from 'src/operators/entities/operator.entity';
-import {
-  buildExpenseCalendarProjection,
-  type ProjectedExpenseRow,
-} from 'src/expenses/expenses-calendar-projection.util';
+import { LEDGER_SCHEDULED_KINDS } from 'src/expenses/ledger-scheduled-kinds';
 import { formatOperationalIncurredDateYmd } from 'src/expenses/expenses-incurred-at.util';
 
-export type PayableItemStatus = 'paid' | 'pending' | 'overdue';
+export type PayableItemStatus = 'pending' | 'overdue';
 
 export interface PayableItemDto {
   description: string;
@@ -20,7 +13,7 @@ export interface PayableItemDto {
   status: PayableItemStatus;
 }
 
-const PAYABLE_SOURCES = new Set(['insurance', 'gps', 'tenure_payment']);
+export const LEDGER_PAYABLE_KINDS = LEDGER_SCHEDULED_KINDS;
 
 function parseMoney(raw?: string | number | null): number {
   if (raw == null || raw === '') return 0;
@@ -28,9 +21,13 @@ function parseMoney(raw?: string | number | null): number {
   return Number.isFinite(n) ? n : 0;
 }
 
-function todayYmd(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+export function operationalTodayYmd(now = new Date()): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Mexico_City',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(now);
 }
 
 function parseInstallmentFromHint(hint: string): string {
@@ -38,106 +35,75 @@ function parseInstallmentFromHint(hint: string): string {
   return m ? `${m[1]}/${m[2]}` : '1/1';
 }
 
-function projectedLabel(proj: ProjectedExpenseRow): string {
-  const asset =
-    proj.relatedUnitLabel?.trim() ||
-    proj.relatedEquipmentLabel?.trim() ||
-    proj.fleetRelationLabel?.trim() ||
-    '';
-  switch (proj.source) {
+function payableDescription(exp: Expense): string {
+  const desc = exp.description?.trim();
+  if (desc) {
+    return desc;
+  }
+  const category = exp.category?.trim();
+  if (category) {
+    return category;
+  }
+  switch (exp.kind) {
     case 'insurance':
-      return asset ? `Seguro — ${asset}` : 'Seguro';
+      return 'Seguro';
     case 'gps':
-      return asset ? `GPS — ${asset}` : 'GPS';
+      return 'GPS';
+    case 'verification':
+      return 'Verificación';
     case 'tenure_payment':
-      return asset ? `Cuota financiamiento — ${asset}` : 'Cuota financiamiento';
+      return 'Cuota financiamiento';
+    case 'operator_payment':
+    case 'operator_commission':
+      return 'Pago a operador';
     default:
-      return proj.conceptLabel || 'Pago programado';
+      return exp.kind ?? 'Pago';
   }
 }
 
+/**
+ * Abierto si vence en o antes de `to`. El resto del mes son fechas
+ * desde hoy; lo vencido (aunque sea de meses atrás) sigue saliendo
+ * hasta que se confirme el pago.
+ */
+export function isOpenLedgerPayable(dueYmd: string, to: string): boolean {
+  return Boolean(dueYmd) && dueYmd <= to;
+}
+
 export function buildPayableItems(params: {
-  units: readonly Unit[];
-  equipment: readonly Equipment[];
-  tenures: readonly FleetAssetTenure[];
-  projectionExpenses: readonly Expense[];
-  allExpenses: readonly Expense[];
-  from: string;
+  expenses: readonly Expense[];
   to: string;
+  today?: string;
 }): PayableItemDto[] {
-  const { units, equipment, tenures, projectionExpenses, allExpenses, from, to } = params;
-  const today = todayYmd();
+  const today = params.today ?? operationalTodayYmd();
   const items: PayableItemDto[] = [];
+  const kinds = new Set<string>(LEDGER_PAYABLE_KINDS);
 
-  const projection = buildExpenseCalendarProjection({
-    from,
-    to,
-    trips: [],
-    units,
-    equipment,
-    operators: [] as unknown as Operator[],
-    tenures,
-    expenses: projectionExpenses,
-    actualItems: [],
-  });
-
-  for (const proj of projection.projected) {
-    if (!PAYABLE_SOURCES.has(proj.source)) continue;
-    if (proj.nature !== 'scheduled') continue;
+  for (const exp of params.expenses) {
+    if (!kinds.has(exp.kind ?? '')) {
+      continue;
+    }
+    if (exp.discardedAt) {
+      continue;
+    }
+    if (exp.paidAt != null) {
+      continue;
+    }
+    if (!exp.incurredAt) {
+      continue;
+    }
+    const dueDate = formatOperationalIncurredDateYmd(exp.incurredAt);
+    if (!isOpenLedgerPayable(dueDate, params.to)) {
+      continue;
+    }
 
     items.push({
-      description: projectedLabel(proj),
-      amount: parseMoney(proj.amount),
-      beneficiary: proj.vendor?.trim() || null,
-      installmentLabel: parseInstallmentFromHint(proj.hint),
-      dueDate: proj.dueDate,
-      status: proj.dueDate < today ? 'overdue' : 'pending',
-    });
-  }
-
-  const projectedKeys = new Set(
-    projection.projected
-      .filter((p) => PAYABLE_SOURCES.has(p.source))
-      .map((p) => `${p.source}:${p.dueDate}:${p.relatedUnitId ?? ''}:${p.relatedEquipmentId ?? ''}`),
-  );
-
-  for (const exp of allExpenses) {
-    const kind = exp.kind ?? '';
-    if (!PAYABLE_SOURCES.has(kind)) continue;
-    if (exp.discardedAt) continue;
-    const incurred = formatOperationalIncurredDateYmd(exp.incurredAt);
-    if (incurred < from || incurred > to) continue;
-
-    const key = `${kind}:${incurred}:${exp.relatedUnitId ?? ''}:${exp.relatedEquipmentId ?? ''}`;
-    if (projectedKeys.has(key)) continue;
-
-    const desc = exp.description?.trim() || exp.category?.trim() || kind;
-    items.push({
-      description: desc,
+      description: payableDescription(exp),
       amount: parseMoney(exp.amount),
       beneficiary: exp.vendor?.trim() || null,
       installmentLabel: parseInstallmentFromHint(exp.description ?? ''),
-      dueDate: incurred,
-      status: 'paid',
-    });
-  }
-
-  const scheduledKinds = new Set(['insurance', 'gps', 'tenure_payment']);
-  const creditMethods = new Set(['credit', 'credit_card', 'card']);
-  for (const exp of allExpenses) {
-    if (scheduledKinds.has(exp.kind ?? '')) continue;
-    if (!creditMethods.has(exp.paymentMethod ?? '')) continue;
-    if (exp.discardedAt) continue;
-    const incurred = formatOperationalIncurredDateYmd(exp.incurredAt);
-    if (incurred < from || incurred > to) continue;
-
-    items.push({
-      description: exp.category?.trim() || exp.description?.trim() || 'Gasto a crédito',
-      amount: parseMoney(exp.amount),
-      beneficiary: exp.vendor?.trim() || null,
-      installmentLabel: '1/1',
-      dueDate: incurred,
-      status: 'paid',
+      dueDate,
+      status: dueDate < today ? 'overdue' : 'pending',
     });
   }
 

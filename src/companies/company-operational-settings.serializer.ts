@@ -48,6 +48,7 @@ export function serializeCompanyOperationalSettings(
     maintenanceDateControlChangedAt: toIsoString(company.maintenanceDateControlChangedAt),
     dieselControlEnabled: company.dieselControlEnabled,
     dieselControlChangedAt: toIsoString(company.dieselControlChangedAt),
+    paymentReminderDaysBefore: company.paymentReminderDaysBefore ?? 5,
     operationalCenterPostalCode: geo.operationalCenterPostalCode,
     operationalCenterCityMunicipality: geo.operationalCenterCityMunicipality,
     operationalCenterLocality: geo.operationalCenterLocality,

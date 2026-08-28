@@ -59,23 +59,43 @@ export class FleetVerificationExpenseSyncService {
     relatedEquipmentId?: number;
     event: VerificationExpenseCandidate;
   }): Promise<void> {
-    await this.expensesService.create(params.companyId, {
-      category: params.event.category,
+    const existing = await this.expensesService.findActiveVerificationOnDate({
+      companyId: params.companyId,
+      relatedUnitId: params.relatedUnitId,
+      relatedEquipmentId: params.relatedEquipmentId,
+      scope: params.event.scope,
+      incurredYmd: params.event.date,
+    });
+    if (!existing) {
+      await this.expensesService.create(params.companyId, {
+        category: params.event.category,
+        amount: params.event.cost,
+        incurredAt: params.event.date,
+        kind: 'verification',
+        verificationScope: params.event.scope,
+        relatedUnitId: String(params.relatedUnitId),
+        ...(params.relatedEquipmentId != null
+          ? { relatedEquipmentId: String(params.relatedEquipmentId) }
+          : {}),
+        description: `Pago de verificación - ${
+          params.event.scope === 'phys_mech'
+            ? 'físico-mecánica'
+            : params.event.scope === 'emissions'
+              ? 'emisiones'
+              : 'doble articulado'
+        }`,
+      });
+      return;
+    }
+    await this.expensesService.ensureNextVerificationInstallment({
+      companyId: params.companyId,
+      relatedUnitId: params.relatedUnitId,
+      relatedEquipmentId: params.relatedEquipmentId,
+      scope: params.event.scope,
+      lastVerificationYmd: params.event.date,
       amount: params.event.cost,
-      incurredAt: params.event.date,
-      kind: 'verification',
-      verificationScope: params.event.scope,
-      relatedUnitId: String(params.relatedUnitId),
-      ...(params.relatedEquipmentId != null
-        ? { relatedEquipmentId: String(params.relatedEquipmentId) }
-        : {}),
-      description: `Pago de verificación - ${
-        params.event.scope === 'phys_mech'
-          ? 'físico-mecánica'
-          : params.event.scope === 'emissions'
-            ? 'emisiones'
-            : 'doble articulado'
-      }`,
+      category: params.event.category,
+      description: existing.description,
     });
   }
 }
