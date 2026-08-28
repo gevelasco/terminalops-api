@@ -6,7 +6,11 @@ export class CompanyPaymentReminderDays1751900000000 implements MigrationInterfa
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`
       ALTER TABLE terminalops.companies
-        ADD COLUMN payment_reminder_days_before integer NOT NULL DEFAULT 5;
+        ADD COLUMN IF NOT EXISTS payment_reminder_days_before integer NOT NULL DEFAULT 5;
+    `);
+    await queryRunner.query(`
+      ALTER TABLE terminalops.companies
+        DROP CONSTRAINT IF EXISTS companies_payment_reminder_days_before_chk;
     `);
     await queryRunner.query(`
       ALTER TABLE terminalops.companies

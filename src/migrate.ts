@@ -284,6 +284,21 @@ async function main() {
           ADD COLUMN IF NOT EXISTS per_diem_amount numeric(12, 2) NOT NULL DEFAULT 0;
       `);
       console.log('Schema ensure: destination_rate_prices.per_diem_amount OK');
+      // Hard ensure: avisos de pagos (covers migrations_list drift / login SELECT).
+      await dataSource.query(`
+        ALTER TABLE terminalops.companies
+          ADD COLUMN IF NOT EXISTS payment_reminder_days_before integer NOT NULL DEFAULT 5;
+      `);
+      await dataSource.query(`
+        ALTER TABLE terminalops.companies
+          DROP CONSTRAINT IF EXISTS companies_payment_reminder_days_before_chk;
+      `);
+      await dataSource.query(`
+        ALTER TABLE terminalops.companies
+          ADD CONSTRAINT companies_payment_reminder_days_before_chk
+          CHECK (payment_reminder_days_before >= 1 AND payment_reminder_days_before <= 15);
+      `);
+      console.log('Schema ensure: companies.payment_reminder_days_before OK');
       // Hard ensure: bitácora incident images table.
       await dataSource.query(`
         CREATE TABLE IF NOT EXISTS terminalops.trip_incident_images (
