@@ -89,6 +89,12 @@ import { ActivityEventsService } from 'src/activity-events/activity-events.servi
 import { TripLoadPlacesService } from 'src/trips/trip-load-places.service';
 import { COMPANY_ACTIVITY_KIND } from 'src/activity-events/company-activity-event.kinds';
 import {
+  TRIP_DOCUMENT_ADDED_ACTIVITY,
+  TRIP_TRACKING_UPDATED_ACTIVITY,
+  tripActivitySubjectLabel,
+  tripPatchActivity,
+} from 'src/activity-events/activity-events.trip.util';
+import {
   applyActualScheduleDeltas,
   assertActualScheduleChronology,
   detectActualScheduleDeltas,
@@ -489,6 +495,7 @@ export class TripsService {
     tripId: number,
     documentKind: TripDocumentKind,
     file: Express.Multer.File,
+    actor?: AuthUser,
   ) {
     if (!file?.buffer?.length) {
       throw new BadRequestException('file is required');
@@ -496,7 +503,13 @@ export class TripsService {
     if (!(TRIP_DOCUMENT_KINDS as readonly string[]).includes(documentKind)) {
       throw new BadRequestException('Invalid documentKind');
     }
-    await this.assertTripExists(companyId, tripId);
+    const trip = await this.tripsRepo.findOne({
+      where: { companyId, id: tripId, deletedAt: IsNull() },
+      select: ['id', 'maneuverCode'],
+    });
+    if (!trip) {
+      throw new NotFoundException(`Trip ${tripId} not found`);
+    }
 
     const uploaded = await this.fileService.upload(
       TRIP_DOCUMENT_STORAGE_FOLDER,
@@ -520,6 +533,16 @@ export class TripsService {
         sortOrder: Number.isFinite(sortOrder) ? sortOrder : 0,
       }),
     );
+
+    await this.activityEvents.record({
+      companyId,
+      kind: TRIP_DOCUMENT_ADDED_ACTIVITY.kind,
+      entityType: 'trip',
+      entityId: tripId,
+      subjectLabel: tripActivitySubjectLabel(trip.maneuverCode, tripId),
+      title: TRIP_DOCUMENT_ADDED_ACTIVITY.title,
+      actor,
+    });
 
     return {
       id: saved.id,
@@ -1120,13 +1143,17 @@ export class TripsService {
         }),
       );
     }
+    const patchActivity = tripPatchActivity(dto);
     await this.activityEvents.record({
       companyId,
-      kind: COMPANY_ACTIVITY_KIND.TRIP_UPDATED,
+      kind: patchActivity.kind,
       entityType: 'trip',
       entityId: tripId,
-      subjectLabel: updatedTripEntity.maneuverCode?.trim() || `M-${tripId}`,
-      title: 'Maniobra modificada',
+      subjectLabel: tripActivitySubjectLabel(
+        updatedTripEntity.maneuverCode,
+        tripId,
+      ),
+      title: patchActivity.title,
       actor,
     });
 
@@ -1403,6 +1430,15 @@ export class TripsService {
       updatedAt,
       'system',
     );
+    await this.activityEvents.record({
+      companyId,
+      kind: TRIP_TRACKING_UPDATED_ACTIVITY.kind,
+      entityType: 'trip',
+      entityId: tripId,
+      subjectLabel: tripActivitySubjectLabel(reloaded.maneuverCode, tripId),
+      title: TRIP_TRACKING_UPDATED_ACTIVITY.title,
+      actor: user,
+    });
 
     return this.findOne(companyId, tripId);
   }

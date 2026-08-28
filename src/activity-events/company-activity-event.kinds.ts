@@ -12,9 +12,18 @@ export const COMPANY_ACTIVITY_KIND = {
   EXPENSE_UPDATED: 'expense.updated',
   CLIENT_UPDATED: 'client.updated',
   TRIP_UPDATED: 'trip.updated',
+  TRIP_EXPENSE_ADDED: 'trip.expense_added',
+  TRIP_DOCUMENT_ADDED: 'trip.document_added',
+  TRIP_TRACKING_UPDATED: 'trip.tracking_updated',
   OPERATOR_UPDATED: 'operator.updated',
   UNIT_UPDATED: 'unit.updated',
+  UNIT_FICHA_UPDATED: 'unit.ficha_updated',
+  UNIT_COVERAGE_UPDATED: 'unit.coverage_updated',
+  UNIT_MAINTENANCE_UPDATED: 'unit.maintenance_updated',
   EQUIPMENT_UPDATED: 'equipment.updated',
+  EQUIPMENT_FICHA_UPDATED: 'equipment.ficha_updated',
+  EQUIPMENT_COVERAGE_UPDATED: 'equipment.coverage_updated',
+  EQUIPMENT_MAINTENANCE_UPDATED: 'equipment.maintenance_updated',
 } as const;
 
 export type CompanyActivityKind =

@@ -14,6 +14,7 @@ import { ClientDelivery } from 'src/clients/entities/client-delivery.entity';
 import { ClientDocument } from 'src/clients/entities/client-document.entity';
 import { ClientPaymentTerms } from 'src/clients/entities/client-payment-terms.entity';
 import { DestinationRatesService } from 'src/destination-rates/destination-rates.service';
+import { clientPatchActivity } from 'src/activity-events/activity-events.client.util';
 import { ActivityEventsService } from 'src/activity-events/activity-events.service';
 import { COMPANY_ACTIVITY_KIND } from 'src/activity-events/company-activity-event.kinds';
 import type AuthUser from 'src/types/auth-user.type';
@@ -181,7 +182,7 @@ export class ClientsService {
       entityType: 'client',
       entityId: clientId,
       subjectLabel: name,
-      title: 'Cliente modificado',
+      title: clientPatchActivity(existing, dto).title,
       actor,
     });
     return this.findOne(companyId, clientId);

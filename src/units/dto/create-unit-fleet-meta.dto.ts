@@ -294,6 +294,19 @@ export class CreateUnitFleetMetaDto {
   @Min(0)
   verificationDoubleArticulatedCost?: number;
 
+  @ApiPropertyOptional({
+    type: [String],
+    enum: ['phys_mech', 'emissions', 'double_articulated'],
+    description:
+      'Quita la verificación vigente de esos alcances. Conserva gastos pagados anteriores; descarta el actual impago y el próximo a 6 meses.',
+  })
+  @IsOptional()
+  @IsArray()
+  @IsIn(['phys_mech', 'emissions', 'double_articulated'], { each: true })
+  clearedVerificationScopes?: Array<
+    'phys_mech' | 'emissions' | 'double_articulated'
+  >;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()

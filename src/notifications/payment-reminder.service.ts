@@ -5,7 +5,13 @@ import { ActivityEventsService } from 'src/activity-events/activity-events.servi
 import { Company } from 'src/companies/entities/company.entity';
 import { Expense } from 'src/expenses/entities/expense.entity';
 import { formatOperationalIncurredDateYmd } from 'src/expenses/expenses-incurred-at.util';
+import { buildExpenseCoverageNotificationSubject } from 'src/expenses/expense-fleet-relation-label.util';
 import { applyUnpaidScheduledLedgerRange } from 'src/expenses/unpaid-scheduled-ledger.query';
+import {
+  applyExpenseNotificationFleetJoins,
+  assignFleetRelationIdsFromJoins,
+  EXPENSE_NOTIFICATION_COLUMNS,
+} from 'src/expenses/expense-notification-fleet-join.util';
 import {
   notificationOverdueFetchFrom,
   ymdAddDays,
@@ -81,13 +87,21 @@ export class PaymentReminderService {
     const today = operationalTodayYmd(now);
     const fetchFrom = notificationOverdueFetchFrom(today);
     const fetchTo = ymdAddDays(today, PAYMENT_REMINDER_DAYS_MAX);
-    const [companies, expenses] = await Promise.all([
+    const [companies, expenseRows] = await Promise.all([
       this.companies.find({ select: ['id', 'paymentReminderDaysBefore'] }),
       applyUnpaidScheduledLedgerRange(
-        this.expenses.createQueryBuilder('e'),
+        applyExpenseNotificationFleetJoins(
+          this.expenses
+            .createQueryBuilder('e')
+            .select([...EXPENSE_NOTIFICATION_COLUMNS]),
+        ),
         { from: fetchFrom, to: fetchTo },
       ).getMany(),
     ]);
+    const expenses = expenseRows.map((row) => {
+      assignFleetRelationIdsFromJoins(row);
+      return row;
+    });
 
     const daysByCompany = new Map(
       companies.map((company) => [
@@ -116,7 +130,7 @@ export class PaymentReminderService {
         kind: paymentReminderEventKind(urgency),
         entityType: 'expense',
         entityId: expense.id,
-        subjectLabel: expense.description?.trim() || expense.category || '—',
+        subjectLabel: buildExpenseCoverageNotificationSubject(expense),
         title: paymentReminderTitle(expense.kind, urgency),
         occurredAt: now,
         metadata: {

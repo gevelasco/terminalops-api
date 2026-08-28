@@ -78,6 +78,7 @@ describe('ExpensesInsuranceFleetReconcileService', () => {
     expenseGetMany.mockResolvedValueOnce([
       {
         incurredAt: new Date('2026-07-05T18:00:00.000Z'),
+        paidAt: new Date('2026-07-05T18:00:00.000Z'),
         description: 'Pago de póliza · ABC (Mensualidad 2/12)',
       },
     ]);
@@ -98,6 +99,7 @@ describe('ExpensesInsuranceFleetReconcileService', () => {
     expenseGetMany.mockResolvedValueOnce([
       {
         incurredAt: new Date('2026-07-05T18:00:00.000Z'),
+        paidAt: new Date('2026-07-05T18:00:00.000Z'),
         description: 'Pago de póliza · ABC (Mensualidad 1/12)',
       },
     ]);
@@ -143,6 +145,7 @@ describe('ExpensesInsuranceFleetReconcileService', () => {
     expenseGetMany.mockResolvedValueOnce([
       {
         incurredAt: new Date('2026-07-05T18:00:00.000Z'),
+        paidAt: new Date('2026-07-05T18:00:00.000Z'),
         description: 'Pago de GPS · SkyBitz (Mensualidad 2/12)',
       },
     ]);
@@ -155,6 +158,32 @@ describe('ExpensesInsuranceFleetReconcileService', () => {
     expect(unitProfileUpdate).toHaveBeenCalledWith(
       { unitId: 7 },
       { gpsLastPaymentDate: '2026-07-01' },
+    );
+  });
+
+  it('ignores unpaid later installments when resolving last payment date', async () => {
+    expenseGetMany.mockResolvedValueOnce([
+      {
+        incurredAt: new Date('2026-06-01T18:00:00.000Z'),
+        paidAt: new Date('2026-06-01T18:00:00.000Z'),
+        description: 'Pago de póliza · ABC (Mensualidad 1/12)',
+      },
+      {
+        incurredAt: new Date('2026-07-01T18:00:00.000Z'),
+        paidAt: null,
+        description: 'Pago de póliza · ABC (Mensualidad 2/12)',
+      },
+    ]);
+
+    await service.reconcileAfterInsuranceExpenseDiscard({
+      kind: 'insurance',
+      insuranceTarget: 'unit',
+      relatedUnitId: 7,
+    } as Expense);
+
+    expect(unitProfileUpdate).toHaveBeenCalledWith(
+      { unitId: 7 },
+      { insuranceLastPaymentDate: '2026-06-01' },
     );
   });
 });

@@ -105,6 +105,110 @@ function tripLinkedOperatorLabel(expense: Expense): string | undefined {
   return expense.trip?.operator?.name?.trim() || undefined;
 }
 
+export function coverageNotificationSubjectHasAsset(subject: string): boolean {
+  const trimmed = subject.trim();
+  return /^Unidad\s/i.test(trimmed) || /^Equipo\s/i.test(trimmed);
+}
+
+export function formatExpenseNotificationAmount(
+  amount: string | number | null | undefined,
+  currency = 'MXN',
+): string | undefined {
+  const n =
+    typeof amount === 'number'
+      ? amount
+      : Number(String(amount ?? '').replace(/,/g, '').trim());
+  if (!Number.isFinite(n) || n <= 0) {
+    return undefined;
+  }
+  const code = (currency ?? 'MXN').trim() || 'MXN';
+  try {
+    return new Intl.NumberFormat('es-MX', {
+      style: 'currency',
+      currency: code,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(n);
+  } catch {
+    return `$${n.toFixed(2)}`;
+  }
+}
+
+export type ScheduledPaymentNotificationSubjectInput = {
+  id?: number;
+  description?: string | null;
+  category?: string | null;
+  amount?: string | number | null;
+  currency?: string | null;
+  unitLabel?: string | null;
+  equipmentLabel?: string | null;
+  relatedUnitId?: number | null;
+  relatedEquipmentId?: number | null;
+};
+
+function scheduledPaymentAssetDisplay(
+  input: ScheduledPaymentNotificationSubjectInput,
+): string | undefined {
+  if (input.relatedEquipmentId != null || input.equipmentLabel?.trim()) {
+    const label = input.equipmentLabel?.trim() || String(input.relatedEquipmentId ?? '');
+    return label ? `Equipo ${label}` : undefined;
+  }
+  const label = input.unitLabel?.trim() || (input.relatedUnitId != null ? String(input.relatedUnitId) : '');
+  return label ? `Unidad ${label}` : undefined;
+}
+
+function joinNotificationSubjectParts(
+  parts: Array<string | undefined>,
+  fallback: string,
+): string {
+  const unique: string[] = [];
+  for (const part of parts) {
+    const trimmed = part?.trim();
+    if (!trimmed) {
+      continue;
+    }
+    if (unique.some((existing) => existing.includes(trimmed) || trimmed.includes(existing))) {
+      continue;
+    }
+    unique.push(trimmed);
+  }
+  return unique.join(' · ') || fallback;
+}
+
+/** Unidad/equipo + detalle (mes) + monto, para avisos de cobertura y cuotas. */
+export function buildScheduledPaymentNotificationSubject(
+  input: ScheduledPaymentNotificationSubjectInput,
+): string {
+  const asset = scheduledPaymentAssetDisplay(input);
+  const detail = input.description?.trim() || input.category?.trim() || '';
+  const money = formatExpenseNotificationAmount(input.amount, input.currency ?? 'MXN');
+  return joinNotificationSubjectParts(
+    [asset, detail, money],
+    input.id != null ? `Gasto #${input.id}` : '—',
+  );
+}
+
+/**
+ * Asunto de notificación de cobertura: unidad/equipo + póliza u otro detalle
+ * del gasto, para identificar el activo de un vistazo.
+ */
+export function buildExpenseCoverageNotificationSubject(
+  expense: Expense,
+): string {
+  return buildScheduledPaymentNotificationSubject({
+    id: expense.id,
+    description: expense.description,
+    category: expense.category,
+    amount: expense.amount,
+    currency: expense.currency,
+    unitLabel: unitLabel(expense),
+    equipmentLabel: equipmentLabel(expense),
+    relatedUnitId: expense.relatedUnitId ?? expense.relatedUnit?.id ?? null,
+    relatedEquipmentId:
+      expense.relatedEquipmentId ?? expense.relatedEquipment?.id ?? null,
+  });
+}
+
 /** Etiqueta legible del vínculo operativo para listado y detalle de gastos. */
 export function buildExpenseFleetRelationLabel(expense: Expense): string | undefined {
   switch (expense.kind) {
@@ -126,6 +230,7 @@ export function buildExpenseFleetRelationLabel(expense: Expense): string | undef
     case 'unit_rent':
       return unitLabel(expense);
     case 'insurance':
+    case 'tenure_payment':
       return expense.relatedEquipmentId != null
         ? equipmentLabel(expense)
         : unitLabel(expense);

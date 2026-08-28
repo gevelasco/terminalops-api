@@ -40,6 +40,7 @@ import {
 } from './mappers/unit-fleet-meta.mapper';
 import {
   mergeVerificationHistoryOnScalarSave,
+  normalizeClearedVerificationScopes,
   resolveVerificationEntriesFromMeta,
   verificationEntriesToMetaScalars,
 } from 'src/fleet/fleet-verification-entries.util';
@@ -87,6 +88,7 @@ import { isFleetLinkOptionsSearchAllowed } from 'src/fleet/fleet-link-options-se
 import { mapUnitLinkOption } from './unit-link-option.mapper';
 import { ActivityEventsService } from 'src/activity-events/activity-events.service';
 import { COMPANY_ACTIVITY_KIND } from 'src/activity-events/company-activity-event.kinds';
+import { fleetPatchActivity } from 'src/activity-events/activity-events.fleet.util';
 import { buildUnitOperationalId } from 'src/common/utils/unit-operational-id.util';
 import {
   loadLatestMaintenanceByOwnerIds,
@@ -171,6 +173,14 @@ export class UnitsService {
     }
     if (fleetMeta) {
       await this.saveFleetMeta(companyId, saved.id, fleetMeta);
+    } else {
+      await this.verificationExpenseSync.ensureExemptionVerificationExpenses({
+        companyId,
+        relatedUnitId: saved.id,
+        trailerYear: saved.trailerYear,
+        previous: {},
+        scopes: ['phys_mech', 'emissions'],
+      });
     }
     const label = buildUnitOperationalId(saved);
     await this.activityEvents.record({
@@ -368,13 +378,14 @@ export class UnitsService {
     }
     const row = await this.repo.findOne({ where: { companyId, id: unitId } });
     if (row) {
+      const patchActivity = fleetPatchActivity('unit', fleetMeta);
       await this.activityEvents.record({
         companyId,
-        kind: COMPANY_ACTIVITY_KIND.UNIT_UPDATED,
+        kind: patchActivity.kind,
         entityType: 'unit',
         entityId: unitId,
         subjectLabel: buildUnitOperationalId(row),
-        title: 'Unidad modificada',
+        title: patchActivity.title,
         actor,
       });
     }
@@ -572,6 +583,12 @@ export class UnitsService {
         (profileRow as Record<string, unknown>)[key] = value;
       }
     }
+    const clearedVerificationScopes = normalizeClearedVerificationScopes(
+      fleetMeta.clearedVerificationScopes,
+    );
+    if (clearedVerificationScopes.includes('double_articulated')) {
+      profileRow.verificationDoubleArticulatedApplies = false;
+    }
     await this.profileRepo.save(
       this.profileRepo.create({
         ...(existing ?? {}),
@@ -587,6 +604,22 @@ export class UnitsService {
       previousVerificationEntries,
       existing,
     );
+
+    for (const scope of clearedVerificationScopes) {
+      const lastYmd =
+        scope === 'phys_mech'
+          ? previousVerificationMeta.verificationPhysMechDate
+          : scope === 'emissions'
+            ? previousVerificationMeta.verificationEmissionsDate
+            : previousVerificationMeta.verificationDoubleArticulatedDate;
+      await this.verificationExpenseSync.clearVerificationScope({
+        companyId,
+        relatedUnitId: unitId,
+        scope,
+        lastVerificationYmd:
+          typeof lastYmd === 'string' ? lastYmd : undefined,
+      });
+    }
 
     if (unitFleetMetaVerificationTouched(previousVerificationMeta, fleetMeta)) {
       const incomingForSync =
@@ -620,7 +653,13 @@ export class UnitsService {
         resolvedEntries = mergeVerificationHistoryOnScalarSave({
           previous: previousVerificationEntries,
           incomingScalars: fleetMeta,
+          clearedScopes: clearedVerificationScopes,
         });
+      } else if (clearedVerificationScopes.length > 0) {
+        const cleared = new Set(clearedVerificationScopes);
+        resolvedEntries = resolvedEntries.filter(
+          (entry) => !cleared.has(entry.scope as (typeof clearedVerificationScopes)[number]),
+        );
       }
       await this.verificationRepo.delete({ unitId });
       const verificationRows = fleetMetaDtoToVerificationEntries(unitId, resolvedEntries);
@@ -630,6 +669,23 @@ export class UnitsService {
         );
       }
     }
+
+    const unitRow = await this.repo.findOne({
+      where: { id: unitId, companyId },
+      select: ['trailerYear'],
+    });
+    await this.verificationExpenseSync.ensureExemptionVerificationExpenses({
+      companyId,
+      relatedUnitId: unitId,
+      trailerYear: unitRow?.trailerYear,
+      previous: verificationEntriesToMetaScalars(
+        await this.verificationRepo.find({
+          where: { unitId },
+          order: { sortOrder: 'ASC' },
+        }),
+      ),
+      scopes: ['phys_mech', 'emissions'],
+    });
 
     if (unitFleetMetaInsuranceTouched(existing, fleetMeta)) {
       await this.insuranceExpenseSync.ensureAllInsuranceInstallments({

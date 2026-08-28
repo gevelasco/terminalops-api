@@ -158,5 +158,9 @@ export function unitFleetMetaVerificationTouched(
   if (fleetMetaFieldProvided(incoming, 'verificationEntries')) {
     return true;
   }
+  const cleared = readFleetMetaField(incoming, 'clearedVerificationScopes');
+  if (Array.isArray(cleared) && cleared.length > 0) {
+    return true;
+  }
   return fleetMetaFieldsTouched(UNIT_VERIFICATION_FIELDS, previous, incoming);
 }

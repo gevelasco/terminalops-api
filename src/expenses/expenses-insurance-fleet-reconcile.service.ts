@@ -158,7 +158,7 @@ export class ExpensesInsuranceFleetReconcileService {
       }
     }
 
-    const expenses = await qb.getMany();
+    const expenses = (await qb.getMany()).filter((expense) => expense.paidAt != null);
     if (expenses.length === 0) {
       return null;
     }

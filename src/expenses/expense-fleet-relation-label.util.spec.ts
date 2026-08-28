@@ -1,8 +1,11 @@
 import {
+  buildExpenseCoverageNotificationSubject,
   buildExpenseFleetRelationLabel,
   buildExpenseRelatedEquipmentLabel,
   buildExpenseRelatedOperatorLabel,
   buildExpenseRelatedUnitLabel,
+  coverageNotificationSubjectHasAsset,
+  formatExpenseNotificationAmount,
 } from './expense-fleet-relation-label.util';
 import type { Expense } from './entities/expense.entity';
 
@@ -124,5 +127,141 @@ describe('buildExpenseFleetRelationLabel', () => {
     expect(buildExpenseRelatedUnitLabel(row)).toBe('HYU-2021-81-AA-9K');
     expect(buildExpenseRelatedEquipmentLabel(row)).toBe('FRE-2019-44-XY-1Z');
     expect(buildExpenseRelatedOperatorLabel(row)).toBe('Juan Pérez');
+  });
+
+  it('prefixes unit or equipment on coverage notification subjects', () => {
+    expect(
+      buildExpenseCoverageNotificationSubject(
+        expense({
+          id: 11,
+          kind: 'insurance',
+          description: 'Pago de póliza · 000987345 (Mensualidad 2/12)',
+          relatedUnitId: 7,
+          relatedUnit: {
+            id: 7,
+            trailerBrandAbbr: 'HYU',
+            trailerYear: '2021',
+            plate: '81-AA-9K',
+          } as Expense['relatedUnit'],
+        }),
+      ),
+    ).toBe('Unidad HYU-2021-81-AA-9K · Pago de póliza · 000987345 (Mensualidad 2/12)');
+    expect(
+      buildExpenseCoverageNotificationSubject(
+        expense({
+          id: 12,
+          kind: 'insurance',
+          description: 'Pago de póliza · 0008345312 (Mensualidad 1/12)',
+          relatedEquipmentId: 9,
+          relatedEquipment: {
+            id: 9,
+            trailerBrandAbbr: 'FRE',
+            trailerYear: '2019',
+            plate: '44-XY-1Z',
+          } as Expense['relatedEquipment'],
+        }),
+      ),
+    ).toBe('Equipo FRE-2019-44-XY-1Z · Pago de póliza · 0008345312 (Mensualidad 1/12)');
+    expect(
+      buildExpenseCoverageNotificationSubject(
+        expense({
+          id: 13,
+          kind: 'gps',
+          description: 'Pago de GPS · Motive (Mensualidad 2/12)',
+          relatedUnit: {
+            id: 7,
+            trailerBrandAbbr: 'HYU',
+            trailerYear: '2021',
+            plate: '81-AA-9K',
+          } as Expense['relatedUnit'],
+        }),
+      ),
+    ).toBe('Unidad HYU-2021-81-AA-9K · Pago de GPS · Motive (Mensualidad 2/12)');
+    expect(
+      coverageNotificationSubjectHasAsset(
+        'Unidad HYU-2021-81-AA-9K · Pago de GPS · Motive (Mensualidad 2/12)',
+      ),
+    ).toBe(true);
+    expect(
+      coverageNotificationSubjectHasAsset('Pago de GPS · Motive (Mensualidad 2/12)'),
+    ).toBe(false);
+    expect(
+      buildExpenseCoverageNotificationSubject(
+        expense({
+          id: 14,
+          kind: 'tenure_payment',
+          description: 'Cuota de financiamiento (Mensualidad 2/12)',
+          amount: '8500.00',
+          currency: 'MXN',
+          relatedUnitId: 7,
+          relatedUnit: {
+            id: 7,
+            trailerBrandAbbr: 'HYU',
+            trailerYear: '2021',
+            plate: '81-AA-9K',
+          } as Expense['relatedUnit'],
+        }),
+      ),
+    ).toBe(
+      `Unidad HYU-2021-81-AA-9K · Cuota de financiamiento (Mensualidad 2/12) · ${formatExpenseNotificationAmount('8500.00')}`,
+    );
+    expect(
+      buildExpenseCoverageNotificationSubject(
+        expense({
+          id: 15,
+          kind: 'tenure_payment',
+          description: 'Cuota de financiamiento (Mensualidad 3/24)',
+          amount: '12000',
+          currency: 'MXN',
+          relatedEquipmentId: 9,
+          relatedEquipment: {
+            id: 9,
+            trailerBrandAbbr: 'FRE',
+            trailerYear: '2019',
+            plate: '44-XY-1Z',
+          } as Expense['relatedEquipment'],
+        }),
+      ),
+    ).toBe(
+      `Equipo FRE-2019-44-XY-1Z · Cuota de financiamiento (Mensualidad 3/24) · ${formatExpenseNotificationAmount('12000')}`,
+    );
+    expect(
+      buildExpenseCoverageNotificationSubject(
+        expense({
+          id: 16,
+          kind: 'verification',
+          description: 'Pago de verificación - físico-mecánica',
+          amount: '1500.00',
+          currency: 'MXN',
+          relatedUnit: {
+            id: 7,
+            trailerBrandAbbr: 'HYU',
+            trailerYear: '2021',
+            plate: '81-AA-9K',
+          } as Expense['relatedUnit'],
+        }),
+      ),
+    ).toBe(
+      `Unidad HYU-2021-81-AA-9K · Pago de verificación - físico-mecánica · ${formatExpenseNotificationAmount('1500.00')}`,
+    );
+    expect(
+      buildExpenseCoverageNotificationSubject(
+        expense({
+          id: 17,
+          kind: 'verification',
+          description: 'Pago de verificación - doble articulado',
+          amount: '1800.00',
+          currency: 'MXN',
+          relatedEquipment: {
+            id: 9,
+            trailerBrandAbbr: 'FRE',
+            trailerYear: '2019',
+            plate: '44-XY-1Z',
+          } as Expense['relatedEquipment'],
+        }),
+      ),
+    ).toBe(
+      `Equipo FRE-2019-44-XY-1Z · Pago de verificación - doble articulado · ${formatExpenseNotificationAmount('1800.00')}`,
+    );
   });
 });

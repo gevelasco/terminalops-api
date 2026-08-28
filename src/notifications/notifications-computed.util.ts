@@ -1,5 +1,6 @@
 import { LEDGER_SCHEDULED_KIND_SET } from 'src/expenses/ledger-scheduled-kinds';
 import type { ExpenseCalendarEntry } from 'src/expenses/expenses-calendar-projection.util';
+import { buildScheduledPaymentNotificationSubject } from 'src/expenses/expense-fleet-relation-label.util';
 import { NOTIFICATION_COMPUTED_KIND } from 'src/activity-events/company-activity-event.kinds';
 import {
   classifyPaymentReminder,
@@ -68,12 +69,29 @@ export function buildComputedPaymentNotifications(
       origin: 'computed',
       icon: paymentIcon(kind),
       title: paymentReminderTitle(kind, urgency),
-      subjectLabel: item.conceptLabel || '—',
+      subjectLabel: buildScheduledPaymentNotificationSubject({
+        id: item.expenseId,
+        description: item.description,
+        category: item.conceptLabel,
+        amount: item.amount,
+        currency: item.currency,
+        unitLabel: item.relatedUnitLabel,
+        equipmentLabel: item.relatedEquipmentLabel,
+        relatedUnitId: item.relatedUnitId ?? null,
+        relatedEquipmentId: item.relatedEquipmentId ?? null,
+      }),
       occurredAt: dueYmdToIso(dueYmd),
       actorLabel: 'Sistema',
       tone: paymentReminderTone(urgency),
       entityType: 'expense',
       entityId: item.expenseId != null ? String(item.expenseId) : '',
+      entityTab:
+        kind === 'tenure_payment' ||
+        kind === 'insurance' ||
+        kind === 'gps' ||
+        kind === 'verification'
+          ? 'cob'
+          : null,
     });
   }
 

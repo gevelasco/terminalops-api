@@ -96,4 +96,13 @@ describe('fleet-meta-expense-sync-scope.util', () => {
       ),
     ).toBe(true);
   });
+
+  it('detects clearedVerificationScopes as a verification write', () => {
+    expect(
+      unitFleetMetaVerificationTouched(
+        { verificationPhysMechDate: '2026-05-01' },
+        { clearedVerificationScopes: ['phys_mech'] },
+      ),
+    ).toBe(true);
+  });
 });

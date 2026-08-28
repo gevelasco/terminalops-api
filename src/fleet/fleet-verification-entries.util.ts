@@ -1,5 +1,31 @@
-import type { ExpenseVerificationScope } from 'src/expenses/expense-payload.util';
+import {
+  EXPENSE_VERIFICATION_SCOPES,
+  type ExpenseVerificationScope,
+} from 'src/expenses/expense-payload.util';
 import { VERIFICATION_SCOPE_SPECS } from 'src/fleet/fleet-verification-expense-sync.util';
+
+const VERIFICATION_SCOPE_SET = new Set<string>(EXPENSE_VERIFICATION_SCOPES);
+
+export function normalizeClearedVerificationScopes(
+  raw: readonly string[] | null | undefined,
+  allowed: readonly ExpenseVerificationScope[] = EXPENSE_VERIFICATION_SCOPES,
+): ExpenseVerificationScope[] {
+  if (!raw?.length) {
+    return [];
+  }
+  const allowedSet = new Set(allowed);
+  const out: ExpenseVerificationScope[] = [];
+  for (const item of raw) {
+    if (!VERIFICATION_SCOPE_SET.has(item) || !allowedSet.has(item as ExpenseVerificationScope)) {
+      continue;
+    }
+    const scope = item as ExpenseVerificationScope;
+    if (!out.includes(scope)) {
+      out.push(scope);
+    }
+  }
+  return out;
+}
 
 export type VerificationEntryLike = {
   scope?: string | null;
@@ -197,11 +223,15 @@ export function mergeVerificationHistoryOnScalarSave(params: {
     verificationDoubleArticulatedCost?: number;
   };
   scopes?: readonly ExpenseVerificationScope[];
+  clearedScopes?: readonly ExpenseVerificationScope[];
 }): VerificationEntryLike[] {
   const allowed = new Set(
     params.scopes ?? (['phys_mech', 'emissions', 'double_articulated'] as const),
   );
-  const previous = params.previous.filter(isSubstantiveVerificationEntry);
+  const cleared = new Set(params.clearedScopes ?? []);
+  const previous = params.previous
+    .filter((entry) => !cleared.has(entry.scope as ExpenseVerificationScope))
+    .filter(isSubstantiveVerificationEntry);
   const latest = latestVerificationByScope(previous);
   const next = [...previous];
 

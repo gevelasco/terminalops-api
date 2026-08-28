@@ -3,17 +3,59 @@ import type { Expense } from 'src/expenses/entities/expense.entity';
 
 const COVERAGE_KINDS = new Set(['insurance', 'gps', 'verification']);
 
-export function expenseActivityOnCreate(expense: Expense): {
+export type ExpenseActivity = {
   kind: string;
   title: string;
-} | null {
+  entityType?: string;
+  entityId?: string | number;
+};
+
+function coverageAssetTarget(expense: Expense): Pick<
+  ExpenseActivity,
+  'entityType' | 'entityId'
+> {
+  const equipmentId = expense.relatedEquipmentId ?? expense.relatedEquipment?.id;
+  if (equipmentId != null) {
+    return {
+      entityType: 'equipment',
+      entityId: equipmentId,
+    };
+  }
+  const unitId = expense.relatedUnitId ?? expense.relatedUnit?.id;
+  if (unitId != null) {
+    return { entityType: 'unit', entityId: unitId };
+  }
+  return { entityType: 'expense', entityId: expense.id };
+}
+
+export function isExpensePaymentActivityKind(kind: string): boolean {
+  return (
+    kind === COMPANY_ACTIVITY_KIND.PAYMENT_CONFIRMED ||
+    kind === COMPANY_ACTIVITY_KIND.PAYMENT_REVERTED ||
+    kind === COMPANY_ACTIVITY_KIND.COVERAGE_PAYMENT_CONFIRMED
+  );
+}
+
+export function expenseActivityOnCreate(expense: Expense): ExpenseActivity | null {
   if (expense.discardedAt != null) {
     return null;
   }
   if (COVERAGE_KINDS.has(expense.kind)) {
+    if (expense.paidAt == null) {
+      return null;
+    }
     return {
       kind: COMPANY_ACTIVITY_KIND.COVERAGE_PAYMENT_CONFIRMED,
       title: coverageTitle(expense.kind),
+      ...coverageAssetTarget(expense),
+    };
+  }
+  if (expense.tripId != null) {
+    return {
+      kind: COMPANY_ACTIVITY_KIND.TRIP_EXPENSE_ADDED,
+      title: 'Gasto agregado',
+      entityType: 'trip',
+      entityId: expense.tripId,
     };
   }
   if (isManualExpense(expense)) {
@@ -28,10 +70,7 @@ export function expenseActivityOnCreate(expense: Expense): {
 export function expenseActivityOnUpdate(
   expense: Expense,
   previous?: Expense,
-): {
-  kind: string;
-  title: string;
-} | null {
+): ExpenseActivity | null {
   if (expense.discardedAt != null) {
     return null;
   }
@@ -39,12 +78,14 @@ export function expenseActivityOnUpdate(
     return {
       kind: COMPANY_ACTIVITY_KIND.PAYMENT_CONFIRMED,
       title: paymentTransitionTitle(expense.kind, true),
+      ...coverageAssetTarget(expense),
     };
   }
   if (previous?.paidAt != null && expense.paidAt == null) {
     return {
       kind: COMPANY_ACTIVITY_KIND.PAYMENT_REVERTED,
       title: paymentTransitionTitle(expense.kind, false),
+      ...coverageAssetTarget(expense),
     };
   }
   return {

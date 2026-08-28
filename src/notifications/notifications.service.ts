@@ -1,10 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { ActivityEventsService } from 'src/activity-events/activity-events.service';
 import { Company } from 'src/companies/entities/company.entity';
+import { Equipment } from 'src/equipment/entities/equipment.entity';
 import { ExpensesService } from 'src/expenses/expenses.service';
 import { Trip } from 'src/trips/entities/trip.entity';
+import { Unit } from 'src/units/entities/unit.entity';
 import { OPERATIONAL_TZ } from 'src/reports/reports-filter.util';
 import { NotificationsQueryDto } from './dto/notifications-query.dto';
 import {
@@ -21,6 +23,13 @@ import {
   mergeNotificationFeedItems,
   serializeActivityEventRow,
 } from './notifications.serializer';
+import {
+  coveragePaymentEquipmentIdsToPrefix,
+  coveragePaymentExpenseIdsToEnrich,
+  coveragePaymentUnitIdsToPrefix,
+  enrichCoveragePaymentFeedItems,
+  enrichCoveragePaymentFleetAssetLabels,
+} from './notifications-coverage-subject.util';
 import {
   allowedNotificationEntityTypes,
   canSeeNotificationItem,
@@ -45,6 +54,10 @@ export class NotificationsService {
     private readonly tripsRepo: Repository<Trip>,
     @InjectRepository(Company)
     private readonly companies: Repository<Company>,
+    @InjectRepository(Unit)
+    private readonly unitsRepo: Repository<Unit>,
+    @InjectRepository(Equipment)
+    private readonly equipmentRepo: Repository<Equipment>,
   ) {}
 
   async getFeed(
@@ -69,7 +82,32 @@ export class NotificationsService {
     ]);
 
     const events = eventRows.map(serializeActivityEventRow);
-    const items = mergeNotificationFeedItems(events, computedRows, limit);
+    const merged = mergeNotificationFeedItems(events, computedRows, limit);
+    const expenseIds = coveragePaymentExpenseIdsToEnrich(merged);
+    const unitIds = coveragePaymentUnitIdsToPrefix(merged);
+    const equipmentIds = coveragePaymentEquipmentIdsToPrefix(merged);
+    const [coverageExpenses, units, equipment] = await Promise.all([
+      expenseIds.length > 0
+        ? this.expensesService.findByIdsWithFleetRelations(companyId, expenseIds)
+        : Promise.resolve([]),
+      unitIds.length > 0
+        ? this.unitsRepo.find({
+            where: { companyId, id: In(unitIds) },
+            select: ['id', 'trailerBrandAbbr', 'trailerYear', 'plate'],
+          })
+        : Promise.resolve([]),
+      equipmentIds.length > 0
+        ? this.equipmentRepo.find({
+            where: { companyId, id: In(equipmentIds) },
+            select: ['id', 'trailerBrandAbbr', 'trailerYear', 'plate'],
+          })
+        : Promise.resolve([]),
+    ]);
+    const items = enrichCoveragePaymentFleetAssetLabels(
+      enrichCoveragePaymentFeedItems(merged, coverageExpenses),
+      units,
+      equipment,
+    );
 
     if (query.countOnly) {
       return {

@@ -56,12 +56,12 @@ export const VERIFICATION_SCOPE_SPECS: Array<{
   },
 ];
 
-function parsePositiveCost(raw: string | number | null | undefined): number | null {
+function parseBillableCost(raw: string | number | null | undefined): number | null {
   if (raw == null || raw === '') {
     return null;
   }
   const amount = Number(raw);
-  return Number.isFinite(amount) && amount > 0 ? amount : null;
+  return Number.isFinite(amount) && amount >= 0 ? amount : null;
 }
 
 function normalizeDate(raw: string | null | undefined): string {
@@ -96,7 +96,7 @@ export function findNewBillableVerificationEvents(
       continue;
     }
 
-    const cost = parsePositiveCost(incoming[spec.costKey] as string | number | undefined);
+    const cost = parseBillableCost(incoming[spec.costKey] as string | number | undefined);
     if (cost == null) {
       continue;
     }

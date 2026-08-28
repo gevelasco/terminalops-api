@@ -17,6 +17,22 @@ describe('fleet-verification-expense-sync.util', () => {
     ]);
   });
 
+  it('creates candidate when cost is zero', () => {
+    expect(
+      findNewBillableVerificationEvents(null, {
+        verificationPhysMechDate: '2028-01-01',
+        verificationPhysMechCost: 0,
+      }),
+    ).toEqual([
+      {
+        scope: 'phys_mech',
+        date: '2028-01-01',
+        cost: 0,
+        category: 'Verificación - físico-mecánica',
+      },
+    ]);
+  });
+
   it('skips when date unchanged or cost missing', () => {
     expect(
       findNewBillableVerificationEvents(

@@ -53,6 +53,7 @@ import {
 } from './mappers/equipment-fleet-meta.mapper';
 import {
   mergeVerificationHistoryOnScalarSave,
+  normalizeClearedVerificationScopes,
   resolveVerificationEntriesFromMeta,
   verificationEntriesToMetaScalars,
 } from 'src/fleet/fleet-verification-entries.util';
@@ -74,6 +75,7 @@ import { isFleetLinkOptionsSearchAllowed } from 'src/fleet/fleet-link-options-se
 import { mapEquipmentLinkOption } from './equipment-link-option.mapper';
 import { ActivityEventsService } from 'src/activity-events/activity-events.service';
 import { COMPANY_ACTIVITY_KIND } from 'src/activity-events/company-activity-event.kinds';
+import { fleetPatchActivity } from 'src/activity-events/activity-events.fleet.util';
 import { buildEquipmentOperationalId } from 'src/common/utils/unit-operational-id.util';
 import type AuthUser from 'src/types/auth-user.type';
 import {
@@ -146,6 +148,15 @@ export class EquipmentService {
     );
     if (fleetMeta) {
       await this.saveFleetMeta(companyId, saved.id, fleetMeta);
+    } else {
+      await this.verificationExpenseSync.ensureExemptionVerificationExpenses({
+        companyId,
+        relatedUnitId: saved.unitId ?? undefined,
+        relatedEquipmentId: saved.id,
+        trailerYear: saved.trailerYear,
+        previous: {},
+        scopes: ['phys_mech'],
+      });
     }
     const label = buildEquipmentOperationalId(saved);
     await this.activityEvents.record({
@@ -344,13 +355,14 @@ export class EquipmentService {
     }
     const row = await this.repo.findOne({ where: { companyId, id: equipmentId } });
     if (row) {
+      const patchActivity = fleetPatchActivity('equipment', fleetMeta);
       await this.activityEvents.record({
         companyId,
-        kind: COMPANY_ACTIVITY_KIND.EQUIPMENT_UPDATED,
+        kind: patchActivity.kind,
         entityType: 'equipment',
         entityId: equipmentId,
         subjectLabel: buildEquipmentOperationalId(row),
-        title: 'Equipo modificado',
+        title: patchActivity.title,
         actor,
       });
     }
@@ -556,16 +568,9 @@ export class EquipmentService {
         (profileRow as Record<string, unknown>)[key] = value;
       }
     }
-    await this.profileRepo.save(
-      this.profileRepo.create({
-        ...(existing ?? {}),
-        ...profileRow,
-      }),
-    );
-
     const equipment = await this.repo.findOne({
       where: { id: equipmentId, companyId },
-      select: ['id', 'unitId'],
+      select: ['id', 'unitId', 'trailerYear'],
     });
 
     const previousVerificationEntries = await this.verificationRepo.find({
@@ -573,11 +578,38 @@ export class EquipmentService {
       order: { sortOrder: 'ASC' },
     });
     const previousVerificationMeta = verificationMetaFromEntries(previousVerificationEntries);
+    const equipmentVerificationScopes = [
+      'phys_mech',
+      'double_articulated',
+    ] as const;
+    const clearedVerificationScopes = normalizeClearedVerificationScopes(
+      fleetMeta.clearedVerificationScopes,
+      [...equipmentVerificationScopes],
+    );
 
-    if (
-      equipment?.unitId &&
-      unitFleetMetaVerificationTouched(previousVerificationMeta, fleetMeta)
-    ) {
+    await this.profileRepo.save(
+      this.profileRepo.create({
+        ...(existing ?? {}),
+        ...profileRow,
+      }),
+    );
+
+    for (const scope of clearedVerificationScopes) {
+      const lastYmd =
+        scope === 'phys_mech'
+          ? previousVerificationMeta.verificationPhysMechDate
+          : previousVerificationMeta.verificationDoubleArticulatedDate;
+      await this.verificationExpenseSync.clearVerificationScope({
+        companyId,
+        relatedUnitId: equipment?.unitId ?? undefined,
+        relatedEquipmentId: equipmentId,
+        scope,
+        lastVerificationYmd:
+          typeof lastYmd === 'string' ? lastYmd : undefined,
+      });
+    }
+
+    if (unitFleetMetaVerificationTouched(previousVerificationMeta, fleetMeta)) {
       const incomingForSync =
         fleetMeta.verificationEntries !== undefined
           ? verificationEntriesToMetaScalars(
@@ -589,7 +621,7 @@ export class EquipmentService {
 
       await this.verificationExpenseSync.syncForEquipmentVerificationSave({
         companyId,
-        unitId: equipment.unitId,
+        unitId: equipment?.unitId ?? undefined,
         equipmentId,
         previous: previousVerificationMeta,
         incoming: incomingForSync,
@@ -600,10 +632,6 @@ export class EquipmentService {
       fleetMeta.verificationEntries !== undefined ||
       unitFleetMetaVerificationTouched(previousVerificationMeta, fleetMeta)
     ) {
-      const equipmentVerificationScopes = [
-        'phys_mech',
-        'double_articulated',
-      ] as const;
       let resolvedEntries = resolveVerificationEntriesFromMeta(fleetMeta).filter(
         (entry) =>
           (equipmentVerificationScopes as readonly string[]).includes(
@@ -615,7 +643,13 @@ export class EquipmentService {
           previous: previousVerificationEntries,
           incomingScalars: fleetMeta,
           scopes: [...equipmentVerificationScopes],
+          clearedScopes: clearedVerificationScopes,
         });
+      } else if (clearedVerificationScopes.length > 0) {
+        const cleared = new Set(clearedVerificationScopes);
+        resolvedEntries = resolvedEntries.filter(
+          (entry) => !cleared.has(entry.scope as (typeof clearedVerificationScopes)[number]),
+        );
       }
       await this.verificationRepo.delete({ equipmentId });
       const verificationRows = fleetMetaDtoToVerificationEntries(
@@ -628,6 +662,20 @@ export class EquipmentService {
         );
       }
     }
+
+    await this.verificationExpenseSync.ensureExemptionVerificationExpenses({
+      companyId,
+      relatedUnitId: equipment?.unitId ?? undefined,
+      relatedEquipmentId: equipmentId,
+      trailerYear: equipment?.trailerYear,
+      previous: verificationMetaFromEntries(
+        await this.verificationRepo.find({
+          where: { equipmentId },
+          order: { sortOrder: 'ASC' },
+        }),
+      ),
+      scopes: ['phys_mech'],
+    });
 
     if (unitFleetMetaInsuranceTouched(existing, fleetMeta)) {
       await this.insuranceExpenseSync.ensureAllInsuranceInstallments({

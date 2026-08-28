@@ -18,6 +18,11 @@ export interface ExpenseCalendarEntry {
   statusLabel: string;
   expenseId?: number;
   kind?: string;
+  description?: string;
+  relatedUnitLabel?: string;
+  relatedEquipmentLabel?: string;
+  relatedUnitId?: number | null;
+  relatedEquipmentId?: number | null;
 }
 
 export interface ExpenseCalendarMarker {
@@ -135,7 +140,30 @@ export function actualEntryFromSerialized(
         : Number.isFinite(Number(item['id']))
           ? Number(item['id'])
           : undefined,
+    description:
+      typeof item['description'] === 'string' && item['description'].trim()
+        ? item['description'].trim()
+        : undefined,
+    relatedUnitLabel:
+      typeof item['relatedUnitLabel'] === 'string' && item['relatedUnitLabel'].trim()
+        ? item['relatedUnitLabel'].trim()
+        : undefined,
+    relatedEquipmentLabel:
+      typeof item['relatedEquipmentLabel'] === 'string' &&
+      item['relatedEquipmentLabel'].trim()
+        ? item['relatedEquipmentLabel'].trim()
+        : undefined,
+    relatedUnitId: optionalNumericId(item['relatedUnitId']),
+    relatedEquipmentId: optionalNumericId(item['relatedEquipmentId']),
   };
+}
+
+function optionalNumericId(raw: unknown): number | null | undefined {
+  if (raw == null || raw === '') {
+    return null;
+  }
+  const n = typeof raw === 'number' ? raw : Number(raw);
+  return Number.isInteger(n) && n > 0 ? n : null;
 }
 
 function markerBucketForActual(

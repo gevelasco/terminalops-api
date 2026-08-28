@@ -47,6 +47,12 @@ import {
 } from './expenses-calendar-projection.util';
 import { applyScheduledExpenseAssetFilter } from './expenses-scheduled-asset-filter.util';
 import { applyUnpaidScheduledLedgerRange } from './unpaid-scheduled-ledger.query';
+import { TERMINALOPS_SCHEMA } from 'src/common/constants/schema-name';
+import {
+  applyExpenseNotificationFleetJoins,
+  assignFleetRelationIdsFromJoins,
+  EXPENSE_NOTIFICATION_COLUMNS,
+} from './expense-notification-fleet-join.util';
 import { buildTripAutoExpenses } from 'src/trips/trip-auto-expenses.util';
 import { VERIFICATION_RENEWAL_MONTHS } from 'src/fleet/fleet-verification-expense-sync.util';
 import {
@@ -62,8 +68,11 @@ import { ActivityEventsService } from 'src/activity-events/activity-events.servi
 import {
   expenseActivityOnCreate,
   expenseActivityOnUpdate,
-  expenseActivitySubjectLabel,
+  isExpensePaymentActivityKind,
+  type ExpenseActivity,
 } from 'src/activity-events/activity-events.expense.util';
+import { tripActivitySubjectLabel } from 'src/activity-events/activity-events.trip.util';
+import { buildExpenseCoverageNotificationSubject } from 'src/expenses/expense-fleet-relation-label.util';
 import {
   EXPENSE_DOCUMENT_SLOTS,
   EXPENSE_DOCUMENT_STORAGE_FOLDER,
@@ -167,19 +176,15 @@ export class ExpensesService {
     if (documents !== undefined) {
       await this.replaceExpenseDocuments(saved.id, documents);
     }
-    const activity = expenseActivityOnCreate(saved);
-    if (activity) {
-      await this.activityEvents.record({
-        companyId,
-        kind: activity.kind,
-        entityType: 'expense',
-        entityId: saved.id,
-        subjectLabel: expenseActivitySubjectLabel(saved),
-        title: activity.title,
-        actor,
-      });
-    }
+    await this.recordExpenseActivity(
+      companyId,
+      expenseActivityOnCreate(saved),
+      saved,
+      actor,
+    );
     await this.syncNextVerificationInstallment(saved);
+    await this.insuranceFleetReconcile.reconcileAfterInsuranceExpenseDiscard(saved);
+    await this.insuranceFleetReconcile.reconcileAfterGpsExpenseDiscard(saved);
     return this.findOne(companyId, saved.id);
   }
 
@@ -441,14 +446,48 @@ export class ExpensesService {
     to: string,
   ): Promise<{ items: ExpenseCalendarEntry[] }> {
     const rows = await applyUnpaidScheduledLedgerRange(
-      this.repo
-        .createQueryBuilder('e')
-        .where('e.companyId = :companyId', { companyId }),
+      applyExpenseNotificationFleetJoins(
+        this.repo
+          .createQueryBuilder('e')
+          .select([...EXPENSE_NOTIFICATION_COLUMNS]),
+      ).where('e.companyId = :companyId', { companyId }),
       { from, to },
     ).getMany();
+    for (const row of rows) {
+      assignFleetRelationIdsFromJoins(row);
+    }
+    await this.fillMissingFleetForeignKeys(rows);
+    const withRelations = await Promise.all(
+      rows.map((row) => this.attachExpenseActivityRelations(row)),
+    );
     return {
-      items: rows.map((row) => actualEntryFromSerialized(serializeExpense(row))),
+      items: withRelations.map((row) =>
+        actualEntryFromSerialized(serializeExpense(row)),
+      ),
     };
+  }
+
+  async findByIdsWithFleetRelations(
+    companyId: number,
+    ids: readonly number[],
+  ): Promise<Expense[]> {
+    const unique = [
+      ...new Set(ids.filter((id) => Number.isInteger(id) && id > 0)),
+    ];
+    if (unique.length === 0) {
+      return [];
+    }
+    const rows = await applyExpenseNotificationFleetJoins(
+      this.repo
+        .createQueryBuilder('e')
+        .select([...EXPENSE_NOTIFICATION_COLUMNS])
+        .where('e.companyId = :companyId', { companyId })
+        .andWhere('e.id IN (:...ids)', { ids: unique }),
+    ).getMany();
+    await this.fillMissingFleetForeignKeys(rows);
+    return Promise.all(
+      rows.map((row) => this.attachExpenseActivityRelations(row)),
+    );
   }
 
   /** Gastos del periodo para `all=true` (sin docs; con tope). */
@@ -760,6 +799,51 @@ export class ExpensesService {
     );
   }
 
+  /**
+   * Descarta el gasto actual impago y los impagos posteriores (p. ej. +6 meses)
+   * de un alcance de verificación. Conserva filas ya pagadas y las anteriores.
+   */
+  async discardUnpaidVerificationFromYmd(params: {
+    companyId: number;
+    relatedUnitId?: number;
+    relatedEquipmentId?: number;
+    scope: string;
+    fromYmd: string;
+  }): Promise<number> {
+    const fromYmd = params.fromYmd.trim();
+    if (!isExpenseVerificationScope(params.scope) || !fromYmd) {
+      return 0;
+    }
+    const existing = await this.findScheduledExpenses(params.companyId, 'verification', {
+      relatedUnitId: params.relatedUnitId,
+      relatedEquipmentId: params.relatedEquipmentId,
+    });
+    const ids = existing
+      .filter((row) => {
+        if (row.paidAt != null) {
+          return false;
+        }
+        if (
+          verificationScopeFromExpenseText(row.category, row.description) !==
+          params.scope
+        ) {
+          return false;
+        }
+        return formatOperationalIncurredDateYmd(row.incurredAt) >= fromYmd;
+      })
+      .map((row) => row.id);
+    if (ids.length === 0) {
+      return 0;
+    }
+    const result = await this.repo
+      .createQueryBuilder()
+      .update(Expense)
+      .set({ discardedAt: new Date() })
+      .whereInIds(ids)
+      .execute();
+    return result.affected ?? 0;
+  }
+
   async ensureNextVerificationInstallment(params: {
     companyId: number;
     relatedUnitId?: number;
@@ -770,7 +854,7 @@ export class ExpensesService {
     category: string;
     description?: string | null;
   }): Promise<void> {
-    if (!isExpenseVerificationScope(params.scope) || params.amount <= 0) {
+    if (!isExpenseVerificationScope(params.scope) || params.amount < 0) {
       return;
     }
     const nextYmd = addOperationalMonthsYmd(
@@ -888,6 +972,7 @@ export class ExpensesService {
   ) {
     const existing = await this.repo.findOne({
       where: { companyId, id: expenseId },
+      relations: ['relatedUnit', 'relatedEquipment'],
     });
     if (!existing) {
       throw new NotFoundException(`Expense ${expenseId} not found`);
@@ -1004,30 +1089,147 @@ export class ExpensesService {
     }
     const updated = await this.repo.findOne({
       where: { companyId, id: expenseId },
+      relations: ['relatedUnit', 'relatedEquipment'],
     });
     if (updated) {
-      const activity = expenseActivityOnUpdate(updated, existing);
-      if (activity) {
-        await this.activityEvents.record({
-          companyId,
-          kind: activity.kind,
-          entityType: 'expense',
-          entityId: updated.id,
-          subjectLabel: expenseActivitySubjectLabel(updated),
-          title: activity.title,
-          actor,
-          metadata: {
-            expenseKind: updated.kind,
-            amount: Number(updated.amount ?? 0),
-            paidAt: updated.paidAt?.toISOString() ?? null,
-          },
-        });
-      }
+      await this.recordExpenseActivity(
+        companyId,
+        expenseActivityOnUpdate(updated, existing),
+        updated,
+        actor,
+        {
+          expenseKind: updated.kind,
+          amount: Number(updated.amount ?? 0),
+          paidAt: updated.paidAt?.toISOString() ?? null,
+        },
+      );
     }
     if (updated) {
       await this.syncNextVerificationInstallment(updated);
+      await this.insuranceFleetReconcile.reconcileAfterInsuranceExpenseDiscard(
+        updated,
+      );
+      await this.insuranceFleetReconcile.reconcileAfterGpsExpenseDiscard(updated);
     }
     return this.findOne(companyId, expenseId);
+  }
+
+  /**
+   * Pagos de cobertura solo los confirma una persona. Sin actor no se persiste
+   * el evento (el alta automática del ledger no es una confirmación).
+   */
+  private async recordExpenseActivity(
+    companyId: number,
+    activity: ExpenseActivity | null,
+    expense: Expense,
+    actor?: AuthUser,
+    metadata?: Record<string, unknown>,
+  ): Promise<void> {
+    if (!activity) {
+      return;
+    }
+    if (isExpensePaymentActivityKind(activity.kind) && !actor) {
+      return;
+    }
+    const entityType = activity.entityType ?? 'expense';
+    const entityId = activity.entityId ?? expense.id;
+    await this.activityEvents.record({
+      companyId,
+      kind: activity.kind,
+      entityType,
+      entityId,
+      subjectLabel: await this.expenseActivitySubject(expense, entityType),
+      title: activity.title,
+      actor,
+      ...(metadata ? { metadata } : {}),
+    });
+  }
+
+  private async expenseActivitySubject(
+    expense: Expense,
+    entityType: string,
+  ): Promise<string> {
+    if (entityType === 'trip' && expense.tripId != null) {
+      const trip = await this.tripsRepo.findOne({
+        where: { id: expense.tripId, companyId: expense.companyId, deletedAt: IsNull() },
+        select: ['id', 'maneuverCode'],
+      });
+      return tripActivitySubjectLabel(trip?.maneuverCode, expense.tripId);
+    }
+    const withRelations = await this.attachExpenseActivityRelations(expense);
+    return buildExpenseCoverageNotificationSubject(withRelations);
+  }
+
+  private async fillMissingFleetForeignKeys(rows: Expense[]): Promise<void> {
+    for (const row of rows) {
+      assignFleetRelationIdsFromJoins(row);
+    }
+    const missing = rows.filter(
+      (row) =>
+        row.relatedUnitId == null &&
+        row.relatedEquipmentId == null &&
+        !row.relatedUnit &&
+        !row.relatedEquipment,
+    );
+    if (missing.length === 0) {
+      return;
+    }
+    const rawRows: Array<{
+      id: number;
+      relatedUnitId: number | null;
+      relatedEquipmentId: number | null;
+    }> = await this.repo.query(
+      `SELECT id, related_unit_id AS "relatedUnitId", related_equipment_id AS "relatedEquipmentId"
+       FROM ${TERMINALOPS_SCHEMA}.expenses
+       WHERE id = ANY($1::int[])`,
+      [missing.map((row) => row.id)],
+    );
+    const byId = new Map(rawRows.map((row) => [Number(row.id), row]));
+    for (const row of missing) {
+      const raw = byId.get(row.id);
+      if (!raw) {
+        continue;
+      }
+      if (raw.relatedUnitId != null) {
+        row.relatedUnitId = Number(raw.relatedUnitId);
+      }
+      if (raw.relatedEquipmentId != null) {
+        row.relatedEquipmentId = Number(raw.relatedEquipmentId);
+      }
+    }
+  }
+
+  private async attachExpenseActivityRelations(expense: Expense): Promise<Expense> {
+    let relatedUnit = expense.relatedUnit;
+    let relatedEquipment = expense.relatedEquipment;
+    const unitId = expense.relatedUnitId ?? relatedUnit?.id;
+    const equipmentId = expense.relatedEquipmentId ?? relatedEquipment?.id;
+    if (unitId != null && !relatedUnit) {
+      relatedUnit =
+        (await this.unitsRepo.findOne({
+          where: { id: unitId },
+          select: ['id', 'trailerBrandAbbr', 'trailerYear', 'plate'],
+        })) ?? undefined;
+    }
+    if (equipmentId != null && !relatedEquipment) {
+      relatedEquipment =
+        (await this.equipmentRepo.findOne({
+          where: { id: equipmentId },
+          select: ['id', 'trailerBrandAbbr', 'trailerYear', 'plate'],
+        })) ?? undefined;
+    }
+    if (!relatedUnit && !relatedEquipment) {
+      return Object.assign(expense, {
+        ...(unitId != null ? { relatedUnitId: unitId } : {}),
+        ...(equipmentId != null ? { relatedEquipmentId: equipmentId } : {}),
+      });
+    }
+    return Object.assign(expense, {
+      relatedUnit,
+      relatedEquipment,
+      ...(unitId != null ? { relatedUnitId: unitId } : {}),
+      ...(equipmentId != null ? { relatedEquipmentId: equipmentId } : {}),
+    });
   }
 
   private async attachDocuments(rows: Expense[]): Promise<void> {
