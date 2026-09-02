@@ -43,13 +43,59 @@ function createQueryBuilderMock() {
 }
 
 describe('applyTripListFilters search', () => {
-  it('includes maneuver code and route fields when q is set', () => {
+  it('uses prefix + unit_id IN for maneuver-like codes', () => {
     const qb = createQueryBuilderMock();
     applyTripListFilters(qb as never, 1, { q: 'CHI-0006' });
 
     expect(qb.andWhere).toHaveBeenCalledWith(
-      expect.stringContaining('trip.maneuver_code ILIKE :q'),
-      { q: '%CHI-0006%', companyId: 1 },
+      expect.stringContaining('trip.maneuver_code ILIKE :qPrefix'),
+      expect.objectContaining({
+        qPrefix: 'CHI-0006%',
+        companyId: 1,
+      }),
+    );
+    expect(qb.andWhere).toHaveBeenCalledWith(
+      expect.stringContaining('trip.unit_id IN'),
+      expect.objectContaining({ qPrefix: 'CHI-0006%' }),
+    );
+  });
+
+  it('resolves a composite unit code via unit_id, not a trip-wide ILIKE', () => {
+    const qb = createQueryBuilderMock();
+    applyTripListFilters(qb as never, 1, { q: 'VOL-2021-12-AB-98L' });
+
+    expect(qb.andWhere).toHaveBeenCalledWith(
+      expect.stringContaining('trip.unit_id IN'),
+      expect.objectContaining({
+        qPrefix: 'VOL-2021-12-AB-98L%',
+        qContains: '%VOL-2021-12-AB-98L%',
+        companyId: 1,
+      }),
+    );
+    expect(qb.andWhere).toHaveBeenCalledWith(
+      expect.stringContaining('CONCAT_WS'),
+      expect.anything(),
+    );
+    const searchSql = String(
+      qb.andWhere.mock.calls.find(([sql]) =>
+        String(sql).includes('unit_id IN'),
+      )?.[0],
+    );
+    expect(searchSql).not.toContain('client_name');
+    expect(searchSql).not.toContain('CAST(');
+  });
+
+  it('keeps contains search for free text like operator names', () => {
+    const qb = createQueryBuilderMock();
+    applyTripListFilters(qb as never, 1, { q: 'Juan Perez' });
+
+    expect(qb.andWhere).toHaveBeenCalledWith(
+      expect.stringContaining('trip.client_name ILIKE :q'),
+      expect.objectContaining({ q: '%Juan Perez%', companyId: 1 }),
+    );
+    expect(qb.andWhere).toHaveBeenCalledWith(
+      expect.stringContaining('trip.operator_id IN'),
+      expect.anything(),
     );
   });
 

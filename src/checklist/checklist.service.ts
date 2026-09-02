@@ -72,6 +72,12 @@ export class ChecklistService {
     return { ok: true };
   }
 
+  async countOpen(companyId: number, userId: number): Promise<number> {
+    return this.repo.count({
+      where: { companyId, userId, completed: false },
+    });
+  }
+
   private async findOwned(
     companyId: number,
     userId: number,

@@ -34,6 +34,7 @@ import {
   REFRESH_TOKEN_TTL_MS,
 } from './refresh-token.util';
 import { RefreshTokensService } from './refresh-tokens.service';
+import { ChecklistService } from '../checklist/checklist.service';
 
 @Injectable()
 export class AuthService {
@@ -48,6 +49,7 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly config: ConfigService<EnvConfig>,
     private readonly refreshTokens: RefreshTokensService,
+    private readonly checklistService: ChecklistService,
   ) {}
 
   async login(dto: LoginDto) {
@@ -240,11 +242,17 @@ export class AuthService {
         );
     }
     const authUser = this.usersService.generateAuthUser(resolved);
-    const { photoDataUrl: _photo, ...jwtClaims } = authUser;
+    const openChecklistCount = await this.checklistService.countOpen(
+      resolved.companyId,
+      resolved.id,
+    );
+    const payloadUser = { ...authUser, openChecklistCount };
+    const { photoDataUrl: _photo, openChecklistCount: _open, ...jwtClaims } =
+      payloadUser;
     return {
       access_token: this.jwtService.sign(jwtClaims, { expiresIn: '1h' }),
-      refresh_token: await this.issueRefreshToken(user.id),
-      user: authUser,
+      refresh_token: await this.issueRefreshToken(resolved.id),
+      user: payloadUser,
     };
   }
 

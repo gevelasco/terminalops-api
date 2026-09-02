@@ -1,4 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
+import { tripNotDeletedSql } from 'src/trips/trip-visibility.util';
 import type { ReportsGeneralQueryDto } from './dto/reports-general-query.dto';
 
 const OPERATIONAL_TZ = 'America/Mexico_City';
@@ -120,4 +121,23 @@ export function tripScopeSql(
     params,
     nextParamIndex: idx,
   };
+}
+
+/** Alcance de reportes sobre trips: empresa + vivos. Nunca soft-deletes. */
+export function applyReportsTripScope<
+  T extends { andWhere: (sql: string, params?: object) => T },
+>(qb: T, scope: ReportsScope): T {
+  qb.andWhere('trip.companyId = :companyId', { companyId: scope.companyId });
+  qb.andWhere(tripNotDeletedSql('trip'));
+  if (scope.clientIds.length > 0) {
+    qb.andWhere('trip.clientId IN (:...clientIds)', {
+      clientIds: scope.clientIds,
+    });
+  }
+  if (scope.paymentMethods.length > 0) {
+    qb.andWhere('trip.paymentMethod IN (:...paymentMethods)', {
+      paymentMethods: scope.paymentMethods,
+    });
+  }
+  return qb;
 }

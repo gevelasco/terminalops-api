@@ -6,6 +6,14 @@ import { TripEquipment } from './entities/trip-equipment.entity';
 
 export type TripAssignmentResourceKind = 'unit' | 'operator' | 'equipment';
 
+/** La maniobra ya terminó en el plan: no choca con quién está de viaje ahora. */
+export function isCompletedHistoricalSchedule(
+  plannedCompletionAt: Date,
+  now = new Date(),
+): boolean {
+  return plannedCompletionAt.getTime() <= now.getTime();
+}
+
 /** Bloquea asignación si el recurso ya está en otra maniobra activa. */
 export async function assertResourceNotOnActiveTrip(
   tripsRepo: Repository<Trip>,

@@ -68,6 +68,7 @@ import {
 } from './maneuver-code.util';
 import {
   MISSING_PLANNED_FIELDS_REASON,
+  assertLoadDateAgainstDeparture,
   parseRequiredPlannedScheduleFromCreateDto,
   REQUIRED_PLANNED_SCHEDULE_MESSAGE,
   validatePlannedScheduleUpdate,
@@ -77,7 +78,10 @@ import { TripLifecycleService } from './lifecycle/trip-lifecycle.service';
 import { UnitTripOdometerService } from 'src/units/unit-trip-odometer.service';
 import { rejectLegacyScheduleFields } from './reject-legacy-trip-schedule-fields';
 import { rejectClientTripStatusMutation } from './trip-status-lock.util';
-import { assertResourceNotOnActiveTrip } from './trip-fleet-assignment-guard.util';
+import {
+  assertResourceNotOnActiveTrip,
+  isCompletedHistoricalSchedule,
+} from './trip-fleet-assignment-guard.util';
 import {
   assertNoSnapshotMutation,
   assertNoSnapshotMutationDto,
@@ -713,6 +717,10 @@ export class TripsService {
       }
       throw err;
     }
+    assertLoadDateAgainstDeparture(
+      dto.loadDate ? new Date(dto.loadDate) : undefined,
+      planned.plannedDepartureAt,
+    );
 
     const seq = await this.nextManeuverSequence(companyId);
     const prefix = maneuverCodePrefixFromClientName(dto.clientName ?? '');
@@ -763,12 +771,19 @@ export class TripsService {
     if (!dto.unitId?.trim()) {
       throw new BadRequestException('unitId is required');
     }
-    const resolvedUnitId = await this.resolveUnitId(companyId, dto.unitId);
+    const ignoreCurrentAvailability = isCompletedHistoricalSchedule(
+      planned.plannedCompletionAt,
+    );
+    const resolvedUnitId = await this.resolveUnitId(companyId, dto.unitId, {
+      ignoreCurrentAvailability,
+    });
     if (resolvedUnitId == null) {
       throw new BadRequestException('unitId is required');
     }
     const resolvedOperatorId = dto.operatorId
-      ? await this.resolveOperatorId(companyId, dto.operatorId)
+      ? await this.resolveOperatorId(companyId, dto.operatorId, {
+          ignoreCurrentAvailability,
+        })
       : undefined;
 
     await this.tripLoadPlaces.findOrCreate(companyId, dto.loadPlace);
@@ -820,7 +835,9 @@ export class TripsService {
       hasClientBilling: dto.hasClientBilling ?? !!dto.clientName?.trim(),
     });
     const equipmentIds = dto.equipmentIds?.length
-      ? await this.resolveEquipmentIds(companyId, dto.equipmentIds)
+      ? await this.resolveEquipmentIds(companyId, dto.equipmentIds, {
+          ignoreCurrentAvailability,
+        })
       : [];
 
     const company = await this.companiesRepo.findOne({
@@ -957,6 +974,20 @@ export class TripsService {
       plannedArrivalAt,
       plannedCompletionAt,
     });
+    const resultingDeparture =
+      plannedPatch.plannedDepartureAt ?? trip.plannedDepartureAt;
+    const resultingLoadDate =
+      loadDate !== undefined
+        ? loadDate
+          ? new Date(loadDate)
+          : undefined
+        : trip.loadDate;
+    assertLoadDateAgainstDeparture(resultingLoadDate, resultingDeparture);
+    const ignoreCurrentAvailability =
+      trip.status === 'completed' ||
+      isCompletedHistoricalSchedule(
+        plannedPatch.plannedCompletionAt ?? trip.plannedCompletionAt,
+      );
     const operationPatch =
       operationType !== undefined
         ? await this.resolveOperationConfig(companyId, operationType)
@@ -969,16 +1000,18 @@ export class TripsService {
       if (!String(unitId).trim()) {
         throw new BadRequestException('unitId cannot be cleared');
       }
-      resolvedUnitIdForPatch = await this.resolveUnitId(
-        companyId,
-        unitId,
-        tripId,
-      );
+      resolvedUnitIdForPatch = await this.resolveUnitId(companyId, unitId, {
+        excludeTripId: tripId,
+        ignoreCurrentAvailability,
+      });
     }
 
     if (operatorId !== undefined) {
       resolvedOperatorIdForPatch = operatorId
-        ? await this.resolveOperatorId(companyId, operatorId, tripId)
+        ? await this.resolveOperatorId(companyId, operatorId, {
+            excludeTripId: tripId,
+            ignoreCurrentAvailability,
+          })
         : undefined;
     }
 
@@ -1035,7 +1068,10 @@ export class TripsService {
       const resolvedEquipmentIds = await this.resolveEquipmentIds(
         companyId,
         equipmentIds,
-        tripId,
+        {
+          excludeTripId: tripId,
+          ignoreCurrentAvailability,
+        },
       );
       await this.syncEquipment(tripId, resolvedEquipmentIds);
     }
@@ -1826,7 +1862,7 @@ export class TripsService {
   private async resolveUnitId(
     companyId: number,
     ref: string,
-    excludeTripId?: number,
+    options?: { excludeTripId?: number; ignoreCurrentAvailability?: boolean },
   ): Promise<number | undefined> {
     const unitId = parseOptionalNumericId(ref, 'Unit');
     if (!unitId) {
@@ -1840,22 +1876,24 @@ export class TripsService {
       throw new NotFoundException(`Unit ${unitId} not found`);
     }
     assertFleetResourceAssignableForTrip(row, 'Unit');
-    await assertResourceNotOnActiveTrip(
-      this.tripsRepo,
-      this.tripEquipmentRepo,
-      companyId,
-      'unit',
-      row.id,
-      'Unit',
-      excludeTripId,
-    );
+    if (!options?.ignoreCurrentAvailability) {
+      await assertResourceNotOnActiveTrip(
+        this.tripsRepo,
+        this.tripEquipmentRepo,
+        companyId,
+        'unit',
+        row.id,
+        'Unit',
+        options?.excludeTripId,
+      );
+    }
     return row.id;
   }
 
   private async resolveOperatorId(
     companyId: number,
     ref: string,
-    excludeTripId?: number,
+    options?: { excludeTripId?: number; ignoreCurrentAvailability?: boolean },
   ): Promise<number | undefined> {
     const operatorId = parseOptionalNumericId(ref, 'Operator');
     if (!operatorId) {
@@ -1869,15 +1907,17 @@ export class TripsService {
       throw new NotFoundException(`Operator ${operatorId} not found`);
     }
     assertFleetResourceAssignableForTrip(row, 'Operator');
-    await assertResourceNotOnActiveTrip(
-      this.tripsRepo,
-      this.tripEquipmentRepo,
-      companyId,
-      'operator',
-      row.id,
-      'Operator',
-      excludeTripId,
-    );
+    if (!options?.ignoreCurrentAvailability) {
+      await assertResourceNotOnActiveTrip(
+        this.tripsRepo,
+        this.tripEquipmentRepo,
+        companyId,
+        'operator',
+        row.id,
+        'Operator',
+        options?.excludeTripId,
+      );
+    }
     return row.id;
   }
 
@@ -1921,7 +1961,7 @@ export class TripsService {
   private async resolveEquipmentIds(
     companyId: number,
     refs: string[],
-    excludeTripId?: number,
+    options?: { excludeTripId?: number; ignoreCurrentAvailability?: boolean },
   ): Promise<number[]> {
     const out: number[] = [];
     for (const ref of refs) {
@@ -1935,15 +1975,17 @@ export class TripsService {
       });
       if (row) {
         assertFleetResourceAssignableForTrip(row, 'Equipment');
-        await assertResourceNotOnActiveTrip(
-          this.tripsRepo,
-          this.tripEquipmentRepo,
-          companyId,
-          'equipment',
-          row.id,
-          'Equipment',
-          excludeTripId,
-        );
+        if (!options?.ignoreCurrentAvailability) {
+          await assertResourceNotOnActiveTrip(
+            this.tripsRepo,
+            this.tripEquipmentRepo,
+            companyId,
+            'equipment',
+            row.id,
+            'Equipment',
+            options?.excludeTripId,
+          );
+        }
         out.push(row.id);
       }
     }

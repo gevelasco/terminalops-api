@@ -10,6 +10,7 @@ import EnvConfig from '../types/env-config.type';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { RefreshTokensModule } from './refresh-tokens.module';
+import { ChecklistModule } from '../checklist/checklist.module';
 
 @Global()
 @Module({
@@ -19,6 +20,7 @@ import { RefreshTokensModule } from './refresh-tokens.module';
     OperationalCentersModule,
     EmailModule,
     RefreshTokensModule,
+    ChecklistModule,
     JwtModule.registerAsync({
       inject: [ConfigService],
       global: true,

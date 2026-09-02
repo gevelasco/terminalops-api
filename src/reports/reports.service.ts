@@ -5,6 +5,7 @@ import { Expense } from 'src/expenses/entities/expense.entity';
 import { FleetOverviewService } from 'src/fleet/fleet-overview.service';
 import { CompanyOperationConfiguration } from 'src/operation-configurations/entities/company-operation-configuration.entity';
 import { Trip } from 'src/trips/entities/trip.entity';
+import { expenseNotDiscardedSql } from 'src/trips/trip-visibility.util';
 import { FleetMaintenanceEntry } from 'src/units/entities/fleet-maintenance-entry.entity';
 import {
   buildPayableItems,
@@ -21,6 +22,7 @@ import type {
 } from './dto/reports-balance.dto';
 import {
   OPERATIONAL_TZ,
+  applyReportsTripScope,
   parseReportsScope,
   previousPeriodRange,
   tripScopeSql,
@@ -1146,6 +1148,7 @@ export class ReportsService {
       .createQueryBuilder('e')
       .select('COALESCE(SUM(e.amount), 0)', 'sum')
       .where('e.companyId = :companyId', { companyId: scope.companyId })
+      .andWhere(expenseNotDiscardedSql('e'))
       .andWhere("e.kind <> 'operational_control'")
       .andWhere(
         `LOWER(TRIM(COALESCE(e.paymentMethod, ''))) IN ('credit', 'credit_card', 'card')`,
@@ -1462,18 +1465,7 @@ export class ReportsService {
     qb: SelectQueryBuilder<Trip>,
     scope: ReportsScope,
   ): SelectQueryBuilder<Trip> {
-    qb.andWhere('trip.companyId = :companyId', { companyId: scope.companyId });
-    if (scope.clientIds.length > 0) {
-      qb.andWhere('trip.clientId IN (:...clientIds)', {
-        clientIds: scope.clientIds,
-      });
-    }
-    if (scope.paymentMethods.length > 0) {
-      qb.andWhere('trip.paymentMethod IN (:...paymentMethods)', {
-        paymentMethods: scope.paymentMethods,
-      });
-    }
-    return qb;
+    return applyReportsTripScope(qb, scope);
   }
 
   private countCompletedTrips(scope: ReportsScope): Promise<number> {
@@ -1547,6 +1539,7 @@ export class ReportsService {
       .createQueryBuilder('e')
       .select('COALESCE(SUM(e.amount), 0)', 'sum')
       .where('e.companyId = :companyId', { companyId: scope.companyId })
+      .andWhere(expenseNotDiscardedSql('e'))
       .andWhere('e.kind IN (:...kinds)', { kinds: [...kinds] })
       .andWhere(
         `(e.incurred_at AT TIME ZONE '${OPERATIONAL_TZ}')::date BETWEEN :from AND :to`,
@@ -2042,6 +2035,7 @@ export class ReportsService {
       .andWhere(
         '(e.relatedUnitId IS NOT NULL OR e.relatedEquipmentId IS NOT NULL)',
       )
+      .andWhere(expenseNotDiscardedSql('e'))
       .andWhere(
         `(e.incurred_at AT TIME ZONE '${OPERATIONAL_TZ}')::date BETWEEN :from AND :to`,
         { from: scope.from, to: scope.to },

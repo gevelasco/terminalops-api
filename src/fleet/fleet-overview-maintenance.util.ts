@@ -106,7 +106,7 @@ function maintenanceBucket(
       policy.datePeriodMonths,
     );
   }
-  return renewalBucketFromLast(meta.lastMaintenanceDate, 6);
+  return 'na';
 }
 
 function verificationBucket(meta: FleetMetaLike | undefined): FleetOverviewRenewalStatus {
@@ -210,14 +210,26 @@ export function nextMaintenanceDateLabel(
   if (!meta) {
     return null;
   }
+  if (policy?.kmControlEnabled) {
+    const rem = maintenanceKmRemainingFromCounter(
+      meta.maintenanceKmCounter ?? 0,
+      policy.kmIntervalDefault,
+    );
+    if (rem == null || policy.kmIntervalDefault == null) {
+      return null;
+    }
+    const fmt = (n: number) =>
+      new Intl.NumberFormat('es-MX', { maximumFractionDigits: 0 }).format(n);
+    return `${fmt(rem)} km`;
+  }
+  if (!policy?.dateControlEnabled) {
+    return null;
+  }
   const last = meta.lastMaintenanceDate?.trim();
   if (!last) {
     return null;
   }
-  const months = policy?.dateControlEnabled
-    ? policy.datePeriodMonths
-    : 6;
-  const target = addMonthsYmd(last, months);
+  const target = addMonthsYmd(last, policy.datePeriodMonths);
   return target ? fmtMxDateYmd(target) : null;
 }
 

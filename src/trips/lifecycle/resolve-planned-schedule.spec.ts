@@ -1,6 +1,8 @@
 import { BadRequestException } from '@nestjs/common';
 import type { CreateTripDto } from '../dto/create-trip.dto';
 import {
+  assertLoadDateAgainstDeparture,
+  INVALID_LOAD_DATE_MESSAGE,
   MISSING_PLANNED_FIELDS_REASON,
   parseRequiredPlannedScheduleFromCreateDto,
   REQUIRED_PLANNED_SCHEDULE_MESSAGE,
@@ -105,6 +107,16 @@ describe('validatePlannedScheduleUpdate', () => {
     expect(patch.plannedArrivalAt?.toISOString()).toBe(
       '2026-06-01T13:00:00.000Z',
     );
+  });
+
+  it('requires load date on the same Mexico calendar day as departure', () => {
+    const departure = new Date('2026-06-01T14:00:00.000Z');
+    expect(() =>
+      assertLoadDateAgainstDeparture(new Date('2026-06-01T12:00:00.000Z'), departure),
+    ).not.toThrow();
+    expect(() =>
+      assertLoadDateAgainstDeparture(new Date('2026-06-02T14:00:00.000Z'), departure),
+    ).toThrow(INVALID_LOAD_DATE_MESSAGE);
   });
 
   it('blocks inconsistent partial update', () => {

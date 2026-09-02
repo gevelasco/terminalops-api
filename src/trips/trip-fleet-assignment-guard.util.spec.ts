@@ -1,7 +1,22 @@
 import { BadRequestException } from '@nestjs/common';
-import { assertResourceNotOnActiveTrip } from './trip-fleet-assignment-guard.util';
+import {
+  assertResourceNotOnActiveTrip,
+  isCompletedHistoricalSchedule,
+} from './trip-fleet-assignment-guard.util';
 import { Trip } from './entities/trip.entity';
 import { TripEquipment } from './entities/trip-equipment.entity';
+
+describe('isCompletedHistoricalSchedule', () => {
+  it('is true when planned completion is already in the past', () => {
+    const now = new Date('2026-09-01T20:00:00.000Z');
+    expect(
+      isCompletedHistoricalSchedule(new Date('2026-08-31T18:00:00.000Z'), now),
+    ).toBe(true);
+    expect(
+      isCompletedHistoricalSchedule(new Date('2026-09-02T08:00:00.000Z'), now),
+    ).toBe(false);
+  });
+});
 
 describe('assertResourceNotOnActiveTrip', () => {
   const tripsFindOne = jest.fn();

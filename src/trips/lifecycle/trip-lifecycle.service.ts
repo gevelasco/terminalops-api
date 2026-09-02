@@ -21,6 +21,8 @@ const LIFECYCLE_CRON_LOCK_KEY = 74_027_001;
 
 /** Evita re-escanear la misma empresa en ráfagas mapa/listado/dashboard. */
 const COMPANY_FRESH_TTL_MS = 30_000;
+/** Techo del mapa de TTL; se recorta al escribir, no cambia el frescor de 30s. */
+const COMPANY_FRESH_MAP_MAX = 256;
 
 /** Al cerrar por lifecycle, usa fin real o planeado (no «ahora» en maniobras retroactivas). */
 function resolveCompletedAtOnTransition(trip: Trip, transitionedAt: Date): Date {
@@ -215,7 +217,7 @@ export class TripLifecycleService {
 
     const run = this.runCompanyLifecycleFresh(companyId, now)
       .then((result) => {
-        this.companyFreshCompletedAt.set(companyId, Date.now());
+        this.rememberCompanyFresh(companyId);
         return result;
       })
       .finally(() => {
@@ -223,6 +225,19 @@ export class TripLifecycleService {
       });
     this.companyFreshInFlight.set(companyId, run);
     return run;
+  }
+
+  private rememberCompanyFresh(companyId: number): void {
+    this.companyFreshCompletedAt.set(companyId, Date.now());
+    if (this.companyFreshCompletedAt.size <= COMPANY_FRESH_MAP_MAX) {
+      return;
+    }
+    const cutoff = Date.now() - COMPANY_FRESH_TTL_MS;
+    for (const [id, ts] of this.companyFreshCompletedAt) {
+      if (ts < cutoff) {
+        this.companyFreshCompletedAt.delete(id);
+      }
+    }
   }
 
   /** Dispara lifecycle en background; no bloquea listado/mapa/dashboard. */
