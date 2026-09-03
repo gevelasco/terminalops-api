@@ -1,5 +1,6 @@
 import { DataSource } from 'typeorm';
 import dataSource from '../config/migration.config';
+import { ensureClientDeliveryMultipleSchema } from './database/ensure-client-delivery-multiple';
 
 /**
  * Advisory lock global para que solo una instancia corra migraciones a la vez.
@@ -359,6 +360,9 @@ async function main() {
           WHERE deleted_at IS NULL
       `);
       console.log('Schema ensure: trips list created_at indexes OK');
+      // Hard ensure: varios destinos por cliente (covers migrations_list drift).
+      await ensureClientDeliveryMultipleSchema((sql) => dataSource.query(sql));
+      console.log('Schema ensure: client_delivery multiple OK');
     } finally {
       await dataSource.query(`SELECT pg_advisory_unlock($1)`, [
         MIGRATION_LOCK_KEY,
