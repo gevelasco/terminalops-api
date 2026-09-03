@@ -3,8 +3,7 @@ import {
   Entity,
   JoinColumn,
   ManyToOne,
-  OneToOne,
-  PrimaryColumn,
+  PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
 import { Client } from 'src/clients/entities/client.entity';
@@ -13,8 +12,14 @@ import { DestinationRate } from 'src/destination-rates/entities/destination-rate
 
 @Entity({ schema: TERMINALOPS_SCHEMA, name: 'client_delivery' })
 export class ClientDelivery {
-  @PrimaryColumn({ name: 'client_id', type: 'int' })
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @Column({ name: 'client_id', type: 'int' })
   clientId: number;
+
+  @Column({ name: 'sort_order', type: 'smallint', default: 0 })
+  sortOrder: number;
 
   @Column({ name: 'postal_code', nullable: true, length: 5 })
   postalCode?: string;
@@ -44,7 +49,7 @@ export class ClientDelivery {
   @JoinColumn({ name: 'destination_rate_id' })
   destinationRate?: DestinationRate;
 
-  @OneToOne(() => Client, (c) => c.delivery, { onDelete: 'CASCADE' })
+  @ManyToOne(() => Client, (c) => c.deliveries, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'client_id' })
   client: Client;
 }

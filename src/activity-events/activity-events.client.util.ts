@@ -84,17 +84,42 @@ function deliverySnapshot(raw: Record<string, unknown>): string {
   });
 }
 
+function deliveriesSnapshot(list: unknown): string {
+  const rows = Array.isArray(list) ? list : [];
+  return JSON.stringify(rows.map((row) => deliverySnapshot(asRecord(row))));
+}
+
+function deliveriesFromExisting(existing: Record<string, unknown>): unknown[] {
+  const list = existing['deliveries'];
+  if (Array.isArray(list) && list.length > 0) {
+    return list;
+  }
+  const singular = existing['delivery'];
+  if (singular && typeof singular === 'object') {
+    return [singular];
+  }
+  return [];
+}
+
+function deliveriesFromDto(dto: UpdateClientDto): unknown[] | undefined {
+  if (dto.deliveries !== undefined) {
+    return dto.deliveries;
+  }
+  if (dto.delivery) {
+    return [dto.delivery];
+  }
+  return undefined;
+}
+
 function deliveryChanged(
   existing: Record<string, unknown>,
   dto: UpdateClientDto,
 ): boolean {
-  if (!dto.delivery) {
+  const next = deliveriesFromDto(dto);
+  if (next === undefined) {
     return false;
   }
-  return (
-    deliverySnapshot(asRecord(dto.delivery)) !==
-    deliverySnapshot(asRecord(existing['delivery']))
-  );
+  return deliveriesSnapshot(next) !== deliveriesSnapshot(deliveriesFromExisting(existing));
 }
 
 function contactsSnapshot(list: unknown): string {

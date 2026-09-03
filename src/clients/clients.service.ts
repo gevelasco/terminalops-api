@@ -30,14 +30,14 @@ import {
   CLIENT_DOCUMENT_STORAGE_FOLDER,
   type ClientDocumentSlot,
 } from './client-document.constants';
-import { CreateClientDto } from './dto/create-client.dto';
+import { CreateClientDeliveryDto, CreateClientDto } from './dto/create-client.dto';
 import { UpdateClientDto } from './dto/update-client.dto';
 import type { ClientPickerOptionDto } from './dto/client-picker-option.dto';
 
 const CLIENT_RELATIONS = [
   'billing',
   'paymentTerms',
-  'delivery',
+  'deliveries',
   'contacts',
   'documents',
 ] as const;
@@ -103,11 +103,13 @@ export class ClientsService {
       .createQueryBuilder('client')
       .leftJoinAndSelect('client.billing', 'billing')
       .leftJoinAndSelect('client.paymentTerms', 'paymentTerms')
-      .leftJoinAndSelect('client.delivery', 'delivery')
+      .leftJoinAndSelect('client.deliveries', 'deliveries')
       .leftJoinAndSelect('client.contacts', 'contacts')
       .leftJoinAndSelect('client.documents', 'documents')
       .where('client.companyId = :companyId', { companyId })
       .orderBy('client.name', 'ASC')
+      .addOrderBy('deliveries.sortOrder', 'ASC')
+      .addOrderBy('deliveries.id', 'ASC')
       .addOrderBy('contacts.sortOrder', 'ASC')
       .addOrderBy('documents.sortOrder', 'ASC');
 
@@ -167,6 +169,7 @@ export class ClientsService {
       dto.billing ||
       dto.payment ||
       dto.contacts ||
+      dto.deliveries !== undefined ||
       dto.delivery ||
       dto.documents !== undefined
     ) {
@@ -199,7 +202,7 @@ export class ClientsService {
     clientId: number,
     dto: Pick<
       CreateClientDto,
-      'billing' | 'payment' | 'contacts' | 'delivery' | 'documents'
+      'billing' | 'payment' | 'contacts' | 'delivery' | 'deliveries' | 'documents'
     >,
   ) {
     if (dto.billing) {
@@ -230,35 +233,22 @@ export class ClientsService {
         ),
       );
     }
-    if (dto.delivery) {
-      const postalCode = dto.delivery.postalCode?.trim() || undefined;
-      const locality = dto.delivery.locality?.trim() || undefined;
-      const hasDestination = !!(postalCode && locality);
-      const matchedRate = hasDestination
-        ? await this.destinationRatesService.findRateForClientDelivery(companyId, {
-            postalCode,
-            locality,
-          })
-        : null;
-
-      await this.deliveryRepo.save(
-        this.deliveryRepo.create({
-          clientId,
-          postalCode,
-          cityMunicipality: dto.delivery.cityMunicipality?.trim() || undefined,
-          locality,
-          settlementConsId: dto.delivery.settlementConsId?.trim() || undefined,
-          latitude:
-            dto.delivery.latitude != null && Number.isFinite(dto.delivery.latitude)
-              ? String(dto.delivery.latitude)
-              : undefined,
-          longitude:
-            dto.delivery.longitude != null && Number.isFinite(dto.delivery.longitude)
-              ? String(dto.delivery.longitude)
-              : undefined,
-          destinationRateId: matchedRate?.id,
-        }),
-      );
+    if (dto.deliveries !== undefined || dto.delivery) {
+      const rows =
+        dto.deliveries !== undefined
+          ? dto.deliveries
+          : dto.delivery
+            ? [dto.delivery]
+            : [];
+      await this.deliveryRepo.delete({ clientId });
+      if (rows.length > 0) {
+        const entities = await Promise.all(
+          rows.map((row, index) =>
+            this.createDeliveryEntity(companyId, clientId, row, index),
+          ),
+        );
+        await this.deliveryRepo.save(entities);
+      }
     }
     if (dto.documents !== undefined) {
       // Prefer POST/DELETE /clients/:id/documents for binary files.
@@ -416,6 +406,41 @@ export class ClientsService {
       throw new NotFoundException(`Document ${documentId} not found`);
     }
     return document;
+  }
+
+  private async createDeliveryEntity(
+    companyId: number,
+    clientId: number,
+    row: CreateClientDeliveryDto,
+    sortOrder: number,
+  ): Promise<ClientDelivery> {
+    const postalCode = row.postalCode?.trim() || undefined;
+    const locality = row.locality?.trim() || undefined;
+    const matchedRate =
+      postalCode && locality
+        ? await this.destinationRatesService.findRateForClientDelivery(companyId, {
+            postalCode,
+            locality,
+          })
+        : null;
+
+    return this.deliveryRepo.create({
+      clientId,
+      sortOrder,
+      postalCode,
+      cityMunicipality: row.cityMunicipality?.trim() || undefined,
+      locality,
+      settlementConsId: row.settlementConsId?.trim() || undefined,
+      latitude:
+        row.latitude != null && Number.isFinite(row.latitude)
+          ? String(row.latitude)
+          : undefined,
+      longitude:
+        row.longitude != null && Number.isFinite(row.longitude)
+          ? String(row.longitude)
+          : undefined,
+      destinationRateId: matchedRate?.id,
+    });
   }
 
   private async resolveDocumentId(

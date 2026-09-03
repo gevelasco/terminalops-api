@@ -1,4 +1,5 @@
 import type { OperationalCenter } from 'src/operational-centers/entities/operational-center.entity';
+import { pickClientDelivery } from 'src/clients/utils/pick-client-delivery';
 import type { Trip } from 'src/trips/entities/trip.entity';
 import {
   buildTripDestinationLabel,
@@ -110,7 +111,10 @@ export function resolveDestinationPoint(
     return pointFromCoords(rateLat, rateLng, label, 'destination_rate');
   }
 
-  const delivery = trip.client?.delivery;
+  const delivery = pickClientDelivery(trip.client, {
+    postalCode: trip.destinationPostalCode,
+    locality: trip.destinationLocality,
+  });
   const deliveryLat = parseCoord(delivery?.latitude);
   const deliveryLng = parseCoord(delivery?.longitude);
   if (deliveryLat != null && deliveryLng != null) {

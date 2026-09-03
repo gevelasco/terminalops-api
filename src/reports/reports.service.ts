@@ -1000,7 +1000,25 @@ export class ReportsService {
       FROM ${schema}.trips trip
       LEFT JOIN ${schema}.operators op ON op.id = trip.operator_id
       LEFT JOIN ${schema}.destination_rates dr ON dr.id = trip.destination_rate_id
-      LEFT JOIN ${schema}.client_delivery cd ON cd.client_id = trip.client_id
+      LEFT JOIN LATERAL (
+        SELECT latitude, longitude
+        FROM ${schema}.client_delivery
+        WHERE client_id = trip.client_id
+          AND (
+            trip.destination_postal_code IS NULL
+            OR btrim(postal_code) = btrim(trip.destination_postal_code)
+          )
+        ORDER BY
+          CASE
+            WHEN trip.destination_locality IS NOT NULL
+              AND lower(btrim(locality)) = lower(btrim(trip.destination_locality))
+            THEN 0
+            ELSE 1
+          END,
+          sort_order ASC,
+          id ASC
+        LIMIT 1
+      ) cd ON true
       WHERE trip.company_id = $1
           AND trip.deleted_at IS NULL
         AND trip.status != 'cancelled'

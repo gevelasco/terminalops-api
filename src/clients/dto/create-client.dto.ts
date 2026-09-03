@@ -185,6 +185,14 @@ export class CreateClientDto {
   @Type(() => CreateClientContactDto)
   contacts?: CreateClientContactDto[];
 
+  @ApiPropertyOptional({ type: [CreateClientDeliveryDto] })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CreateClientDeliveryDto)
+  deliveries?: CreateClientDeliveryDto[];
+
+  /** Primera ubicación; se ignora si `deliveries` está presente. */
   @ApiPropertyOptional({ type: CreateClientDeliveryDto })
   @IsOptional()
   @ValidateNested()

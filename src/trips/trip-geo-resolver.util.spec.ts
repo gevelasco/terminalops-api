@@ -122,13 +122,19 @@ describe('trip-geo-resolver.util', () => {
 
     const fromDelivery = resolveDestinationPoint(
       trip({
+        destinationPostalCode: '77560',
+        destinationLocality: 'Centro',
         client: {
-          delivery: { latitude: '18.5', longitude: '-88.3' },
+          deliveries: [
+            { postalCode: '01000', locality: 'San Ángel', latitude: '19.3', longitude: '-99.1' },
+            { postalCode: '77560', locality: 'Centro', latitude: '18.5', longitude: '-88.3' },
+          ],
         } as Trip['client'],
       }),
       ctx(),
     );
     expect(fromDelivery.source).toBe('client_delivery');
+    expect(fromDelivery.lat).toBe(18.5);
 
     const fromMatched = resolveDestinationPoint(trip(), ctx({
       matchedRateDestination: {

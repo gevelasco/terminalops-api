@@ -19,6 +19,7 @@ import {
 import { parseOptionalNumericId } from 'src/common/utils/tenant.util';
 import { AppUser } from 'src/users/entities/app-user.entity';
 import { Client } from 'src/clients/entities/client.entity';
+import { pickClientDelivery } from 'src/clients/utils/pick-client-delivery';
 import { Company } from 'src/companies/entities/company.entity';
 import { Equipment } from 'src/equipment/entities/equipment.entity';
 import { assertFleetResourceActive } from 'src/fleet/fleet-resource-active.util';
@@ -301,7 +302,7 @@ export class TripsService {
         .createQueryBuilder('trip')
         .leftJoinAndSelect('trip.destinationRate', 'rate')
         .leftJoinAndSelect('trip.client', 'client')
-        .leftJoinAndSelect('client.delivery', 'delivery')
+        .leftJoinAndSelect('client.deliveries', 'deliveries')
         .where('trip.companyId = :companyId', { companyId })
         .andWhere(tripNotDeletedSql('trip'))
         .andWhere('trip.status IN (:...statuses)', {
@@ -329,7 +330,10 @@ export class TripsService {
         ) {
           return false;
         }
-        const delivery = trip.client?.delivery;
+        const delivery = pickClientDelivery(trip.client, {
+          postalCode: trip.destinationPostalCode,
+          locality: trip.destinationLocality,
+        });
         if (this.hasGeoCoords(delivery?.latitude, delivery?.longitude)) {
           return false;
         }
@@ -390,7 +394,10 @@ export class TripsService {
       return null;
     }
 
-    const delivery = trip.client?.delivery;
+    const delivery = pickClientDelivery(trip.client, {
+      postalCode: trip.destinationPostalCode,
+      locality: trip.destinationLocality,
+    });
     if (this.hasGeoCoords(delivery?.latitude, delivery?.longitude)) {
       return null;
     }

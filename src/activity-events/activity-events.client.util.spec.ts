@@ -121,6 +121,21 @@ describe('clientUpdateChangedSectionLabels', () => {
     ).toEqual([CLIENT_UPDATE_SECTION.delivery]);
   });
 
+  it('labels deliveries array changes', () => {
+    expect(
+      clientUpdateChangedSectionLabels(existingClient, {
+        ...matchingPatch,
+        deliveries: [
+          matchingPatch.delivery,
+          {
+            postalCode: '64000',
+            locality: 'Monterrey Centro',
+          },
+        ],
+      }),
+    ).toEqual([CLIENT_UPDATE_SECTION.delivery]);
+  });
+
   it('labels contact changes without using ids or sort order', () => {
     expect(
       clientUpdateChangedSectionLabels(existingClient, {

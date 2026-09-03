@@ -50,8 +50,8 @@ export class Client {
   @OneToOne(() => ClientPaymentTerms, (p) => p.client)
   paymentTerms?: ClientPaymentTerms;
 
-  @OneToOne(() => ClientDelivery, (d) => d.client)
-  delivery?: ClientDelivery;
+  @OneToMany(() => ClientDelivery, (d) => d.client)
+  deliveries?: ClientDelivery[];
 
   @OneToMany(() => ClientContact, (c) => c.client)
   contacts?: ClientContact[];

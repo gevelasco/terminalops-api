@@ -5,6 +5,7 @@ import { ClientDocument } from 'src/clients/entities/client-document.entity';
 import { toIsoString } from 'src/common/utils/iso-date.util';
 
 export function serializeClient(client: Client): Record<string, unknown> {
+  const deliveries = sortedDeliveries(client);
   return {
     id: client.id,
     companyId: client.companyId,
@@ -30,8 +31,9 @@ export function serializeClient(client: Client): Record<string, unknown> {
           defaultPaymentMethod: client.paymentTerms.defaultPaymentMethod ?? undefined,
         }
       : undefined,
-    delivery: client.delivery
-      ? serializeClientDelivery(client.delivery)
+    deliveries: deliveries.map(serializeClientDelivery),
+    delivery: deliveries[0]
+      ? serializeClientDelivery(deliveries[0])
       : undefined,
     contacts: (client.contacts ?? []).map(serializeClientContact),
     documents: (client.documents ?? []).map(serializeClientDocument),
@@ -62,6 +64,16 @@ function serializeClientContact(contact: ClientContact): Record<string, unknown>
   };
 }
 
+function sortedDeliveries(client: Client): ClientDelivery[] {
+  return [...(client.deliveries ?? [])].sort((a, b) => {
+    const byOrder = (a.sortOrder ?? 0) - (b.sortOrder ?? 0);
+    if (byOrder !== 0) {
+      return byOrder;
+    }
+    return (a.id ?? 0) - (b.id ?? 0);
+  });
+}
+
 function serializeClientDelivery(delivery: ClientDelivery): Record<string, unknown> {
   const lat = delivery.latitude != null ? Number(delivery.latitude) : undefined;
   const lon = delivery.longitude != null ? Number(delivery.longitude) : undefined;
@@ -70,6 +82,7 @@ function serializeClientDelivery(delivery: ClientDelivery): Record<string, unkno
   const destinationRateId = delivery.destinationRateId ?? undefined;
   const hasDestination = !!(postalCode && locality);
   return {
+    id: delivery.id,
     postalCode,
     cityMunicipality: delivery.cityMunicipality ?? undefined,
     locality,
