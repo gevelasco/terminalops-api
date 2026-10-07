@@ -30,7 +30,18 @@ export class OperationConfigurationsService {
     const row = await this.repo.findOne({
       where: { companyId, code: normalized },
     });
-    return row ?? null;
+    if (row) {
+      return row;
+    }
+    if (normalized === 'full' || normalized === 'doble-articulado') {
+      const alt = normalized === 'full' ? 'doble-articulado' : 'full';
+      return (
+        (await this.repo.findOne({
+          where: { companyId, code: alt },
+        })) ?? null
+      );
+    }
+    return null;
   }
 
   async findAll(companyId: number) {

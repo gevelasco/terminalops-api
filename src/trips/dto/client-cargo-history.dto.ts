@@ -10,6 +10,9 @@ export class ClientCargoHistoryItemDto {
   @ApiProperty({ example: '40dc' })
   containerType!: string;
 
+  @ApiProperty({ example: 'contenedor' })
+  cargoCategory!: string;
+
   @ApiProperty({ example: 'lleno' })
   loadType!: string;
 

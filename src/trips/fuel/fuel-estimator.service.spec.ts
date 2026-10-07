@@ -72,6 +72,22 @@ describe('FuelEstimatorService', () => {
     expect(res.adjustments.effectiveDistanceKm).toBe(200);
   });
 
+  it('uses unit performance km/L when provided (ida+vuelta / rendimiento)', async () => {
+    const res = await service.estimate({
+      distanceKm: 100,
+      configuration: 'sencillo',
+      approximateWeightTons: 0,
+      cargoType: 'vacio',
+      containerType: 'na',
+      unitPerformanceKmL: 2.5,
+    });
+    expect(res.calculationProfile).toBe('unit_performance');
+    expect(res.operationalDistanceKm).toBe(200);
+    expect(res.estimatedKmPerLiter).toBe(2.5);
+    expect(res.estimatedLiters).toBe(80);
+    expect(res.estimatedDieselCost).toBe(2040);
+  });
+
   it('allows manual diesel override without calling FuelPriceService', async () => {
     const res = await service.estimate(
       {

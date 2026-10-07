@@ -9,7 +9,7 @@ export const INVALID_PLANNED_SCHEDULE_ORDER_MESSAGE =
   'El plan debe cumplir: salida < llegada < fin de maniobra.';
 
 export const INVALID_LOAD_DATE_MESSAGE =
-  'La fecha de carga debe ser el mismo día que la salida.';
+  'La cita de carga no puede ser posterior a la salida planificada.';
 
 export const MISSING_PLANNED_FIELDS_REASON = 'missing_planned_fields';
 
@@ -116,11 +116,7 @@ export function validatePlannedScheduleUpdate(
   };
 }
 
-function ymdInMexico(value: Date): string {
-  return value.toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' });
-}
-
-/** Carga y salida: mismo día calendario (México). Igual sí; anterior o posterior no. */
+/** Cita de carga: debe ser ≤ salida planificada (instante). */
 export function assertLoadDateAgainstDeparture(
   loadDate: Date | undefined,
   departure: Date,
@@ -128,7 +124,7 @@ export function assertLoadDateAgainstDeparture(
   if (!loadDate || Number.isNaN(loadDate.getTime())) {
     return;
   }
-  if (ymdInMexico(loadDate) !== ymdInMexico(departure)) {
+  if (loadDate.getTime() > departure.getTime()) {
     throw new BadRequestException(INVALID_LOAD_DATE_MESSAGE);
   }
 }

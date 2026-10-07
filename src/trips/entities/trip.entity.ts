@@ -11,6 +11,7 @@ import {
 import { Client } from 'src/clients/entities/client.entity';
 import { DestinationRate } from 'src/destination-rates/entities/destination-rate.entity';
 import { TERMINALOPS_SCHEMA } from 'src/common/constants/schema-name';
+import { TripContainer } from 'src/trips/entities/trip-container.entity';
 import { TripDocument } from 'src/trips/entities/trip-document.entity';
 import { TripEquipment } from 'src/trips/entities/trip-equipment.entity';
 import { TripIncident } from 'src/trips/entities/trip-incident.entity';
@@ -52,8 +53,16 @@ export class Trip {
   @Column({ name: 'load_type' })
   loadType: string;
 
+  /** Clasificación de mercancía (contenedor, mineral, rollos, etc.). */
+  @Column({ name: 'cargo_category', default: 'material' })
+  cargoCategory: string;
+
   @Column({ name: 'container_type' })
   containerType: string;
+
+  /** Número ISO del contenedor (4 letras + 7 dígitos). */
+  @Column({ name: 'container_number', nullable: true })
+  containerNumber?: string;
 
   @Column({ name: 'cargo_description', nullable: true })
   cargoDescription?: string;
@@ -214,6 +223,9 @@ export class Trip {
   @ManyToOne(() => DestinationRate, (rate) => rate.trips, { onDelete: 'SET NULL' })
   @JoinColumn({ name: 'destination_rate_id' })
   destinationRate?: DestinationRate;
+
+  @OneToMany(() => TripContainer, (tc) => tc.trip)
+  tripContainers?: TripContainer[];
 
   @OneToMany(() => TripEquipment, (te) => te.trip)
   tripEquipment?: TripEquipment[];

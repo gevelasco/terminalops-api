@@ -16,6 +16,7 @@ function baseDto(overrides: Partial<CreateTripDto> = {}): CreateTripDto {
     clientName: 'Cliente',
     operationType: 'sencillo',
     loadType: 'vacio',
+    cargoCategory: 'contenedor',
     containerType: '20dc',
     plannedDepartureAt: '2026-06-01T08:00:00.000Z',
     plannedArrivalAt: '2026-06-01T12:00:00.000Z',
@@ -109,8 +110,11 @@ describe('validatePlannedScheduleUpdate', () => {
     );
   });
 
-  it('requires load date on the same Mexico calendar day as departure', () => {
+  it('requires load date on or before departure instant', () => {
     const departure = new Date('2026-06-01T14:00:00.000Z');
+    expect(() =>
+      assertLoadDateAgainstDeparture(new Date('2026-05-30T12:00:00.000Z'), departure),
+    ).not.toThrow();
     expect(() =>
       assertLoadDateAgainstDeparture(new Date('2026-06-01T12:00:00.000Z'), departure),
     ).not.toThrow();

@@ -181,7 +181,7 @@ function sqlUnitConvoyMatchesOperation(
   );
   return `(
     CASE
-      WHEN ${hitchCount} >= 2 THEN 'full'
+      WHEN ${hitchCount} >= 2 THEN 'doble-articulado'
       WHEN ${hitchCount} = 1 AND EXISTS (${planaHitch}) THEN 'plana'
       WHEN ${hitchCount} >= 1 THEN 'sencillo'
       ELSE ''
@@ -212,7 +212,8 @@ export function applyUnitManeuverAssignmentFilter<T extends ObjectLiteral>(
   operationType?: string,
   containerType?: string,
 ): SelectQueryBuilder<T> {
-  const op = operationType?.trim().toLowerCase() ?? '';
+  const opRaw = operationType?.trim().toLowerCase() ?? '';
+  const op = opRaw === 'full' ? 'doble-articulado' : opRaw;
   if (!op) {
     return qb;
   }

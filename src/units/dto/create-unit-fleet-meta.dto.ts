@@ -151,6 +151,12 @@ export class CreateUnitFleetMetaDto {
   @IsString()
   transmissionSpeeds?: string;
 
+  @ApiPropertyOptional({ description: 'Rendimiento aproximado en km/L' })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  approximatePerformanceKmL?: number;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()

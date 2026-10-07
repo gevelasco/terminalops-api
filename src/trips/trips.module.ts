@@ -6,6 +6,7 @@ import { Equipment } from 'src/equipment/entities/equipment.entity';
 import { Operator } from 'src/operators/entities/operator.entity';
 import { Trip } from 'src/trips/entities/trip.entity';
 import { Unit } from 'src/units/entities/unit.entity';
+import { TripContainer } from 'src/trips/entities/trip-container.entity';
 import { TripDocument } from 'src/trips/entities/trip-document.entity';
 import { TripEquipment } from 'src/trips/entities/trip-equipment.entity';
 import { TripIncident } from 'src/trips/entities/trip-incident.entity';
@@ -34,6 +35,7 @@ import { TripsService } from './trips.service';
     OperationalCentersModule,
     TypeOrmModule.forFeature([
       Trip,
+      TripContainer,
       TripDocument,
       TripEquipment,
       TripIncident,

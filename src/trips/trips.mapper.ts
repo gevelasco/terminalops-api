@@ -22,6 +22,12 @@ export type TripDrawerDisplayExtras = {
   originOperationalCenterLabel?: string | null;
 };
 
+export type TripContainerResponseSlot = {
+  slot: number;
+  containerType: string;
+  containerNumber: string | null;
+};
+
 export type MapTripToResponseOptions = {
   /**
    * Listado: sin `incidents[]` / `tripDocuments` (usar `hasIncident` denormalizado).
@@ -30,6 +36,8 @@ export type MapTripToResponseOptions = {
   list?: boolean;
   operationConfig?: TripOperationConfigDisplay | null;
   drawerDisplay?: TripDrawerDisplayExtras;
+  /** Solo detalle; evita JOIN en listados (query aparte por trip_id). */
+  containers?: TripContainerResponseSlot[];
 };
 
 function resolveOperatorDisplayName(trip: Trip): string | undefined {
@@ -111,7 +119,19 @@ export function mapTripToResponse(
     operationConfigurationId: trip.operationConfigurationId ?? null,
     operationConfigurationCode: trip.operationType,
     loadType: trip.loadType,
+    cargoCategory: trip.cargoCategory,
     containerType: trip.containerType,
+    containerNumber: trip.containerNumber?.trim() || null,
+    ...(list
+      ? {}
+      : {
+          containers:
+            options?.containers?.map((row) => ({
+              slot: row.slot,
+              containerType: row.containerType,
+              containerNumber: row.containerNumber?.trim() || null,
+            })) ?? [],
+        }),
     cargoDescription: trip.cargoDescription,
     loadDate: trip.loadDate?.toISOString() ?? null,
     loadPlace: trip.loadPlace ?? null,

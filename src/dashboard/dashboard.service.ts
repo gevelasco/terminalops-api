@@ -57,12 +57,18 @@ function operationDisplayLabel(
   const code = operationType?.trim().toLowerCase() ?? '';
   const snapLower = snap.toLowerCase();
   if (snap) {
-    if (code === 'full' || snapLower === 'full' || /\bfull\b/i.test(snap)) {
+    if (
+      code === 'full' ||
+      code === 'doble-articulado' ||
+      snapLower === 'full' ||
+      snapLower.includes('doble articulado') ||
+      /\bfull\b/i.test(snap)
+    ) {
       return 'Doble articulado';
     }
     return snap;
   }
-  if (code === 'full') {
+  if (code === 'full' || code === 'doble-articulado') {
     return 'Doble articulado';
   }
   if (code === 'sencillo') {

@@ -33,6 +33,16 @@ export class UnitFleetProfile {
   @Column({ name: 'transmission_speeds', nullable: true })
   transmissionSpeeds?: string;
 
+  /** Rendimiento aproximado de combustible (km/L). */
+  @Column({
+    name: 'approximate_performance_km_l',
+    type: 'numeric',
+    precision: 8,
+    scale: 2,
+    nullable: true,
+  })
+  approximatePerformanceKmL?: string;
+
   @Column({ name: 'gross_vehicle_weight_lb', nullable: true })
   grossVehicleWeightLb?: string;
 

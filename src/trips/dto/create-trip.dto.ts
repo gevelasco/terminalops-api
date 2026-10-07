@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 import {
   IsArray,
   IsBoolean,
@@ -8,7 +9,9 @@ import {
   IsOptional,
   IsString,
   Min,
+  ValidateNested,
 } from 'class-validator';
+import { TripContainerSlotDto } from './trip-container-slot.dto';
 
 export class CreateTripDto {
   @ApiPropertyOptional()
@@ -65,13 +68,40 @@ export class CreateTripDto {
   @IsString()
   operationType: string;
 
-  @ApiProperty({ enum: ['vacio', 'lleno'] })
+  @ApiProperty({ enum: ['vacio', 'lleno'], description: 'Condición lleno / vacío' })
   @IsString()
   loadType: string;
+
+  @ApiPropertyOptional({
+    enum: ['contenedor', 'material', 'mineral', 'liquido', 'maquinaria', 'rollos'],
+    description: 'Tipo de mercancía o modalidad de carga',
+  })
+  @IsOptional()
+  @IsString()
+  cargoCategory?: string;
 
   @ApiProperty({ enum: ['20dc', '20hc', '40dc', '40hc', '45hc', 'na'] })
   @IsString()
   containerType: string;
+
+  @ApiPropertyOptional({
+    description: 'Número ISO del contenedor (4 letras + 7 dígitos)',
+    example: 'MSCU1234567',
+  })
+  @IsOptional()
+  @IsString()
+  containerNumber?: string;
+
+  @ApiPropertyOptional({
+    type: [TripContainerSlotDto],
+    description:
+      'Contenedores por slot (1..n). Si se omite, se usa containerType/containerNumber como slot 1.',
+  })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => TripContainerSlotDto)
+  containers?: TripContainerSlotDto[];
 
   @ApiPropertyOptional()
   @IsOptional()

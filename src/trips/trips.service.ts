@@ -27,6 +27,7 @@ import { assertFleetResourceAssignableForTrip } from 'src/fleet/fleet-resource-a
 import { ExpensesService } from 'src/expenses/expenses.service';
 import { Operator } from 'src/operators/entities/operator.entity';
 import { Trip } from 'src/trips/entities/trip.entity';
+import { TripContainer } from 'src/trips/entities/trip-container.entity';
 import { TripDocument } from 'src/trips/entities/trip-document.entity';
 import { TripEquipment } from 'src/trips/entities/trip-equipment.entity';
 import { TripIncident } from 'src/trips/entities/trip-incident.entity';
@@ -45,6 +46,12 @@ import { isTripFollowUpLocked } from './trip-post-completion-lock.util';
 import { AddIncidentDto } from './dto/add-incident.dto';
 import { CancelTripDto } from './dto/cancel-trip.dto';
 import { CreateTripDto } from './dto/create-trip.dto';
+import { resolveTripCargoFields } from './trip-cargo-category.util';
+import {
+  primaryContainerFromSlots,
+  resolveTripContainersForCreate,
+  type NormalizedTripContainerSlot,
+} from './trip-containers.util';
 import { UpdateActualScheduleDto } from './dto/update-actual-schedule.dto';
 import type { ListTripLinkOptionsQueryDto } from './dto/list-trip-link-options-query.dto';
 import { isFleetLinkOptionsSearchAllowed } from 'src/fleet/fleet-link-options-search.util';
@@ -127,6 +134,8 @@ export class TripsService {
   constructor(
     @InjectRepository(Trip)
     private readonly tripsRepo: Repository<Trip>,
+    @InjectRepository(TripContainer)
+    private readonly tripContainersRepo: Repository<TripContainer>,
     @InjectRepository(TripDocument)
     private readonly documentsRepo: Repository<TripDocument>,
     @InjectRepository(TripEquipment)
@@ -495,9 +504,19 @@ export class TripsService {
               .then((rows) => rows[0] ?? null)
           : Promise.resolve(null),
       ]);
+    const containerRows = await this.tripContainersRepo.find({
+      where: { tripId },
+      order: { slot: 'ASC' },
+    });
+
     return mapTripToResponse(trip, equipment, authorLookup, {
       operationConfig,
       drawerDisplay,
+      containers: containerRows.map((row) => ({
+        slot: row.slot,
+        containerType: row.containerType,
+        containerNumber: row.containerNumber?.trim() || null,
+      })),
     });
   }
 
@@ -671,6 +690,7 @@ export class TripsService {
         cargoDescription: true,
         operationType: true,
         containerType: true,
+        cargoCategory: true,
         loadType: true,
         approximateWeightTons: true,
         createdAt: true,
@@ -695,6 +715,7 @@ export class TripsService {
         description: raw,
         operationType: row.operationType,
         containerType: row.containerType,
+        cargoCategory: row.cargoCategory,
         loadType: row.loadType,
         approximateWeightTons: row.approximateWeightTons?.trim() ?? '',
       });
@@ -795,6 +816,9 @@ export class TripsService {
 
     await this.tripLoadPlaces.findOrCreate(companyId, dto.loadPlace);
 
+    const { cargoFields, containerSlots } =
+      this.resolveCreateTripCargoAndContainers(dto, operationConfig.code);
+
     const initialStatus = 'scheduled';
     const createdAt = new Date();
 
@@ -816,7 +840,7 @@ export class TripsService {
       operationType: operationConfig.code,
       operationConfigurationId: operationConfig.id,
       loadType: dto.loadType,
-      containerType: dto.containerType,
+      ...cargoFields,
       cargoDescription: dto.cargoDescription,
       approximateWeightTons: dto.approximateWeightTons,
       loadDate: dto.loadDate ? new Date(dto.loadDate) : undefined,
@@ -865,6 +889,8 @@ export class TripsService {
     // compensaba a mano con un rollback manual que podía quedar a medias).
     const trip = await this.tripsRepo.manager.transaction(async (em) => {
       const saved = await em.getRepository(Trip).save(entity);
+
+      await this.replaceTripContainers(saved.id, containerSlots, em);
 
       if (equipmentIds.length) {
         await this.syncEquipment(saved.id, equipmentIds, em);
@@ -1612,6 +1638,67 @@ export class TripsService {
     };
   }
 
+  private resolveCreateTripCargoAndContainers(
+    dto: CreateTripDto,
+    operationCode: string,
+  ): {
+    cargoFields: {
+      cargoCategory: string;
+      containerType: string;
+      containerNumber?: string;
+    };
+    containerSlots: NormalizedTripContainerSlot[];
+  } {
+    try {
+      const containerSlots = resolveTripContainersForCreate({
+        cargoCategory: dto.cargoCategory,
+        operationType: operationCode,
+        containerType: dto.containerType,
+        containerNumber: dto.containerNumber,
+        containers: dto.containers,
+      });
+      const primary = primaryContainerFromSlots(containerSlots);
+      const cargoFields = resolveTripCargoFields({
+        cargoCategory: dto.cargoCategory,
+        containerType: primary.containerType,
+        containerNumber: primary.containerNumber,
+      });
+      return { cargoFields, containerSlots };
+    } catch (err) {
+      const code = err instanceof Error ? err.message : '';
+      if (code === 'INVALID_CONTAINER_SLOT') {
+        throw new BadRequestException(
+          'Solo se permiten los slots de contenedor válidos para esta configuración.',
+        );
+      }
+      throw new BadRequestException(
+        'El número de contenedor debe tener 4 letras y 7 dígitos (formato ISO).',
+      );
+    }
+  }
+
+  private async replaceTripContainers(
+    tripId: number,
+    slots: readonly NormalizedTripContainerSlot[],
+    em?: EntityManager,
+  ): Promise<void> {
+    const repo = em ? em.getRepository(TripContainer) : this.tripContainersRepo;
+    await repo.delete({ tripId });
+    if (slots.length === 0) {
+      return;
+    }
+    await repo.save(
+      slots.map((slot) =>
+        repo.create({
+          tripId,
+          slot: slot.slot,
+          containerType: slot.containerType,
+          containerNumber: slot.containerNumber,
+        }),
+      ),
+    );
+  }
+
   private logInvalidCreateAttempt(companyId: number, dto: CreateTripDto): void {
     this.logger.warn({
       event_type: 'trip.invalid_create_attempt',
@@ -1935,8 +2022,11 @@ export class TripsService {
     code: string;
     id?: number;
   }> {
+    const lowered = rawCode.trim().toLowerCase();
     const code =
-      normalizeOperationConfigCode(rawCode) || rawCode.trim().toLowerCase();
+      normalizeOperationConfigCode(
+        lowered === 'full' ? 'doble-articulado' : rawCode,
+      ) || lowered;
     if (!code) {
       return { code: '' };
     }

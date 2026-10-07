@@ -36,6 +36,13 @@ export class FuelEstimateRequestDto {
   @IsNumber()
   unitId?: number | null;
 
+  /** Rendimiento aprox. de la unidad (km/L); prioriza sobre heurística de flota. */
+  @ApiPropertyOptional({ description: 'Rendimiento aproximado de la unidad tractora (km/L)' })
+  @IsOptional()
+  @IsNumber()
+  @Min(0.01)
+  unitPerformanceKmL?: number | null;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsNumber()

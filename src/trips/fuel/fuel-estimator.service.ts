@@ -30,24 +30,40 @@ export class FuelEstimatorService {
       operationalDistanceKm,
       roundTripFactor,
     } = resolveTripOperationalDistance(dto.distanceKm);
-    const configuration = dto.configuration;
-    const weightTons = Math.max(0, dto.approximateWeightTons);
-    const loaded = this.isLoadedCargo(dto.cargoType);
+    const unitPerformanceKmL = this.resolveUnitPerformanceKmL(
+      dto.unitPerformanceKmL,
+    );
 
-    const profileKey = `${configuration}_${loaded ? 'loaded' : 'vacio'}`;
-    const baseKmPerLiter =
-      BASE_KM_PER_LITER[profileKey] ?? BASE_KM_PER_LITER['sencillo_vacio'];
-
-    const weightFactor = this.weightFactorForTons(weightTons);
-    /** Clasificación local/foránea sobre la pierna OSRM (solo ida). */
-    const routeFactor =
-      routeDistanceKm <= LOCAL_ROUTE_MAX_KM
-        ? ROUTE_FACTOR_LOCAL
-        : ROUTE_FACTOR_FORANEA;
-
+    let profileKey: string;
+    let adjustedKmPerLiter: number;
+    let weightFactor: number;
+    let routeFactor: number;
     const configurationFactor = 1;
-    const adjustedKmPerLiter =
-      baseKmPerLiter * weightFactor * routeFactor * configurationFactor;
+
+    if (unitPerformanceKmL != null) {
+      profileKey = 'unit_performance';
+      adjustedKmPerLiter = unitPerformanceKmL;
+      weightFactor = 1;
+      routeFactor = 1;
+    } else {
+      const configuration = dto.configuration;
+      const weightTons = Math.max(0, dto.approximateWeightTons);
+      const loaded = this.isLoadedCargo(dto.cargoType);
+
+      profileKey = `${configuration}_${loaded ? 'loaded' : 'vacio'}`;
+      const baseKmPerLiter =
+        BASE_KM_PER_LITER[profileKey] ?? BASE_KM_PER_LITER['sencillo_vacio'];
+
+      weightFactor = this.weightFactorForTons(weightTons);
+      /** Clasificación local/foránea sobre la pierna OSRM (solo ida). */
+      routeFactor =
+        routeDistanceKm <= LOCAL_ROUTE_MAX_KM
+          ? ROUTE_FACTOR_LOCAL
+          : ROUTE_FACTOR_FORANEA;
+
+      adjustedKmPerLiter =
+        baseKmPerLiter * weightFactor * routeFactor * configurationFactor;
+    }
 
     const estimatedLiters =
       adjustedKmPerLiter > 0
@@ -76,6 +92,15 @@ export class FuelEstimatorService {
         effectiveDistanceKm: round1(operationalDistanceKm),
       },
     };
+  }
+
+  private resolveUnitPerformanceKmL(
+    value: number | null | undefined,
+  ): number | null {
+    if (value == null || !Number.isFinite(value) || value <= 0) {
+      return null;
+    }
+    return value;
   }
 
   private isLoadedCargo(cargoType: string | null | undefined): boolean {
