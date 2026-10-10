@@ -9,6 +9,7 @@ import {
   hasPrimaryOperationalCenterSettingsPatch,
   type PrimaryOperationalCenterSettingsPatch,
 } from './primary-operational-center-settings.patch';
+import { normalizeSettlementConsId } from 'src/geo/settlement-cons-id.util';
 
 @Injectable()
 export class OperationalCentersService {
@@ -158,7 +159,10 @@ export class OperationalCentersService {
       center.locality = dto.operationalCenterLocality;
     }
     if (dto.operationalCenterSettlementConsId !== undefined) {
-      center.settlementConsId = dto.operationalCenterSettlementConsId;
+      center.settlementConsId = normalizeSettlementConsId(
+        dto.operationalCenterSettlementConsId,
+        center.postalCode ?? dto.operationalCenterPostalCode,
+      );
     }
     if (dto.operationalCenterLatitude !== undefined) {
       center.latitude = String(dto.operationalCenterLatitude);

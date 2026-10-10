@@ -4,6 +4,7 @@ import {
   NotFoundException,
   ServiceUnavailableException,
 } from '@nestjs/common';
+import { normalizeSettlementConsId } from './settlement-cons-id.util';
 
 export interface MxPostalSettlementDto {
   postalCode: string;
@@ -107,14 +108,14 @@ export class SepomexLookupService {
       return primary.rows;
     }
 
-    const postali = await this.lookupPostali(cp);
-    if (postali.status === 'ok') {
-      return postali.rows;
-    }
-
     const kurenn = await this.lookupKurennSepomex(cp);
     if (kurenn.status === 'ok') {
       return kurenn.rows;
+    }
+
+    const postali = await this.lookupPostali(cp);
+    if (postali.status === 'ok') {
+      return postali.rows;
     }
 
     const fallback = await this.lookupZippopotam(cp);
@@ -261,7 +262,10 @@ export class SepomexLookupService {
           state,
           city: city || municipality,
           settlementConsId:
-            slug || `${cp}-${index + 1}-${settlement}`.slice(0, 80),
+            normalizeSettlementConsId(
+              slug || `${cp}-${index + 1}-${settlement}`,
+              cp,
+            ) ?? '',
         };
       })
       .filter((row): row is MxPostalSettlementDto => row != null);
@@ -308,15 +312,22 @@ export class SepomexLookupService {
     raw: SepomexRawRow[],
     cpFallback: string,
   ): MxPostalSettlementDto[] {
-    const mapped: MxPostalSettlementDto[] = raw.map((r) => ({
-      postalCode: (r.d_codigo ?? cpFallback).trim(),
-      settlement: (r.d_asenta ?? '').trim(),
-      settlementType: (r.d_tipo_asenta ?? '').trim(),
-      municipality: (r.d_mnpio ?? '').trim(),
-      state: (r.d_estado ?? '').trim(),
-      city: (r.d_ciudad ?? '').trim(),
-      settlementConsId: String(r.id_asenta_cpcons ?? '').trim(),
-    }));
+    const mapped: MxPostalSettlementDto[] = raw.map((r) => {
+      const postalCode = (r.d_codigo ?? cpFallback).trim();
+      return {
+        postalCode,
+        settlement: (r.d_asenta ?? '').trim(),
+        settlementType: (r.d_tipo_asenta ?? '').trim(),
+        municipality: (r.d_mnpio ?? '').trim(),
+        state: (r.d_estado ?? '').trim(),
+        city: (r.d_ciudad ?? '').trim(),
+        settlementConsId:
+          normalizeSettlementConsId(
+            String(r.id_asenta_cpcons ?? '').trim(),
+            postalCode,
+          ) ?? '',
+      };
+    });
     return this.dedupeAndSort(mapped);
   }
 
@@ -336,7 +347,8 @@ export class SepomexLookupService {
         municipality: '',
         state,
         city: '',
-        settlementConsId: `${cp}-${index + 1}-${settlement}`.slice(0, 80),
+        settlementConsId:
+          normalizeSettlementConsId(`${cp}-${index + 1}-${settlement}`, cp) ?? '',
       };
     });
     return this.dedupeAndSort(mapped.filter((row) => row.settlement.length > 0));

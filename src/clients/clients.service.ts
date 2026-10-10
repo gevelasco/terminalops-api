@@ -33,6 +33,7 @@ import {
 import { CreateClientDeliveryDto, CreateClientDto } from './dto/create-client.dto';
 import { UpdateClientDto } from './dto/update-client.dto';
 import type { ClientPickerOptionDto } from './dto/client-picker-option.dto';
+import { normalizeSettlementConsId } from 'src/geo/settlement-cons-id.util';
 
 const CLIENT_RELATIONS = [
   'billing',
@@ -430,7 +431,10 @@ export class ClientsService {
       postalCode,
       cityMunicipality: row.cityMunicipality?.trim() || undefined,
       locality,
-      settlementConsId: row.settlementConsId?.trim() || undefined,
+      settlementConsId: normalizeSettlementConsId(
+        row.settlementConsId,
+        postalCode,
+      ),
       latitude:
         row.latitude != null && Number.isFinite(row.latitude)
           ? String(row.latitude)
