@@ -301,6 +301,32 @@ async function main() {
           ));
       `);
       console.log('Schema ensure: trips.cargo_category OK');
+      await dataSource.query(`
+        ALTER TABLE terminalops.unit_fleet_profiles
+          ADD COLUMN IF NOT EXISTS approximate_performance_km_l numeric(8,2) NULL;
+      `);
+      console.log('Schema ensure: unit_fleet_profiles.approximate_performance_km_l OK');
+      await dataSource.query(`
+        ALTER TABLE terminalops.operators
+          ADD COLUMN IF NOT EXISTS weekly_pay_day varchar NULL;
+      `);
+      console.log('Schema ensure: operators.weekly_pay_day OK');
+      await dataSource.query(`
+        CREATE TABLE IF NOT EXISTS terminalops.trip_containers (
+          id serial PRIMARY KEY,
+          trip_id integer NOT NULL
+            REFERENCES terminalops.trips(id) ON DELETE CASCADE,
+          slot smallint NOT NULL CHECK (slot >= 1 AND slot <= 8),
+          container_type text NOT NULL DEFAULT 'na',
+          container_number text NULL,
+          CONSTRAINT trip_containers_trip_slot_unique UNIQUE (trip_id, slot)
+        );
+      `);
+      await dataSource.query(`
+        CREATE INDEX IF NOT EXISTS trip_containers_trip_id_idx
+          ON terminalops.trip_containers (trip_id);
+      `);
+      console.log('Schema ensure: trip_containers OK');
       // Hard ensure: viáticos en tarifas por destino (covers start:dev skip).
       await dataSource.query(`
         ALTER TABLE terminalops.destination_rate_prices

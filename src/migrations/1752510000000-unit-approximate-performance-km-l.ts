@@ -1,9 +1,9 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class UnitApproximatePerformanceKmL1752500000000
+export class UnitApproximatePerformanceKmL1752510000000
   implements MigrationInterface
 {
-  name = 'UnitApproximatePerformanceKmL1752500000000';
+  name = 'UnitApproximatePerformanceKmL1752510000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`
