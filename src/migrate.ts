@@ -279,6 +279,28 @@ async function main() {
           ADD COLUMN IF NOT EXISTS created_by text NULL;
       `);
       console.log('Schema ensure: trips.created_by OK');
+      await dataSource.query(`
+        ALTER TABLE terminalops.trips
+          ADD COLUMN IF NOT EXISTS cargo_category text NOT NULL DEFAULT 'material',
+          ADD COLUMN IF NOT EXISTS container_number text NULL;
+      `);
+      await dataSource.query(`
+        ALTER TABLE terminalops.trips
+          DROP CONSTRAINT IF EXISTS trips_cargo_category_check;
+      `);
+      await dataSource.query(`
+        ALTER TABLE terminalops.trips
+          ADD CONSTRAINT trips_cargo_category_check
+          CHECK (cargo_category IN (
+            'contenedor',
+            'material',
+            'mineral',
+            'liquido',
+            'maquinaria',
+            'rollos'
+          ));
+      `);
+      console.log('Schema ensure: trips.cargo_category OK');
       // Hard ensure: viáticos en tarifas por destino (covers start:dev skip).
       await dataSource.query(`
         ALTER TABLE terminalops.destination_rate_prices
