@@ -61,10 +61,34 @@ interface NominatimSearchHit {
   address?: NominatimAddress;
 }
 
+interface PostaliSettlement {
+  nombre?: string;
+  tipo?: string;
+  ciudad?: string | null;
+  zona?: string;
+  asenta_slug?: string;
+}
+
+interface PostaliCpJson {
+  cp?: string;
+  estado?: string;
+  municipio?: string;
+  asentamientos?: PostaliSettlement[];
+  error?: unknown;
+}
+
+interface KurennZipCodesJson {
+  zip_codes?: SepomexRawRow[];
+}
+
 @Injectable()
 export class SepomexLookupService {
   private static readonly sepomexApiBase =
     'https://sepomex.nitrostudio.com.mx/api/20241116/cp';
+  /** Respaldo cuando NitroStudio SEPOMex no responde (p. ej. CP industriales no en Zippopotam). */
+  private static readonly postaliApiBase = 'https://postali.app/api/v1/mx/cp';
+  private static readonly kurennSepomexApiBase =
+    'https://sepomex.kurenn.dev/api/v1/zip_codes';
   private static readonly zippopotamApiBase = 'https://api.zippopotam.us/mx';
   private static readonly nominatimSearchUrl =
     'https://nominatim.openstreetmap.org/search';
@@ -81,6 +105,16 @@ export class SepomexLookupService {
     const primary = await this.lookupSepomex(cp);
     if (primary.status === 'ok') {
       return primary.rows;
+    }
+
+    const postali = await this.lookupPostali(cp);
+    if (postali.status === 'ok') {
+      return postali.rows;
+    }
+
+    const kurenn = await this.lookupKurennSepomex(cp);
+    if (kurenn.status === 'ok') {
+      return kurenn.rows;
     }
 
     const fallback = await this.lookupZippopotam(cp);
@@ -126,6 +160,112 @@ export class SepomexLookupService {
     } catch {
       return { status: 'unavailable' };
     }
+  }
+
+  private async lookupPostali(
+    cp: string,
+  ): Promise<
+    | { status: 'ok'; rows: MxPostalSettlementDto[] }
+    | { status: 'not_found' }
+    | { status: 'unavailable' }
+  > {
+    const url = `${SepomexLookupService.postaliApiBase}/${cp}`;
+    let res: Response;
+    try {
+      res = await fetch(url, {
+        headers: { Accept: 'application/json' },
+      });
+    } catch {
+      return { status: 'unavailable' };
+    }
+
+    if (res.status === 404) {
+      return { status: 'not_found' };
+    }
+    if (!res.ok) {
+      return { status: 'unavailable' };
+    }
+
+    try {
+      const body = (await res.json()) as PostaliCpJson;
+      const rows = this.mapPostaliRows(body, cp);
+      if (rows.length === 0) {
+        return { status: 'not_found' };
+      }
+      return { status: 'ok', rows };
+    } catch {
+      return { status: 'unavailable' };
+    }
+  }
+
+  private async lookupKurennSepomex(
+    cp: string,
+  ): Promise<
+    | { status: 'ok'; rows: MxPostalSettlementDto[] }
+    | { status: 'not_found' }
+    | { status: 'unavailable' }
+  > {
+    const url = new URL(SepomexLookupService.kurennSepomexApiBase);
+    url.searchParams.set('zip_code', cp);
+    url.searchParams.set('per_page', '200');
+
+    let res: Response;
+    try {
+      res = await fetch(url, {
+        headers: { Accept: 'application/json' },
+      });
+    } catch {
+      return { status: 'unavailable' };
+    }
+
+    if (res.status === 404) {
+      return { status: 'not_found' };
+    }
+    if (!res.ok) {
+      return { status: 'unavailable' };
+    }
+
+    try {
+      const body = (await res.json()) as KurennZipCodesJson;
+      const rows = this.mapSepomexRows(body.zip_codes ?? [], cp);
+      if (rows.length === 0) {
+        return { status: 'not_found' };
+      }
+      return { status: 'ok', rows };
+    } catch {
+      return { status: 'unavailable' };
+    }
+  }
+
+  private mapPostaliRows(
+    body: PostaliCpJson,
+    cpFallback: string,
+  ): MxPostalSettlementDto[] {
+    const cp = (body.cp ?? cpFallback).trim() || cpFallback;
+    const municipality = (body.municipio ?? '').trim();
+    const state = (body.estado ?? '').trim();
+    const places = body.asentamientos ?? [];
+    const mapped: MxPostalSettlementDto[] = places
+      .map((place, index) => {
+        const settlement = (place.nombre ?? '').trim();
+        if (!settlement) {
+          return null;
+        }
+        const city = (place.ciudad ?? '').trim();
+        const slug = (place.asenta_slug ?? '').trim();
+        return {
+          postalCode: cp,
+          settlement,
+          settlementType: (place.tipo ?? '').trim(),
+          municipality,
+          state,
+          city: city || municipality,
+          settlementConsId:
+            slug || `${cp}-${index + 1}-${settlement}`.slice(0, 80),
+        };
+      })
+      .filter((row): row is MxPostalSettlementDto => row != null);
+    return this.dedupeAndSort(mapped);
   }
 
   private async lookupZippopotam(
