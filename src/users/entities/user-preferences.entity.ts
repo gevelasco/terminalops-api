@@ -17,16 +17,6 @@ export class UserPreferences {
   @Column({ name: 'theme_scheme', default: 'light' })
   themeScheme: string;
 
-  @Column({ name: 'control_automatic_recognition', default: false })
-  controlAutomaticRecognition: boolean;
-
-  @Column({
-    name: 'control_automatic_recognition_changed_at',
-    type: 'timestamptz',
-    nullable: true,
-  })
-  controlAutomaticRecognitionChangedAt?: Date;
-
   @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
   updatedAt: Date;
 

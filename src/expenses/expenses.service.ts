@@ -54,6 +54,10 @@ import {
   EXPENSE_NOTIFICATION_COLUMNS,
 } from './expense-notification-fleet-join.util';
 import { buildTripAutoExpenses } from 'src/trips/trip-auto-expenses.util';
+import {
+  resolveOperatorPaymentDueYmd,
+  tripCompletionAnchorOperationalYmd,
+} from 'src/operators/operator-payment-schedule.util';
 import { VERIFICATION_RENEWAL_MONTHS } from 'src/fleet/fleet-verification-expense-sync.util';
 import {
   addOperationalMonthsYmd,
@@ -206,6 +210,26 @@ export class ExpensesService {
       return;
     }
 
+    let operatorPayContext:
+      | { paymentSchedule: string; weeklyPayDay?: string | null }
+      | undefined;
+    if (trip.operatorId) {
+      const operatorRepo = manager
+        ? manager.getRepository(Operator)
+        : this.operatorsRepo;
+      const operator = await operatorRepo.findOne({
+        where: { companyId, id: trip.operatorId },
+        select: ['paymentSchedule', 'weeklyPayDay'],
+      });
+      if (operator) {
+        operatorPayContext = {
+          paymentSchedule: operator.paymentSchedule,
+          weeklyPayDay: operator.weeklyPayDay,
+        };
+      }
+    }
+
+    const completionYmd = tripCompletionAnchorOperationalYmd(trip);
     const repo = manager ? manager.getRepository(Expense) : this.repo;
     await repo.save(
       drafts.map((draft) =>
@@ -215,7 +239,18 @@ export class ExpensesService {
           category: draft.category,
           amount: draft.amount,
           currency: draft.currency,
-          incurredAt: draft.incurredAt,
+          incurredAt:
+            draft.kind === 'operator_payment' &&
+            completionYmd &&
+            operatorPayContext
+              ? parseOperationalIncurredAt(
+                  resolveOperatorPaymentDueYmd({
+                    completionYmd,
+                    paymentSchedule: operatorPayContext.paymentSchedule,
+                    weeklyPayDay: operatorPayContext.weeklyPayDay,
+                  }),
+                )
+              : draft.incurredAt,
           kind: draft.kind,
           description: draft.description,
           relatedUnitId: draft.relatedUnitId,

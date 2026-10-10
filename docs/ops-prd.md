@@ -69,3 +69,15 @@ CONFIRM_RESTORE=yes npm run db:restore -- backups/terminalops-latest.sql.gz
 5. Health `GET /` → 200  
 6. Login funciona; 11º login rápido en 1 min → 429  
 7. Forzar error 500 en staging y confirmar webhook/log  
+
+## 7. Fresh start (vaciar tenants en PRD)
+
+Si todas las empresas acordaron **borrar todo y empezar de cero** (solo esquema):
+
+1. Backup opcional: `npm run db:backup`.
+2. SQL o `CONFIRM_PRD_WIPE=yes npm run db:prd-wipe-tenants` — ver [prd-fresh-start.md](./prd-fresh-start.md).
+3. Vaciar bucket S3.
+4. Redeploy API (re-semilla `invitation_codes` vía `migrate.ts` si aplica).
+5. Smoke sign-up + flujo operativo.
+
+**No** usar una migración TypeORM para el wipe (afectaría otros entornos al clonar la cadena).

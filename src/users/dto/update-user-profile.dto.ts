@@ -1,5 +1,4 @@
 import {
-  IsBoolean,
   IsEmail,
   IsIn,
   IsOptional,
@@ -45,8 +44,4 @@ export class UpdateUserProfileDto {
   @IsOptional()
   @IsIn(['light', 'dark'])
   theme?: 'light' | 'dark';
-
-  @IsOptional()
-  @IsBoolean()
-  controlAutomaticRecognition?: boolean;
 }

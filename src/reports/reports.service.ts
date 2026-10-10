@@ -163,7 +163,6 @@ export class ReportsService {
       expensesRow,
       expensesCount,
       provisionsRow,
-      payableRow,
       creditRows,
       incomeRows,
       marginRows,
@@ -171,6 +170,7 @@ export class ReportsService {
       expenseKindRows,
       tollsSpendRow,
       operatorSpendRow,
+      maintenanceSpendRow,
       incomeEventRows,
       expenseEventRows,
       receivableEventRows,
@@ -183,7 +183,6 @@ export class ReportsService {
       this.sumExpenses(scope),
       this.countExpenses(scope),
       this.sumProvisions(scope),
-      this.sumAccountsPayable(scope),
       this.queryCreditByClient(scope),
       this.queryIncomeByClient(scope),
       this.queryMarginByClient(scope),
@@ -194,6 +193,7 @@ export class ReportsService {
         'operator_payment',
         'operator_commission',
       ]),
+      this.sumExpenseByKinds(scope, ['maintenance', 'repair', 'tires']),
       this.queryDailyIncomeEvents(scope),
       this.queryDailyExpenseEvents(scope),
       this.queryDailyReceivableEvents(scope),
@@ -220,8 +220,6 @@ export class ReportsService {
     const expenses = Math.round(parseMoneySum(expensesRow?.sum) * 100) / 100;
     const provisions =
       Math.round(parseMoneySum(provisionsRow?.sum) * 100) / 100;
-    const accountsPayable =
-      Math.round(parseMoneySum(payableRow?.sum) * 100) / 100;
     const realExpenses =
       Math.round(Math.max(expenses - provisions, 0) * 100) / 100;
     const cashMargin = Math.round((collectedInPeriod - expenses) * 100) / 100;
@@ -250,7 +248,11 @@ export class ReportsService {
       { key: 'collected', label: 'Ingreso cobrado', amount: collectedInPeriod },
       { key: 'expenses', label: 'Gastos', amount: realExpenses },
       { key: 'receivable', label: 'Por cobrar', amount: receivableOpen },
-      { key: 'provisions', label: 'Provisiones', amount: provisions },
+      {
+        key: 'provisions',
+        label: 'Reserva por maniobra',
+        amount: provisions,
+      },
     ].filter((slice) => slice.amount > 0);
 
     const creditByClient = creditRows.map((row) => ({
@@ -308,7 +310,6 @@ export class ReportsService {
         expensesCount,
         realExpenses,
         provisions,
-        accountsPayable,
         cashMargin,
         accruedMargin,
         marginPercent: profitabilityMarginPercent ?? marginPercent,
@@ -316,6 +317,8 @@ export class ReportsService {
           Math.round(parseMoneySum(tollsSpendRow?.sum) * 100) / 100,
         operatorSpendInPeriod:
           Math.round(parseMoneySum(operatorSpendRow?.sum) * 100) / 100,
+        maintenanceSpendInPeriod:
+          Math.round(parseMoneySum(maintenanceSpendRow?.sum) * 100) / 100,
       },
       insights: {
         composition,
@@ -574,11 +577,9 @@ export class ReportsService {
       uniqueDestinationsRow,
       avgDurationRow,
       containerTypeRows,
-      cargoWeightRows,
       recurringIncidentRows,
       operatorRows,
       clientRows,
-      destinationRows,
       geoRows,
       ralentiTripRows,
     ] = await Promise.all([
@@ -601,11 +602,9 @@ export class ReportsService {
       this.countUniqueDestinations(scope),
       this.queryAvgManeuverDurationDays(scope),
       this.queryContainerTypeMix(scope),
-      this.queryCargoWeightByContainer(scope),
       this.queryRecurringIncidentRoutes(scope),
       this.queryTopOperators(scope),
       this.queryTopClients(scope),
-      this.queryTopDestinations(scope),
       this.queryGeoMapTrips(scope),
       this.queryManiobraRalentiTrips(scope),
     ]);
@@ -681,21 +680,10 @@ export class ReportsService {
           clientName: String(row.client_name ?? 'Sin cliente'),
           tripCount: Number(row.trip_count) || 0,
         })),
-        topDestinations: destinationRows.map((row) => ({
-          destination: String(row.destination),
-          tripCount: Number(row.trip_count) || 0,
-        })),
         containerTypeMix: containerTypeRows.map((row) => ({
           containerType: String(row.container_type ?? 'na'),
           label: containerTypeLabelMx(String(row.container_type ?? '')),
           tripCount: Number(row.trip_count) || 0,
-        })),
-        cargoWeightByContainer: cargoWeightRows.map((row) => ({
-          containerType: String(row.container_type ?? 'na'),
-          label: containerTypeLabelMx(String(row.container_type ?? '')),
-          tripCount: Number(row.trip_count) || 0,
-          avgWeightTons:
-            Math.round(parseMoneySum(row.avg_weight_tons) * 100) / 100,
         })),
         geoMapTrips: geoRows
           .map((row) => {
@@ -726,8 +714,6 @@ export class ReportsService {
           clienteRegresoHours: ralenti.clienteRegresoHours,
           tripsEvaluated: ralenti.tripsEvaluated,
           tripsWithRalenti: ralenti.tripsWithRalenti,
-          byClient: ralenti.byClient,
-          events: ralenti.events,
         },
       },
     };
@@ -1091,14 +1077,6 @@ export class ReportsService {
       )`;
   }
 
-  /** Rubro programado vs ledger (diésel, casetas, operador). */
-  private tripCategoryCostSql(
-    tripFieldExpr: string,
-    ledgerExpr: string,
-  ): string {
-    return `CASE WHEN COALESCE(${ledgerExpr}, 0) > 0 THEN COALESCE(${ledgerExpr}, 0)::float ELSE COALESCE(${tripFieldExpr}, 0)::float END`;
-  }
-
   private completedBillableTripPeriodSql(alias = 'trip'): string {
     return `${alias}.status = 'completed'
       AND ${alias}.completed_at IS NOT NULL
@@ -1157,25 +1135,6 @@ export class ReportsService {
       .andWhere('e.discardedAt IS NULL')
       .andWhere(
         `(e.kind = 'operational_control')`,
-      )
-      .andWhere(
-        `(e.incurred_at AT TIME ZONE '${OPERATIONAL_TZ}')::date BETWEEN :from AND :to`,
-        { from: scope.from, to: scope.to },
-      )
-      .getRawOne<{ sum: string }>();
-  }
-
-  private sumAccountsPayable(
-    scope: ReportsScope,
-  ): Promise<{ sum: string } | undefined> {
-    return this.expensesRepo
-      .createQueryBuilder('e')
-      .select('COALESCE(SUM(e.amount), 0)', 'sum')
-      .where('e.companyId = :companyId', { companyId: scope.companyId })
-      .andWhere(expenseNotDiscardedSql('e'))
-      .andWhere("e.kind <> 'operational_control'")
-      .andWhere(
-        `LOWER(TRIM(COALESCE(e.paymentMethod, ''))) IN ('credit', 'credit_card', 'card')`,
       )
       .andWhere(
         `(e.incurred_at AT TIME ZONE '${OPERATIONAL_TZ}')::date BETWEEN :from AND :to`,
@@ -1282,8 +1241,8 @@ export class ReportsService {
         ${filter.sql}
       GROUP BY trip.client_id, trip.client_name
       HAVING COALESCE(SUM(trip.client_charge), 0) > 0
-      ORDER BY (COALESCE(SUM(trip.client_charge), 0) - COALESCE(SUM(${resolvedCost}), 0)) DESC
-      LIMIT 8
+      ORDER BY COALESCE(SUM(trip.client_charge), 0) DESC
+      LIMIT 3
       `,
       params,
     );
@@ -1327,136 +1286,6 @@ export class ReportsService {
         params,
       )
       .then((rows) => rows[0]);
-  }
-
-  private queryUnitProfitability(scope: ReportsScope): Promise<
-    Array<{
-      unit_label: string;
-      revenue: string;
-      diesel: string;
-      operator: string;
-      tolls: string;
-      maintenance: string;
-      tires: string;
-    }>
-  > {
-    const filter = tripScopeSql('trip', scope, 4);
-    const params = [scope.companyId, scope.from, scope.to, ...filter.params];
-    const tripSchema = this.tripsRepo.metadata.schema;
-    const expenseSchema = this.expensesRepo.metadata.schema;
-    const dieselCost = this.tripCategoryCostSql('ta.trip_diesel', 'te.fuel');
-    const operatorCost = this.tripCategoryCostSql(
-      'ta.trip_operator',
-      'te.operator',
-    );
-    const tollsCost = this.tripCategoryCostSql('ta.trip_tolls', 'te.tolls');
-
-    return this.tripsRepo.query(
-      `
-      WITH trip_agg AS (
-        SELECT
-          trip.unit_id,
-          COALESCE(SUM(trip.client_charge), 0)::float AS revenue,
-          COALESCE(SUM(COALESCE(trip.diesel_amount, 0)), 0)::float AS trip_diesel,
-          COALESCE(SUM(COALESCE(trip.casetas_amount, 0)), 0)::float AS trip_tolls,
-          COALESCE(SUM(COALESCE(trip.operator_quota, 0)), 0)::float AS trip_operator
-        FROM ${tripSchema}.trips trip
-        WHERE trip.company_id = $1
-          AND trip.deleted_at IS NULL
-          AND ${this.completedBillableTripPeriodSql('trip')}
-          AND trip.unit_id IS NOT NULL
-          ${filter.sql}
-        GROUP BY trip.unit_id
-      ),
-      trip_exp AS (
-        SELECT
-          t.unit_id,
-          COALESCE(SUM(CASE WHEN LOWER(TRIM(e.kind)) = 'fuel' THEN e.amount ELSE 0 END), 0)::float AS fuel,
-          COALESCE(SUM(CASE WHEN LOWER(TRIM(e.kind)) = 'tolls' THEN e.amount ELSE 0 END), 0)::float AS tolls,
-          COALESCE(
-            SUM(
-              CASE
-                WHEN LOWER(TRIM(e.kind)) IN ('operator_payment', 'operator_commission')
-                THEN e.amount
-                ELSE 0
-              END
-            ),
-            0
-          )::float AS operator,
-          COALESCE(
-            SUM(
-              CASE
-                WHEN LOWER(TRIM(e.kind)) IN ('maintenance', 'repair') THEN e.amount
-                ELSE 0
-              END
-            ),
-            0
-          )::float AS maintenance_trip,
-          COALESCE(SUM(CASE WHEN LOWER(TRIM(e.kind)) = 'tires' THEN e.amount ELSE 0 END), 0)::float AS tires_trip
-        FROM ${expenseSchema}.expenses e
-        INNER JOIN ${tripSchema}.trips t ON t.id = e.trip_id
-        WHERE e.company_id = $1
-          AND e.discarded_at IS NULL
-          AND e.kind <> 'operational_control'
-          AND (e.incurred_at AT TIME ZONE '${OPERATIONAL_TZ}')::date BETWEEN $2::date AND $3::date
-          AND t.unit_id IS NOT NULL
-          AND t.deleted_at IS NULL
-        GROUP BY t.unit_id
-      ),
-      unit_exp AS (
-        SELECT
-          e.related_unit_id AS unit_id,
-          COALESCE(
-            SUM(
-              CASE
-                WHEN LOWER(TRIM(e.kind)) IN ('maintenance', 'repair') THEN e.amount
-                ELSE 0
-              END
-            ),
-            0
-          )::float AS maintenance_unit,
-          COALESCE(SUM(CASE WHEN LOWER(TRIM(e.kind)) = 'tires' THEN e.amount ELSE 0 END), 0)::float AS tires_unit
-        FROM ${expenseSchema}.expenses e
-        WHERE e.company_id = $1
-          AND e.discarded_at IS NULL
-          AND e.related_unit_id IS NOT NULL
-          AND e.trip_id IS NULL
-          AND e.kind <> 'operational_control'
-          AND (e.incurred_at AT TIME ZONE '${OPERATIONAL_TZ}')::date BETWEEN $2::date AND $3::date
-        GROUP BY e.related_unit_id
-      ),
-      active_units AS (
-        SELECT unit_id FROM trip_agg
-        UNION
-        SELECT unit_id FROM unit_exp
-      )
-      SELECT
-        ${UNIT_OPERATIONAL_CODE_SQL} AS unit_label,
-        COALESCE(ta.revenue, 0)::float AS revenue,
-        (${dieselCost})::float AS diesel,
-        (${operatorCost})::float AS operator,
-        (${tollsCost})::float AS tolls,
-        (COALESCE(te.maintenance_trip, 0) + COALESCE(ue.maintenance_unit, 0))::float AS maintenance,
-        (COALESCE(te.tires_trip, 0) + COALESCE(ue.tires_unit, 0))::float AS tires
-      FROM active_units au
-      INNER JOIN ${tripSchema}.units unit ON unit.id = au.unit_id
-      LEFT JOIN trip_agg ta ON ta.unit_id = au.unit_id
-      LEFT JOIN trip_exp te ON te.unit_id = au.unit_id
-      LEFT JOIN unit_exp ue ON ue.unit_id = au.unit_id
-      WHERE unit.company_id = $1
-      ORDER BY (
-        COALESCE(ta.revenue, 0)
-        - (${dieselCost})
-        - (${operatorCost})
-        - (${tollsCost})
-        - (COALESCE(te.maintenance_trip, 0) + COALESCE(ue.maintenance_unit, 0))
-        - (COALESCE(te.tires_trip, 0) + COALESCE(ue.tires_unit, 0))
-      ) DESC,
-      COALESCE(ta.revenue, 0) DESC
-      LIMIT 8
-      `,
-      params,
-    );
   }
 
   private queryExpensesByKind(
@@ -1646,40 +1475,6 @@ export class ReportsService {
     );
   }
 
-  private queryCargoWeightByContainer(scope: ReportsScope): Promise<
-    Array<{
-      container_type: string;
-      trip_count: string;
-      avg_weight_tons: string;
-    }>
-  > {
-    const filter = tripScopeSql('trip', scope, 4);
-    const params = [scope.companyId, scope.from, scope.to, ...filter.params];
-    const schema = this.tripsRepo.metadata.schema;
-
-    return this.tripsRepo.query(
-      `
-      SELECT
-        COALESCE(NULLIF(TRIM(trip.container_type), ''), 'na') AS container_type,
-        COUNT(*)::int AS trip_count,
-        AVG(trip.approximate_weight_tons::float)::float AS avg_weight_tons
-      FROM ${schema}.trips trip
-      WHERE trip.company_id = $1
-          AND trip.deleted_at IS NULL
-        AND trip.status = 'completed'
-        AND trip.completed_at IS NOT NULL
-        AND (trip.completed_at AT TIME ZONE '${OPERATIONAL_TZ}')::date BETWEEN $2::date AND $3::date
-        AND trip.approximate_weight_tons IS NOT NULL
-        AND trip.approximate_weight_tons::float > 0
-        ${filter.sql}
-      GROUP BY COALESCE(NULLIF(TRIM(trip.container_type), ''), 'na')
-      HAVING COUNT(*) > 0
-      ORDER BY avg_weight_tons DESC
-      `,
-      params,
-    );
-  }
-
   private countScheduledInPeriod(scope: ReportsScope): Promise<number> {
     const qb = this.tripsRepo
       .createQueryBuilder('trip')
@@ -1705,28 +1500,6 @@ export class ReportsService {
         { from: scope.from, to: scope.to },
       );
     return this.applyTripScope(qb, scope).getRawOne<{ count: string }>();
-  }
-
-  private queryTopDestinations(
-    scope: ReportsScope,
-  ): Promise<Array<{ destination: string; trip_count: string }>> {
-    const qb = this.tripsRepo
-      .createQueryBuilder('trip')
-      .select(DESTINATION_DISPLAY_LABEL_SQL, 'destination')
-      .addSelect('COUNT(*)', 'trip_count')
-      .where('trip.status = :completed', { completed: 'completed' })
-      .andWhere('trip.completedAt IS NOT NULL')
-      .andWhere(
-        `(trip.completed_at AT TIME ZONE '${OPERATIONAL_TZ}')::date BETWEEN :from AND :to`,
-        { from: scope.from, to: scope.to },
-      )
-      .andWhere(DESTINATION_HAS_LABEL_SQL)
-      .groupBy('trip.destinationPostalCode')
-      .addGroupBy('trip.destinationLocality')
-      .addGroupBy('trip.destinationCityMunicipality')
-      .orderBy('trip_count', 'DESC')
-      .limit(8);
-    return this.applyTripScope(qb, scope).getRawMany();
   }
 
   private queryOperationMix(
@@ -1770,7 +1543,6 @@ export class ReportsService {
       maintenanceEventsCount,
       maintenanceSpendRow,
       tireWearRows,
-      unitProfitabilityRows,
     ] = await Promise.all([
       this.fleetOverview.listOverview(scope.companyId, undefined, {
         includeEquipmentRows: false,
@@ -1782,7 +1554,6 @@ export class ReportsService {
       this.countFleetMaintenanceEvents(scope),
       this.sumFleetExpenseKind(scope, ['maintenance', 'repair', 'tires']),
       this.queryTireWearByUnit(scope),
-      this.queryUnitProfitability(scope),
     ]);
 
     const statusMix = buildReportsFleetStatusMix(overview.items);
@@ -1846,47 +1617,8 @@ export class ReportsService {
             tireLifeUsedPercent: wear.tireLifeUsedPercent,
           };
         }),
-        unitProfitability: this.mapUnitProfitabilityRows(unitProfitabilityRows),
       },
     };
-  }
-
-  private mapUnitProfitabilityRows(
-    rows: Array<{
-      unit_label: string;
-      revenue: string;
-      diesel: string;
-      operator: string;
-      tolls: string;
-      maintenance: string;
-      tires: string;
-    }>,
-  ) {
-    return rows.map((row) => {
-      const revenue = Math.round(parseMoneySum(row.revenue) * 100) / 100;
-      const diesel = Math.round(parseMoneySum(row.diesel) * 100) / 100;
-      const operator = Math.round(parseMoneySum(row.operator) * 100) / 100;
-      const tolls = Math.round(parseMoneySum(row.tolls) * 100) / 100;
-      const maintenance =
-        Math.round(parseMoneySum(row.maintenance) * 100) / 100;
-      const tires = Math.round(parseMoneySum(row.tires) * 100) / 100;
-      const netMargin =
-        Math.round(
-          (revenue - diesel - operator - tolls - maintenance - tires) * 100,
-        ) / 100;
-      return {
-        unitLabel: String(row.unit_label ?? '—'),
-        revenue,
-        diesel,
-        operator,
-        tolls,
-        maintenance,
-        tires,
-        netMargin,
-        marginPercent:
-          revenue > 0 ? Math.round((netMargin / revenue) * 1000) / 10 : null,
-      };
-    });
   }
 
   private sumFleetDiesel(

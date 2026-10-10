@@ -12,6 +12,7 @@ import {
 import { AllExceptionsFilter } from './common/observability/all-exceptions.filter';
 import { RequestLoggingInterceptor } from './common/observability/request-logging.interceptor';
 import { requestIdMiddleware } from './common/observability/request-id.middleware';
+import { applyAuthResponses } from './common/swagger/apply-auth-responses';
 import { assertRequiredTypeOrmEntities } from './database/assert-typeorm-entities';
 import EnvConfig from './types/env-config.type';
 
@@ -92,8 +93,11 @@ async function bootstrap() {
         { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
         'access-token',
       )
+      .addSecurityRequirements('access-token')
       .build();
-    const document = SwaggerModule.createDocument(app, swagger);
+    const document = applyAuthResponses(
+      SwaggerModule.createDocument(app, swagger),
+    );
     SwaggerModule.setup('api', app, document);
   }
 

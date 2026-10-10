@@ -36,7 +36,6 @@ describe('reports-maniobras-ralenti.util', () => {
     expect(report.salidaClienteHours).toBe(2);
     expect(report.clienteRegresoHours).toBe(2);
     expect(report.totalHours).toBe(4);
-    expect(report.events[0]?.baselineSource).toBe('rate');
   });
 
   it('falls back to planned baseline without rate times', () => {
@@ -60,9 +59,6 @@ describe('reports-maniobras-ralenti.util', () => {
 
     expect(report.salidaClienteHours).toBe(2);
     expect(report.clienteRegresoHours).toBe(2);
-    expect(report.events.every((e) => e.baselineSource === 'planned')).toBe(
-      true,
-    );
   });
 
   it('ignores legs without actual timestamps', () => {
@@ -86,6 +82,5 @@ describe('reports-maniobras-ralenti.util', () => {
 
     expect(report.tripsEvaluated).toBe(0);
     expect(report.totalHours).toBe(0);
-    expect(report.events).toEqual([]);
   });
 });

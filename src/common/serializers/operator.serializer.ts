@@ -45,6 +45,7 @@ export function serializeOperator(
     companyHireDate: operator.companyHireDate ?? null,
     employmentContractType: operator.employmentContractType ?? '',
     paymentSchedule: operator.paymentSchedule ?? 'maneuver',
+    weeklyPayDay: operator.weeklyPayDay?.trim() || null,
     paymentMethod: operator.paymentMethod?.trim() || null,
     status: operator.status,
     isActive: operator.isActive !== false,

@@ -1,4 +1,5 @@
 import {
+  ConflictException,
   ForbiddenException,
   HttpException,
   HttpStatus,
@@ -35,6 +36,9 @@ import {
 } from './refresh-token.util';
 import { RefreshTokensService } from './refresh-tokens.service';
 import { ChecklistService } from '../checklist/checklist.service';
+
+export const SIGN_UP_COMPANY_EXISTS =
+  'Ya existe una empresa con ese nombre. Pide a su administrador que te invite.';
 
 @Injectable()
 export class AuthService {
@@ -116,13 +120,20 @@ export class AuthService {
     const email = dto.email.trim().toLowerCase();
     const invite = await this.invitationCodes.consume(invitationCode, 'signup');
 
+    const companyName = dto.companyName.trim();
+    if (await this.companiesService.existsByName(companyName)) {
+      await this.invitationCodes.release(invite.id);
+      throw new ConflictException(SIGN_UP_COMPANY_EXISTS);
+    }
+
+    let companyId: number | null = null;
     try {
-      const companyName = dto.companyName.trim();
       const company = await this.companiesService.create({
         name: companyName,
         subscriptionPlan: invite.grantedPlan,
         subscriptionEndsAt: invitationLicenseEndsAt(invite.licenseMonths),
       });
+      companyId = company.id;
 
       const displayName =
         `${dto.firstName.trim()} ${dto.lastName.trim()}`.trim();
@@ -157,6 +168,16 @@ export class AuthService {
 
       return this.buildAuthResponse(user);
     } catch (err) {
+      if (companyId != null) {
+        await this.companiesService
+          .deleteOrphanFromFailedSignup(companyId)
+          .catch((rollbackErr: unknown) => {
+            this.logger.error(
+              `Failed to roll back company ${companyId} after sign-up error`,
+              rollbackErr instanceof Error ? rollbackErr.stack : rollbackErr,
+            );
+          });
+      }
       await this.invitationCodes.release(invite.id);
       throw err;
     }

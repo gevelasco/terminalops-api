@@ -7,6 +7,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
+import { AuthGuard } from './guards/auth/auth.guard';
 import { EmailModule } from './email/email.module';
 import { ChecklistModule } from './checklist/checklist.module';
 import { ClientsModule } from './clients/clients.module';
@@ -89,6 +90,10 @@ import EnvConfig from './types/env-config.type';
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: AuthGuard,
     },
   ],
 })

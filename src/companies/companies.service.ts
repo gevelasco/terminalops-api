@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { OperationalCenter } from 'src/operational-centers/entities/operational-center.entity';
 import { Company } from 'src/companies/entities/company.entity';
 import { invitationLicenseEndsAt } from '../common/constants/invitation-codes';
 import { isOwnerRole } from '../common/constants/app-modules';
@@ -39,10 +40,31 @@ export class CompaniesService {
   constructor(
     @InjectRepository(Company)
     private readonly repo: Repository<Company>,
+    @InjectRepository(OperationalCenter)
+    private readonly operationalCenterRepo: Repository<OperationalCenter>,
     private readonly tenantContext: TenantContextService,
     private readonly operationalCenters: OperationalCentersService,
     private readonly invitationCodes: InvitationCodesService,
   ) {}
+
+  /** Elimina empresa creada en sign-up si falló el alta del usuario (sin usuarios). */
+  async deleteOrphanFromFailedSignup(companyId: number): Promise<void> {
+    await this.operationalCenterRepo.delete({ companyId });
+    await this.repo.delete({ id: companyId });
+  }
+
+  /** Nombre de empresa ya usado (comparación insensible a mayúsculas y espacios). */
+  async existsByName(rawName: string): Promise<boolean> {
+    const normalized = rawName.trim().toLowerCase();
+    if (!normalized) {
+      return false;
+    }
+    const row = await this.repo
+      .createQueryBuilder('company')
+      .where('LOWER(TRIM(company.name)) = :name', { name: normalized })
+      .getOne();
+    return row != null;
+  }
 
   async create(dto: CreateCompanyInput) {
     const now = new Date();
@@ -55,7 +77,6 @@ export class CompaniesService {
         subscriptionEndsAt: dto.subscriptionEndsAt,
         operationalAnalysisEnabled: true,
         operationalAnalysisChangedAt: now,
-        tripAssistPrefillEnabled: false,
         tripAutoMaintenanceProvisionPercent: '5',
         tripAutoFuelPaymentMethod: 'cash',
         tripAutoTollsPaymentMethod: 'cash',
@@ -130,12 +151,6 @@ export class CompaniesService {
     if (dto.operationalAnalysisEnabled !== undefined) {
       company.operationalAnalysisEnabled = dto.operationalAnalysisEnabled;
       company.operationalAnalysisChangedAt = new Date();
-    }
-    if (dto.tripAssistPrefillEnabled !== undefined) {
-      if (company.tripAssistPrefillEnabled !== dto.tripAssistPrefillEnabled) {
-        company.tripAssistPrefillChangedAt = new Date();
-      }
-      company.tripAssistPrefillEnabled = dto.tripAssistPrefillEnabled;
     }
     if (dto.tripAutoMaintenanceProvisionPercent !== undefined) {
       company.tripAutoMaintenanceProvisionPercent = String(

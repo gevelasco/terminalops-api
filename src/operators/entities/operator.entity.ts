@@ -72,6 +72,10 @@ export class Operator {
   @Column({ name: 'payment_schedule', default: 'maneuver' })
   paymentSchedule: string;
 
+  /** Día de la semana para pago semanal (`mon`…`sun`); solo aplica si `paymentSchedule` = weekly. */
+  @Column({ name: 'weekly_pay_day', type: 'varchar', nullable: true })
+  weeklyPayDay?: string | null;
+
   /** Método de pago al operador (catálogo de gastos: transfer, cash, …). */
   @Column({ name: 'payment_method', type: 'text', nullable: true })
   paymentMethod?: string | null;

@@ -77,7 +77,6 @@ describe('UsersService (A3 operational analysis SSOT)', () => {
     expect(preferencesCreate).toHaveBeenCalledWith({
       userId: 7,
       themeScheme: 'dark',
-      controlAutomaticRecognition: false,
     });
     expect(preferencesSave).toHaveBeenCalled();
   });
@@ -111,7 +110,6 @@ describe('UsersService (A3 operational analysis SSOT)', () => {
       },
       preferences: {
         themeScheme: 'light',
-        controlAutomaticRecognition: true,
       },
     } as AppUser;
 

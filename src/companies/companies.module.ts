@@ -17,12 +17,13 @@ import { FuelPriceModule } from '../fuel/fuel-price.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { BillingModule } from '../common/billing/billing.module';
 import { Company } from 'src/companies/entities/company.entity';
+import { OperationalCenter } from 'src/operational-centers/entities/operational-center.entity';
 import { CompaniesController } from './companies.controller';
 import { CompaniesService } from './companies.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Company]),
+    TypeOrmModule.forFeature([Company, OperationalCenter]),
     ClientsModule,
     OperatorsModule,
     UnitsModule,

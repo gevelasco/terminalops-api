@@ -8,12 +8,12 @@ export type ReportsBalanceSummaryDto = {
   expensesCount: number;
   realExpenses: number;
   provisions: number;
-  accountsPayable: number;
   cashMargin: number;
   accruedMargin: number;
   marginPercent: number | null;
   tollsSpendInPeriod: number;
   operatorSpendInPeriod: number;
+  maintenanceSpendInPeriod: number;
 };
 
 export type ReportsBalanceCompositionSliceDto = {

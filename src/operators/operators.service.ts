@@ -19,8 +19,14 @@ import {
   buildOperatorOperationSummary,
   OPERATOR_SUMMARY_RECENT_DAYS,
 } from 'src/operators/operator-operation-summary.util';
-import { tripCompletionAnchorYmd } from 'src/operators/operator-payment-schedule.util';
-import { parseOperationalIncurredAt } from 'src/expenses/expenses-incurred-at.util';
+import {
+  resolveOperatorPaymentDueYmd,
+  tripCompletionAnchorOperationalYmd,
+} from 'src/operators/operator-payment-schedule.util';
+import {
+  formatOperationalIncurredDateYmd,
+  parseOperationalIncurredAt,
+} from 'src/expenses/expenses-incurred-at.util';
 import { expenseTextColumn } from 'src/expenses/expense-payload.util';
 import { Operator } from 'src/operators/entities/operator.entity';
 import { OperatorDocument } from 'src/operators/entities/operator-document.entity';
@@ -108,7 +114,7 @@ export class OperatorsService {
 
   async create(companyId: number, dto: CreateOperatorDto) {
     rejectClientFleetStatusMutation(dto as unknown as Record<string, unknown>);
-    const core = this.extractCoreFields(dto);
+    const core = this.sanitizeOperatorPaymentFields(this.extractCoreFields(dto));
     const saved = await this.repo.save(
       this.repo.create({
         companyId,
@@ -342,7 +348,7 @@ export class OperatorsService {
   ): Promise<OperatorOperationSummaryDto> {
     const operator = await this.repo.findOne({
       where: { companyId, id: operatorId },
-      select: ['id', 'paymentMethod'],
+      select: ['id', 'paymentMethod', 'paymentSchedule', 'weeklyPayDay'],
     });
     if (!operator) {
       throw new NotFoundException(`Operator ${operatorId} not found`);
@@ -402,11 +408,20 @@ export class OperatorsService {
       }
 
       const completionYmd =
-        tripCompletionAnchorYmd(trip) ?? new Date().toISOString().slice(0, 10);
+        tripCompletionAnchorOperationalYmd(trip) ??
+        new Date().toISOString().slice(0, 10);
+      const dueYmd = resolveOperatorPaymentDueYmd({
+        completionYmd,
+        paymentSchedule: operator.paymentSchedule,
+        weeklyPayDay: operator.weeklyPayDay,
+      });
       const maneuverRef = trip.maneuverCode?.trim() || `#${trip.id}`;
       const paymentMethod = expenseTextColumn(operator.paymentMethod);
       const amountStr = (Math.round(balance * 100) / 100).toFixed(2);
-      const incurredAt = parseOperationalIncurredAt(completionYmd);
+      const incurredAt = parseOperationalIncurredAt(dueYmd);
+      const paidAt = parseOperationalIncurredAt(
+        formatOperationalIncurredDateYmd(new Date()),
+      );
 
       const expenseRepo = em.getRepository(Expense);
       const existingPending = pending[0];
@@ -415,7 +430,7 @@ export class OperatorsService {
             expenseRepo.merge(existingPending, {
               amount: amountStr,
               incurredAt,
-              paidAt: incurredAt,
+              paidAt,
               ...(paymentMethod != null ? { paymentMethod } : {}),
             }),
           )
@@ -427,7 +442,7 @@ export class OperatorsService {
               amount: amountStr,
               currency: 'MXN',
               incurredAt,
-              paidAt: incurredAt,
+              paidAt,
               kind: 'operator_payment',
               description: `Pago a operador — maniobra ${maneuverRef}`,
               relatedOperatorId: operatorId,
@@ -553,7 +568,7 @@ export class OperatorsService {
   ) {
     rejectClientFleetStatusMutation(dto as unknown as Record<string, unknown>);
     await this.findOne(companyId, operatorId);
-    const core = this.extractCoreFields(dto);
+    const core = this.sanitizeOperatorPaymentFields(this.extractCoreFields(dto));
     if (Object.keys(core).length > 0) {
       await this.repo.update({ id: operatorId, companyId }, core);
     }
@@ -701,6 +716,18 @@ export class OperatorsService {
     }
     await this.repo.update({ id: operatorId, companyId }, { isActive: false });
     return { id: operatorId, deleted: true };
+  }
+
+  private sanitizeOperatorPaymentFields(
+    core: Partial<Operator>,
+  ): Partial<Operator> {
+    const schedule = core.paymentSchedule?.trim();
+    if (schedule && schedule !== 'weekly') {
+      core.weeklyPayDay = null;
+    } else if (schedule === 'weekly' && !core.weeklyPayDay?.trim()) {
+      core.weeklyPayDay = 'fri';
+    }
+    return core;
   }
 
   private extractCoreFields(
@@ -1000,13 +1027,27 @@ export class OperatorsService {
         creditDays: Number(row['creditDays'] ?? 0),
       } as Trip);
 
-      if (Number.isFinite(paidAmount) && paidAmount > 0) {
-        expenses.push({
-          tripId,
-          kind: 'operator_payment',
-          amount: String(paidAmount),
-          discardedAt: null,
-        } as Expense);
+    }
+
+    const tripIds = trips.map((t) => t.id);
+    if (tripIds.length > 0) {
+      const pendingRows = await this.expenseRepo.find({
+        where: {
+          companyId,
+          tripId: In(tripIds),
+          paidAt: IsNull(),
+          discardedAt: IsNull(),
+        },
+        select: ['id', 'tripId', 'kind', 'amount', 'incurredAt', 'relatedOperatorId', 'paidAt', 'discardedAt'],
+      });
+      for (const expense of pendingRows) {
+        if (
+          expense.kind !== 'operator_payment' &&
+          expense.kind !== 'operator_commission'
+        ) {
+          continue;
+        }
+        expenses.push(expense);
       }
     }
 

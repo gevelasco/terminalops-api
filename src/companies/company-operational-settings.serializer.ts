@@ -23,8 +23,6 @@ export function serializeCompanyOperationalSettings(
     operationalCenterName: geo.operationalCenterName,
     operationalAnalysisEnabled: company.operationalAnalysisEnabled,
     operationalAnalysisChangedAt: toIsoString(company.operationalAnalysisChangedAt),
-    tripAssistPrefillEnabled: company.tripAssistPrefillEnabled,
-    tripAssistPrefillChangedAt: toIsoString(company.tripAssistPrefillChangedAt),
     tripAutoMaintenanceProvisionPercent: dbNumToApi(
       company.tripAutoMaintenanceProvisionPercent,
     ) ?? 5,

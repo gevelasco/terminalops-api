@@ -1,5 +1,7 @@
 import {
   normalizeOperatorPaymentSchedule,
+  resolveOperatorPaymentDueYmd,
+  resolveWeeklyOperatorPaymentDueYmd,
   tripCompletionAnchorYmd,
 } from './operator-payment-schedule.util';
 
@@ -37,5 +39,30 @@ describe('operator-payment-schedule.util', () => {
         arrivedAt: null,
       }),
     ).toBeNull();
+  });
+
+  it('resolveWeeklyOperatorPaymentDueYmd uses same-week pay day or rolls to next week', () => {
+    // Jueves → viernes de la misma semana
+    expect(resolveWeeklyOperatorPaymentDueYmd('2026-10-08', 'fri')).toBe(
+      '2026-10-09',
+    );
+    // Sábado → viernes siguiente (pasó el viernes de esa semana)
+    expect(resolveWeeklyOperatorPaymentDueYmd('2026-10-10', 'fri')).toBe(
+      '2026-10-16',
+    );
+    // Domingo → viernes siguiente
+    expect(resolveWeeklyOperatorPaymentDueYmd('2026-10-11', 'fri')).toBe(
+      '2026-10-16',
+    );
+  });
+
+  it('resolveOperatorPaymentDueYmd keeps completion for maneuver cadence', () => {
+    expect(
+      resolveOperatorPaymentDueYmd({
+        completionYmd: '2026-10-10',
+        paymentSchedule: 'maneuver',
+        weeklyPayDay: 'fri',
+      }),
+    ).toBe('2026-10-10');
   });
 });

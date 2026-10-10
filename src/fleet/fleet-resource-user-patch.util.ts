@@ -69,6 +69,7 @@ export const OPERATOR_USER_MUTABLE_KEYS = [
   'companyHireDate',
   'employmentContractType',
   'paymentSchedule',
+  'weeklyPayDay',
   'paymentMethod',
   'insuranceKind',
   'photoDataUrl',

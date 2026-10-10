@@ -55,25 +55,12 @@ export type ReportsFleetTireWearRowDto = {
   tireLifeUsedPercent: number;
 };
 
-export type ReportsFleetUnitProfitabilityRowDto = {
-  unitLabel: string;
-  revenue: number;
-  diesel: number;
-  operator: number;
-  tolls: number;
-  maintenance: number;
-  tires: number;
-  netMargin: number;
-  marginPercent: number | null;
-};
-
 export type ReportsFleetInsightsDto = {
   statusMix: ReportsFleetStatusMixRowDto[];
   topUnitsByKm: ReportsFleetUnitActivityRowDto[];
   maintenanceEvents: ReportsFleetMaintenanceEventRowDto[];
   complianceUnits: ReportsFleetComplianceUnitRowDto[];
   tireWearByUnit: ReportsFleetTireWearRowDto[];
-  unitProfitability: ReportsFleetUnitProfitabilityRowDto[];
 };
 
 export type ReportsFleetDto = {

@@ -117,11 +117,6 @@ export class UsersService {
       department,
       workLocation,
       employeeId: String(user.id),
-      controlAutomaticRecognition:
-        user.preferences?.controlAutomaticRecognition ?? false,
-      controlAutomaticRecognitionChangedAt: toIsoString(
-        user.preferences?.controlAutomaticRecognitionChangedAt,
-      ),
     };
   }
 
@@ -167,13 +162,6 @@ export class UsersService {
 
     if (dto.theme) {
       await this.updateTheme(user.id, dto.theme);
-    }
-
-    if (dto.controlAutomaticRecognition !== undefined) {
-      await this.updateControlAutomaticRecognition(
-        user.id,
-        dto.controlAutomaticRecognition,
-      );
     }
 
     const fresh = await this.findOne({ id: user.id });
@@ -303,14 +291,6 @@ export class UsersService {
       operationalAnalysisChangedAt: toIsoString(
         user.company?.operationalAnalysisChangedAt,
       ),
-      tripAssistPrefillEnabled:
-        user.company?.tripAssistPrefillEnabled ??
-        user.preferences?.controlAutomaticRecognition ??
-        false,
-      tripAssistPrefillChangedAt: toIsoString(
-        user.company?.tripAssistPrefillChangedAt ??
-          user.preferences?.controlAutomaticRecognitionChangedAt,
-      ),
       tripAutoMaintenanceProvisionPercent: (() => {
         const raw = user.company?.tripAutoMaintenanceProvisionPercent;
         if (raw == null || raw === '') {
@@ -357,14 +337,6 @@ export class UsersService {
         }
         return Math.min(15, Math.max(1, Math.round(n)));
       })(),
-      controlAutomaticRecognition:
-        user.company?.tripAssistPrefillEnabled ??
-        user.preferences?.controlAutomaticRecognition ??
-        false,
-      controlAutomaticRecognitionChangedAt: toIsoString(
-        user.company?.tripAssistPrefillChangedAt ??
-          user.preferences?.controlAutomaticRecognitionChangedAt,
-      ),
       ...(() => {
         const primary = user.company?.primaryOperationalCenter;
         const geo = operationalCenterGeoForApi(primary);
@@ -445,25 +417,12 @@ export class UsersService {
       this.preferencesRepo.create({
         userId,
         themeScheme: theme,
-        controlAutomaticRecognition: false,
       }),
     );
   }
 
   async updateTheme(userId: number, theme: ThemeScheme) {
     await this.preferencesRepo.update({ userId }, { themeScheme: theme });
-  }
-
-  async updateControlAutomaticRecognition(userId: number, enabled: boolean) {
-    let prefs = await this.preferencesRepo.findOne({ where: { userId } });
-    if (!prefs) {
-      prefs = await this.createPreferences(userId);
-    }
-    if (prefs.controlAutomaticRecognition !== enabled) {
-      prefs.controlAutomaticRecognitionChangedAt = new Date();
-    }
-    prefs.controlAutomaticRecognition = enabled;
-    await this.preferencesRepo.save(prefs);
   }
 
   private resolveTheme(value?: string): ThemeScheme {

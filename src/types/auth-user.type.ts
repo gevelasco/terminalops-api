@@ -30,8 +30,6 @@ export type AuthUser = {
   employeeId?: string;
   operationalAnalysisEnabled?: boolean;
   operationalAnalysisChangedAt?: string;
-  tripAssistPrefillEnabled?: boolean;
-  tripAssistPrefillChangedAt?: string;
   tripAutoMaintenanceProvisionPercent?: number;
   tripAutoFuelPaymentMethod?: string;
   tripAutoTollsPaymentMethod?: string;
@@ -46,8 +44,6 @@ export type AuthUser = {
   dieselControlEnabled?: boolean;
   dieselControlChangedAt?: string;
   paymentReminderDaysBefore?: number;
-  controlAutomaticRecognition?: boolean;
-  controlAutomaticRecognitionChangedAt?: string;
   /** ID público del centro operativo principal (único por empresa hoy). */
   operationalCenterId?: string;
   operationalCenterName?: string;

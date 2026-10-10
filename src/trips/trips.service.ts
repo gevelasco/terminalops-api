@@ -302,6 +302,20 @@ export class TripsService {
     return { items: rows.map(mapTripLinkOption) };
   }
 
+  /**
+   * Solo COUNT index-friendly (company + status). Sin joins ni serialización de filas.
+   * Usado al entrar a Maniobras para elegir tab inicial sin GET /trips/map ni listado.
+   */
+  async countOperational(companyId: number): Promise<{ total: number }> {
+    this.tripLifecycle.kickCompanyLifecycleFresh(companyId);
+    const qb = this.tripsRepo.createQueryBuilder('trip');
+    applyTripListFilters(qb, companyId, {
+      status: 'scheduled,in_transit',
+    });
+    const total = await qb.getCount();
+    return { total };
+  }
+
   async findForMap(companyId: number): Promise<TripsMapResponseDto> {
     this.tripLifecycle.kickCompanyLifecycleFresh(companyId);
 

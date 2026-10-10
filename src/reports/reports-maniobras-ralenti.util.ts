@@ -32,26 +32,15 @@ export type ManiobraRalentiEvent = {
   ralentiHours: number;
 };
 
-export type ManiobraRalentiByClient = {
-  clientName: string;
-  salidaClienteHours: number;
-  clienteRegresoHours: number;
-  totalHours: number;
-};
-
 export type ManiobraRalentiReport = {
   totalHours: number;
   salidaClienteHours: number;
   clienteRegresoHours: number;
   tripsEvaluated: number;
   tripsWithRalenti: number;
-  byClient: ManiobraRalentiByClient[];
-  events: ManiobraRalentiEvent[];
 };
 
 const MIN_RALENTI_HOURS = 0.05; // ~3 min — evita ruido de redondeo
-const MAX_EVENTS = 40;
-const MAX_CLIENTS = 8;
 
 function toDate(raw: Date | string | null | undefined): Date | null {
   if (raw == null || raw === '') {
@@ -148,9 +137,22 @@ function buildLegEvent(
 export function buildManiobraRalentiReport(
   trips: readonly ManiobraRalentiTripInput[],
 ): ManiobraRalentiReport {
-  const events: ManiobraRalentiEvent[] = [];
   const tripsWithRalenti = new Set<number>();
   let tripsEvaluated = 0;
+  let salidaClienteHours = 0;
+  let clienteRegresoHours = 0;
+
+  const applyLegEvent = (event: ManiobraRalentiEvent | null): void => {
+    if (!event) {
+      return;
+    }
+    tripsWithRalenti.add(event.tripId);
+    if (event.leg === 'salida_cliente') {
+      salidaClienteHours += event.ralentiHours;
+    } else {
+      clienteRegresoHours += event.ralentiHours;
+    }
+  };
 
   for (const trip of trips) {
     const outboundActual = hoursBetween(trip.departureAt, trip.arrivedAt);
@@ -177,32 +179,28 @@ export function buildManiobraRalentiReport(
 
     if (outboundActual != null && outboundPlanned != null) {
       evaluated = true;
-      const event = buildLegEvent(
-        trip,
-        'salida_cliente',
-        outboundActual,
-        outboundPlanned,
-        rateOutbound,
+      applyLegEvent(
+        buildLegEvent(
+          trip,
+          'salida_cliente',
+          outboundActual,
+          outboundPlanned,
+          rateOutbound,
+        ),
       );
-      if (event) {
-        events.push(event);
-        tripsWithRalenti.add(trip.tripId);
-      }
     }
 
     if (returnActual != null && returnPlanned != null) {
       evaluated = true;
-      const event = buildLegEvent(
-        trip,
-        'cliente_regreso',
-        returnActual,
-        returnPlanned,
-        rateReturn,
+      applyLegEvent(
+        buildLegEvent(
+          trip,
+          'cliente_regreso',
+          returnActual,
+          returnPlanned,
+          rateReturn,
+        ),
       );
-      if (event) {
-        events.push(event);
-        tripsWithRalenti.add(trip.tripId);
-      }
     }
 
     if (evaluated) {
@@ -210,60 +208,11 @@ export function buildManiobraRalentiReport(
     }
   }
 
-  events.sort(
-    (a, b) =>
-      b.ralentiHours - a.ralentiHours ||
-      a.maneuverCode.localeCompare(b.maneuverCode) ||
-      a.leg.localeCompare(b.leg),
-  );
-
-  const byClientMap = new Map<string, ManiobraRalentiByClient>();
-  let salidaClienteHours = 0;
-  let clienteRegresoHours = 0;
-
-  for (const event of events) {
-    if (event.leg === 'salida_cliente') {
-      salidaClienteHours += event.ralentiHours;
-    } else {
-      clienteRegresoHours += event.ralentiHours;
-    }
-    const key = event.clientName.trim() || 'Sin cliente';
-    const row = byClientMap.get(key) ?? {
-      clientName: key,
-      salidaClienteHours: 0,
-      clienteRegresoHours: 0,
-      totalHours: 0,
-    };
-    if (event.leg === 'salida_cliente') {
-      row.salidaClienteHours += event.ralentiHours;
-    } else {
-      row.clienteRegresoHours += event.ralentiHours;
-    }
-    row.totalHours += event.ralentiHours;
-    byClientMap.set(key, row);
-  }
-
-  const byClient = [...byClientMap.values()]
-    .map((row) => ({
-      clientName: row.clientName,
-      salidaClienteHours: roundHours(row.salidaClienteHours),
-      clienteRegresoHours: roundHours(row.clienteRegresoHours),
-      totalHours: roundHours(row.totalHours),
-    }))
-    .sort(
-      (a, b) =>
-        b.totalHours - a.totalHours ||
-        a.clientName.localeCompare(b.clientName, 'es'),
-    )
-    .slice(0, MAX_CLIENTS);
-
   return {
     totalHours: roundHours(salidaClienteHours + clienteRegresoHours),
     salidaClienteHours: roundHours(salidaClienteHours),
     clienteRegresoHours: roundHours(clienteRegresoHours),
     tripsEvaluated,
     tripsWithRalenti: tripsWithRalenti.size,
-    byClient,
-    events: events.slice(0, MAX_EVENTS),
   };
 }

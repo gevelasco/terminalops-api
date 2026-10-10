@@ -228,7 +228,7 @@ export class CreateUnitFleetMetaDto {
 
   @ApiPropertyOptional({
     description:
-      'Km acumulados desde el último mantenimiento. Se reinicia al concluir servicio.',
+      'Km acumulados desde el último servicio completo. Editable al alta; se reinicia a 0 solo al registrar servicio completo.',
   })
   @IsOptional()
   @IsNumber()

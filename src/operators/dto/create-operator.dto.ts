@@ -223,6 +223,15 @@ export class CreateOperatorDto {
   paymentSchedule?: string;
 
   @ApiPropertyOptional({
+    enum: ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'],
+    description:
+      'Día de pago cuando paymentSchedule es weekly (fecha operativa México).',
+  })
+  @IsOptional()
+  @IsIn(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'])
+  weeklyPayDay?: string;
+
+  @ApiPropertyOptional({
     description:
       'Método de pago al operador (mismo catálogo que gastos: transfer, cash, …).',
   })

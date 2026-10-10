@@ -31,13 +31,6 @@ export class UpdateCompanyOperationalSettingsDto {
   operationalAnalysisEnabled?: boolean;
 
   @ApiPropertyOptional({
-    description: 'Prefill automático en nueva maniobra (tarifas, cliente, horarios)',
-  })
-  @IsOptional()
-  @IsBoolean()
-  tripAssistPrefillEnabled?: boolean;
-
-  @ApiPropertyOptional({
     description: '% del cobro al cliente reservado como gasto automático de mantenimiento',
     example: 5,
   })

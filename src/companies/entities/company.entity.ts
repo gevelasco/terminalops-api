@@ -46,16 +46,6 @@ export class Company {
   })
   operationalAnalysisChangedAt: Date;
 
-  @Column({ name: 'trip_assist_prefill_enabled', default: false })
-  tripAssistPrefillEnabled: boolean;
-
-  @Column({
-    name: 'trip_assist_prefill_changed_at',
-    type: 'timestamptz',
-    nullable: true,
-  })
-  tripAssistPrefillChangedAt?: Date;
-
   @Column({
     name: 'trip_auto_maintenance_provision_percent',
     type: 'numeric',

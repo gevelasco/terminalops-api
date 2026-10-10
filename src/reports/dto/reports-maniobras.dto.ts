@@ -41,22 +41,10 @@ export type ReportsManiobrasClientRowDto = {
   tripCount: number;
 };
 
-export type ReportsManiobrasDestinationRowDto = {
-  destination: string;
-  tripCount: number;
-};
-
 export type ReportsManiobrasContainerTypeRowDto = {
   containerType: string;
   label: string;
   tripCount: number;
-};
-
-export type ReportsManiobrasCargoWeightRowDto = {
-  containerType: string;
-  label: string;
-  tripCount: number;
-  avgWeightTons: number;
 };
 
 export type ReportsManiobrasGeoMapTripDto = {
@@ -70,44 +58,18 @@ export type ReportsManiobrasGeoMapTripDto = {
   lng: number | null;
 };
 
-export type ReportsManiobrasRalentiLeg = 'salida_cliente' | 'cliente_regreso';
-
-export type ReportsManiobrasRalentiByClientDto = {
-  clientName: string;
-  salidaClienteHours: number;
-  clienteRegresoHours: number;
-  totalHours: number;
-};
-
-export type ReportsManiobrasRalentiEventDto = {
-  tripId: number;
-  maneuverCode: string;
-  clientName: string;
-  destination: string;
-  leg: ReportsManiobrasRalentiLeg;
-  plannedHours: number;
-  actualHours: number;
-  baselineHours: number;
-  baselineSource: 'rate' | 'planned';
-  ralentiHours: number;
-};
-
 export type ReportsManiobrasRalentiDto = {
   salidaClienteHours: number;
   clienteRegresoHours: number;
   tripsEvaluated: number;
   tripsWithRalenti: number;
-  byClient: ReportsManiobrasRalentiByClientDto[];
-  events: ReportsManiobrasRalentiEventDto[];
 };
 
 export type ReportsManiobrasInsightsDto = {
   recurringIncidentRoutes: ReportsManiobrasRecurringIncidentRouteDto[];
   topOperators: ReportsManiobrasOperatorRowDto[];
   topClients: ReportsManiobrasClientRowDto[];
-  topDestinations: ReportsManiobrasDestinationRowDto[];
   containerTypeMix: ReportsManiobrasContainerTypeRowDto[];
-  cargoWeightByContainer: ReportsManiobrasCargoWeightRowDto[];
   geoMapTrips: ReportsManiobrasGeoMapTripDto[];
   ralenti: ReportsManiobrasRalentiDto;
 };

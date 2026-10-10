@@ -466,6 +466,23 @@ export class CompaniesController {
     return this.tripsService.findLinkOptions(tenantId, query);
   }
 
+  @Get(':companyId/trips/operational-summary')
+  @ApiOperation({
+    summary:
+      'Conteo de maniobras programadas/en curso (tab inicial Ruta vs Lista)',
+  })
+  async tripsOperationalSummary(
+    @Param('companyId', ParseIntPipe) companyId: number,
+    @LoggedUser() user: AuthUser,
+  ) {
+    assertModuleRead(user, APP_MODULE_CODES.TRIPS);
+    const tenantId = await this.companiesService.assertAccessAndResolve(
+      user,
+      companyId,
+    );
+    return this.tripsService.countOperational(tenantId);
+  }
+
   @Get(':companyId/trips/map')
   @ApiOperation({ summary: 'Maniobras activas con coordenadas resueltas para mapa operativo' })
   async listTripsMap(

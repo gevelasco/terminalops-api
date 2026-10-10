@@ -11,6 +11,7 @@ import {
 } from './evaluate-trip-lifecycle';
 import { UnitTripOdometerService } from 'src/units/unit-trip-odometer.service';
 import { TripFleetStatusSyncService } from './trip-fleet-status-sync.service';
+import { syncOperatorPaymentDueForTrip } from 'src/operators/operator-payment-due.sync.util';
 import {
   ACTIVE_TRIP_LIFECYCLE_STATUSES,
   type TripLifecycleStatus,
@@ -140,9 +141,13 @@ export class TripLifecycleService {
     }
 
     trip.status = toStatus;
+    if (toStatus === 'completed') {
+      trip.completedAt = resolveCompletedAtOnTransition(trip, transitionedAt);
+    }
     await this.fleetStatusSync.syncForTrip(trip);
     if (toStatus === 'completed') {
       await this.unitTripOdometer.creditUnitForCompletedTrip(trip);
+      await syncOperatorPaymentDueForTrip(this.tripsRepo.manager, trip);
     }
 
     this.logger.log(

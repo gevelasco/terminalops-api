@@ -29,6 +29,7 @@
     "db:backup": "bash scripts/db-backup.sh",
     "db:restore": "bash scripts/db-restore.sh",
     "db:backup:verify": "bash scripts/db-backup-verify.sh",
+    "db:prd-wipe-tenants": "bash scripts/prd-wipe-tenant-data.sh",
     "email:dev": "npx react-email dev --dir src/email/templates --port 3001",
     "test": "jest",
     "test:watch": "jest --watch",
