@@ -1684,9 +1684,8 @@ export class ReportsService {
         `
         SELECT COUNT(*)::int AS count
         FROM ${schema}.fleet_maintenance_entries me
-        LEFT JOIN ${schema}.units u ON u.id = me.unit_id
-        LEFT JOIN ${schema}.equipment e ON e.id = me.equipment_id
-        WHERE COALESCE(u.company_id, e.company_id) = $1
+        INNER JOIN ${schema}.units u ON u.id = me.unit_id
+        WHERE u.company_id = $1
           AND me.entry_date IS NOT NULL
           AND me.entry_date BETWEEN $2::date AND $3::date
         `,
@@ -1709,20 +1708,15 @@ export class ReportsService {
     return this.maintenanceEntriesRepo.query(
       `
       SELECT
-        COALESCE(
-          CASE WHEN me.unit_id IS NOT NULL THEN ${UNIT_OPERATIONAL_CODE_SQL} END,
-          CASE WHEN me.equipment_id IS NOT NULL THEN ${EQUIPMENT_OPERATIONAL_CODE_SQL} END,
-          '—'
-        ) AS asset_label,
+        COALESCE(${UNIT_OPERATIONAL_CODE_SQL}, '—') AS asset_label,
         me.unit_id,
-        me.equipment_id,
+        NULL::int AS equipment_id,
         me.entry_date::text AS entry_date,
         me.entry_type,
         me.cost
       FROM ${schema}.fleet_maintenance_entries me
-      LEFT JOIN ${schema}.units unit ON unit.id = me.unit_id
-      LEFT JOIN ${schema}.equipment e ON e.id = me.equipment_id
-      WHERE COALESCE(unit.company_id, e.company_id) = $1
+      INNER JOIN ${schema}.units unit ON unit.id = me.unit_id
+      WHERE unit.company_id = $1
         AND me.entry_date IS NOT NULL
         AND me.entry_date BETWEEN $2::date AND $3::date
       ORDER BY me.entry_date DESC, me.id DESC

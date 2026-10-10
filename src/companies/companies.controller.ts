@@ -67,6 +67,7 @@ import { ReportsGeneralQueryDto } from '../reports/dto/reports-general-query.dto
 import { ReportsService } from '../reports/reports.service';
 import { FleetOverviewService } from '../fleet/fleet-overview.service';
 import { FleetBrandsService } from '../fleet/fleet-brands.service';
+import { FleetInsuranceTableComplianceService } from '../fleet/fleet-insurance-table-compliance.service';
 import { CompaniesService } from './companies.service';
 import { UpdateCompanyOperationalSettingsDto } from './dto/update-company-operational-settings.dto';
 import { ActivateProPlanDto } from './dto/activate-pro-plan.dto';
@@ -122,6 +123,7 @@ export class CompaniesController {
     private readonly reportsService: ReportsService,
     private readonly fleetOverviewService: FleetOverviewService,
     private readonly fleetBrandsService: FleetBrandsService,
+    private readonly fleetInsuranceTableComplianceService: FleetInsuranceTableComplianceService,
     private readonly usersService: UsersService,
     private readonly notificationsService: NotificationsService,
     private readonly planEnforcement: PlanEnforcementService,
@@ -739,6 +741,23 @@ export class CompaniesController {
     );
     const parsedTripIds = parseTripIdsQuery(tripIds);
     return this.fleetOverviewService.listOverview(tenantId, parsedTripIds);
+  }
+
+  @Get(':companyId/fleet/insurance-table-compliance')
+  @ApiOperation({
+    summary:
+      'Estado de iconos de seguro en tablas Flota (por unidad/equipo, sin barrido de ledger en cliente)',
+  })
+  async fleetInsuranceTableCompliance(
+    @Param('companyId', ParseIntPipe) companyId: number,
+    @LoggedUser() user: AuthUser,
+  ) {
+    assertModuleRead(user, APP_MODULE_CODES.FLEET);
+    const tenantId = await this.companiesService.assertAccessAndResolve(
+      user,
+      companyId,
+    );
+    return this.fleetInsuranceTableComplianceService.listForCompany(tenantId);
   }
 
   @Get(':companyId/notifications/summary')

@@ -200,7 +200,7 @@ export class FleetOverviewService {
 
     const unitIds = null;
 
-    const [unitsRaw, equipmentRaw, configs, lastEndedAtByUnitId, company] =
+    const [unitsRaw, equipmentRaw, configs, lastEndedAtByUnitId, lastEndedAtByEquipmentId, company] =
       await Promise.all([
         this.unitsRepo.find({
           where: { companyId },
@@ -217,6 +217,9 @@ export class FleetOverviewService {
           order: { name: 'ASC' },
         }),
         this.queryLastEndedAtByUnit(companyId, unitIds),
+        includeEquipmentRows
+          ? this.queryLastEndedAtByEquipment(companyId, null)
+          : Promise.resolve(new Map<number, Date>()),
         this.companiesRepo.findOne({
           where: { id: companyId },
           select: [
@@ -450,7 +453,6 @@ export class FleetOverviewService {
             eq.verificationEntries,
             { includeHistory: false },
           );
-          const meta = toFleetMetaLike(metaRaw);
           const brand =
             metaString(metaRaw, 'trailerBrandName')?.trim() ||
             eq.trailerBrandAbbr?.trim() ||
@@ -459,10 +461,33 @@ export class FleetOverviewService {
             eq.trailerYear?.trim(),
             metaString(metaRaw, 'trailerVersion')?.trim(),
           ].filter(Boolean);
-          const maint =
-            activeTrip == null
-              ? buildMaintenanceSummary(meta, maintenancePolicy)
-              : undefined;
+
+          const equipmentMaint = buildMaintenanceSummary(
+            metaRaw as Parameters<typeof buildMaintenanceSummary>[0],
+            {
+              kmControlEnabled: false,
+              dateControlEnabled: false,
+              datePeriodMonths: 0,
+              kmIntervalDefault: null,
+            },
+          );
+          const operationalStatus =
+            this.fleetStatusResolver.resolveOverviewOperationalStatus({
+              persistedStatus: eq.status,
+              activeTripStatus:
+                activeTrip?.status === 'in_transit' ||
+                activeTrip?.status === 'scheduled'
+                  ? activeTrip.status
+                  : undefined,
+              isActive: eq.isActive !== false,
+            });
+          let daysWithoutManeuver: number | undefined;
+          if (eq.unitId == null && operationalStatus === 'available') {
+            const lastEndedAt = lastEndedAtByEquipmentId.get(eq.id);
+            daysWithoutManeuver = lastEndedAt
+              ? daysWithoutManeuverSince(lastEndedAt)
+              : 0;
+          }
 
           return {
             equipmentId: eq.id,
@@ -474,29 +499,14 @@ export class FleetOverviewService {
             model: modelParts.length ? modelParts.join(' · ') : '—',
             plate: eq.plate?.trim() || '—',
             equipmentType: (eq.type ?? '').trim() || '—',
-            operationalStatus:
-              this.fleetStatusResolver.resolveOverviewOperationalStatus({
-                persistedStatus: eq.status,
-                activeTripStatus:
-                  activeTrip?.status === 'in_transit' ||
-                  activeTrip?.status === 'scheduled'
-                    ? activeTrip.status
-                    : undefined,
-                isActive: eq.isActive !== false,
-              }),
-            maintenance: maint
-              ? {
-                  lastMaintenanceDate: maint.lastMaintenanceDate,
-                  nextMaintenanceDate: maint.nextMaintenanceDate,
-                  kmSinceLastMaintenance: maint.kmSinceLastMaintenance,
-                  tireStatus: maint.tireStatus,
-                  insuranceStatus: maint.insuranceStatus,
-                  inspectionStatus: maint.inspectionStatus,
-                  maintenanceRenewal: maint.maintenanceRenewal,
-                  insuranceRenewal: maint.insuranceRenewal,
-                  inspectionRenewal: maint.inspectionRenewal,
-                }
-              : undefined,
+            operationalStatus,
+            maintenance: {
+              ...equipmentMaint,
+              nextMaintenanceDate: undefined,
+              kmSinceLastMaintenance: undefined,
+              maintenanceRenewal: 'na' as const,
+            },
+            daysWithoutManeuver,
           };
         })
       : [];
@@ -796,6 +806,57 @@ export class FleetOverviewService {
           : new Date(row.last_ended_at);
       if (!Number.isNaN(d.getTime())) {
         map.set(Number(row.unit_id), d);
+      }
+    }
+    return map;
+  }
+
+  /** Última maniobra completada en la que participó el equipo (trip_equipment). */
+  private async queryLastEndedAtByEquipment(
+    companyId: number,
+    equipmentIds: readonly number[] | null,
+  ): Promise<Map<number, Date>> {
+    const schema = this.tripsRepo.metadata.schema;
+    const params: unknown[] = [companyId];
+    let equipmentFilter = '';
+    if (equipmentIds != null) {
+      if (equipmentIds.length === 0) {
+        return new Map();
+      }
+      params.push(equipmentIds);
+      equipmentFilter = 'AND te.equipment_id = ANY($2::int[])';
+    }
+    const rows: Array<{
+      equipment_id: number;
+      last_ended_at: Date | string | null;
+    }> = await this.tripsRepo.query(
+      `
+      SELECT
+        te.equipment_id AS equipment_id,
+        MAX(COALESCE(trip.return_at, trip.completed_at)) AS last_ended_at
+      FROM ${schema}.trips trip
+      INNER JOIN ${schema}.trip_equipment te ON te.trip_id = trip.id
+      WHERE trip.company_id = $1
+        AND trip.deleted_at IS NULL
+        AND trip.status = 'completed'
+        AND COALESCE(trip.return_at, trip.completed_at) IS NOT NULL
+        ${equipmentFilter}
+      GROUP BY te.equipment_id
+      `,
+      params,
+    );
+
+    const map = new Map<number, Date>();
+    for (const row of rows) {
+      if (row.last_ended_at == null) {
+        continue;
+      }
+      const d =
+        row.last_ended_at instanceof Date
+          ? row.last_ended_at
+          : new Date(row.last_ended_at);
+      if (!Number.isNaN(d.getTime())) {
+        map.set(Number(row.equipment_id), d);
       }
     }
     return map;

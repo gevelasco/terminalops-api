@@ -22,6 +22,35 @@ describe('serializeEquipment assignedUnit', () => {
     expect(dto.assignedUnit).toBeUndefined();
   });
 
+  it('includes maintenance history in fleetMeta on detail', () => {
+    const equipment = {
+      id: 9,
+      companyId: 1,
+      unitId: null,
+      name: 'Chasis',
+      serialNumber: 'SN',
+      plate: 'CH-01',
+      isActive: true,
+      maintenanceEntries: [
+        {
+          entryDate: '2026-03-01',
+          entryType: 'Frenos',
+          cost: '1500',
+          sortOrder: 0,
+        },
+      ],
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+      updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+    } as Equipment;
+
+    const dto = serializeEquipment(equipment);
+    const meta = dto.fleetMeta as Record<string, unknown>;
+    expect(meta['lastMaintenanceDate']).toBe('2026-03-01');
+    expect(meta['maintenanceEntries']).toEqual([
+      expect.objectContaining({ date: '2026-03-01', type: 'Frenos', cost: 1500 }),
+    ]);
+  });
+
   it('includes a slim assignedUnit for hitch card fields', () => {
     const unit = {
       id: 4,

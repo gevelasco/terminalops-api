@@ -62,22 +62,40 @@ export class OperatorsController {
   async confirmTripPayment(
     @Param('operatorId', ParseIntPipe) operatorId: number,
     @Param('tripId', ParseIntPipe) tripId: number,
+    @Query('from') periodFrom: string | undefined,
+    @Query('to') periodTo: string | undefined,
     @LoggedUser() user: AuthUser,
   ) {
     assertModuleWrite(user, APP_MODULE_CODES.OPERATORS);
     const companyId = await this.tenantContext.resolveInternalIdFromAuthUser(user);
-    return this.service.confirmTripPayment(companyId, operatorId, tripId, user);
+    return this.service.confirmTripPayment(
+      companyId,
+      operatorId,
+      tripId,
+      user,
+      periodFrom,
+      periodTo,
+    );
   }
 
   @Post(':operatorId/trips/:tripId/revert-payment')
   async revertTripPayment(
     @Param('operatorId', ParseIntPipe) operatorId: number,
     @Param('tripId', ParseIntPipe) tripId: number,
+    @Query('from') periodFrom: string | undefined,
+    @Query('to') periodTo: string | undefined,
     @LoggedUser() user: AuthUser,
   ) {
     assertModuleWrite(user, APP_MODULE_CODES.OPERATORS);
     const companyId = await this.tenantContext.resolveInternalIdFromAuthUser(user);
-    return this.service.revertTripPayment(companyId, operatorId, tripId, user);
+    return this.service.revertTripPayment(
+      companyId,
+      operatorId,
+      tripId,
+      user,
+      periodFrom,
+      periodTo,
+    );
   }
 
   @Post(':operatorId/hr-hold/leave')

@@ -345,6 +345,8 @@ export class OperatorsService {
     operatorId: number,
     tripId: number,
     actor?: AuthUser,
+    periodFrom?: string,
+    periodTo?: string,
   ): Promise<OperatorOperationSummaryDto> {
     const operator = await this.repo.findOne({
       where: { companyId, id: operatorId },
@@ -403,8 +405,26 @@ export class OperatorsService {
         }
       }
       const balance = Math.max(0, quota - paid);
+      const paidAt = parseOperationalIncurredAt(
+        formatOperationalIncurredDateYmd(new Date()),
+      );
       if (balance <= 0) {
-        return null;
+        if (pending.length === 0) {
+          throw new BadRequestException(
+            'No hay saldo pendiente por confirmar en esta maniobra.',
+          );
+        }
+        const expenseRepo = em.getRepository(Expense);
+        for (const expense of pending) {
+          await expenseRepo.save(expenseRepo.merge(expense, { paidAt }));
+        }
+        const maneuverRef = trip.maneuverCode?.trim() || `#${trip.id}`;
+        return {
+          savedExpense: pending[0],
+          balance: 0,
+          maneuverRef,
+          reconciledPendingOnly: true,
+        };
       }
 
       const completionYmd =
@@ -419,9 +439,6 @@ export class OperatorsService {
       const paymentMethod = expenseTextColumn(operator.paymentMethod);
       const amountStr = (Math.round(balance * 100) / 100).toFixed(2);
       const incurredAt = parseOperationalIncurredAt(dueYmd);
-      const paidAt = parseOperationalIncurredAt(
-        formatOperationalIncurredDateYmd(new Date()),
-      );
 
       const expenseRepo = em.getRepository(Expense);
       const existingPending = pending[0];
@@ -471,7 +488,12 @@ export class OperatorsService {
       });
     }
 
-    return this.getOperationSummary(companyId, operatorId);
+    return this.getOperationSummary(
+      companyId,
+      operatorId,
+      periodFrom,
+      periodTo,
+    );
   }
 
   async revertTripPayment(
@@ -479,6 +501,8 @@ export class OperatorsService {
     operatorId: number,
     tripId: number,
     actor?: AuthUser,
+    periodFrom?: string,
+    periodTo?: string,
   ): Promise<OperatorOperationSummaryDto> {
     const operator = await this.repo.findOne({
       where: { companyId, id: operatorId },
@@ -543,7 +567,12 @@ export class OperatorsService {
       },
     });
 
-    return this.getOperationSummary(companyId, operatorId);
+    return this.getOperationSummary(
+      companyId,
+      operatorId,
+      periodFrom,
+      periodTo,
+    );
   }
 
   async startHrHold(

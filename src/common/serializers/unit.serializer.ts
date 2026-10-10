@@ -57,16 +57,12 @@ function serializeEquipmentRef(
   unitId: number,
   list: boolean,
 ): Record<string, unknown> {
-  const lastMaint = list
-    ? null
-    : recomputeLastMaintenanceFields(equipment.maintenanceEntries ?? []);
   return {
     id: equipment.id,
     companyId: equipment.companyId,
     unitId,
     name: equipment.name,
     serialNumber: equipment.serialNumber,
-    lastServiceDate: lastMaint?.lastMaintenanceDate ?? undefined,
     plate: equipment.plate ?? undefined,
     type: equipment.type ?? undefined,
     status: equipment.status ?? undefined,

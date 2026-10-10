@@ -105,6 +105,8 @@ export class FleetOverviewEquipmentRowDto {
   equipmentType: string;
   operationalStatus: FleetOverviewOperationalStatus;
   maintenance?: FleetOverviewMaintenanceDto;
+  /** Días sin maniobra (remolque en patio sin tractora). */
+  daysWithoutManeuver?: number;
 }
 
 export class FleetOverviewResponseDto {

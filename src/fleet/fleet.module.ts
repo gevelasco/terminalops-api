@@ -20,6 +20,7 @@ import { FleetMaintenanceWorkflowService } from 'src/fleet/fleet-maintenance-wor
 import { FleetMaintenanceExpenseSyncService } from 'src/fleet/fleet-maintenance-expense-sync.service';
 import { FleetVerificationExpenseSyncService } from 'src/fleet/fleet-verification-expense-sync.service';
 import { FleetInsuranceExpenseSyncService } from 'src/fleet/fleet-insurance-expense-sync.service';
+import { FleetInsuranceTableComplianceService } from 'src/fleet/fleet-insurance-table-compliance.service';
 import { FleetGpsExpenseSyncService } from 'src/fleet/fleet-gps-expense-sync.service';
 import { FleetTenureExpenseSyncService } from 'src/fleet/fleet-tenure-expense-sync.service';
 import { FleetExpenseBootstrapService } from 'src/fleet/fleet-expense-bootstrap.service';
@@ -52,6 +53,7 @@ import { Expense } from 'src/expenses/entities/expense.entity';
     FleetMaintenanceExpenseSyncService,
     FleetVerificationExpenseSyncService,
     FleetInsuranceExpenseSyncService,
+    FleetInsuranceTableComplianceService,
     FleetGpsExpenseSyncService,
     FleetTenureExpenseSyncService,
     FleetExpenseBootstrapService,
@@ -66,6 +68,7 @@ import { Expense } from 'src/expenses/entities/expense.entity';
     FleetMaintenanceExpenseSyncService,
     FleetVerificationExpenseSyncService,
     FleetInsuranceExpenseSyncService,
+    FleetInsuranceTableComplianceService,
     FleetGpsExpenseSyncService,
     FleetTenureExpenseSyncService,
     TripsModule,

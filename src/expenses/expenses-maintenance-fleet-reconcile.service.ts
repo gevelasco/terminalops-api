@@ -22,10 +22,6 @@ export class ExpensesMaintenanceFleetReconcileService {
       return;
     }
     if (expense.relatedEquipmentId != null) {
-      await this.deleteMatchingMaintenanceEntry({
-        equipmentId: expense.relatedEquipmentId,
-        expense,
-      });
       return;
     }
     if (expense.relatedUnitId != null) {
@@ -37,13 +33,10 @@ export class ExpensesMaintenanceFleetReconcileService {
   }
 
   private async deleteMatchingMaintenanceEntry(params: {
-    unitId?: number;
-    equipmentId?: number;
+    unitId: number;
     expense: Expense;
   }): Promise<void> {
-    const where = params.unitId != null
-      ? { unitId: params.unitId }
-      : { equipmentId: params.equipmentId };
+    const where = { unitId: params.unitId };
     const entries = await this.maintenanceRepo.find({
       where,
       order: { sortOrder: 'ASC' },
