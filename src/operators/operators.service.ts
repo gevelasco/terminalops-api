@@ -323,7 +323,15 @@ export class OperatorsService {
       tripIds.length > 0
         ? this.expenseRepo.find({
             where: { companyId, tripId: In(tripIds), discardedAt: IsNull() },
-            select: ['id', 'tripId', 'kind', 'amount', 'incurredAt'],
+            select: [
+              'id',
+              'tripId',
+              'kind',
+              'amount',
+              'incurredAt',
+              'paidAt',
+              'discardedAt',
+            ],
           })
         : Promise.resolve([] as Expense[]),
       unitIds.length > 0
