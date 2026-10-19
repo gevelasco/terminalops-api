@@ -2,6 +2,10 @@ import type { Expense } from 'src/expenses/entities/expense.entity';
 import type { Trip } from 'src/trips/entities/trip.entity';
 import { formatOperationalIncurredDateYmd } from 'src/expenses/expenses-incurred-at.util';
 import type { OperatorPayDueVariant } from './operator-list-enrichment.util';
+import {
+  canConfirmOperatorTripPayment,
+  summarizeOperatorTripPaymentLedger,
+} from './operator-trip-payment-confirm.util';
 
 export const OPERATOR_PAYMENT_RECENT_DAYS = 30;
 
@@ -188,6 +192,16 @@ export function buildOperatorPaymentRows(
 ): OperatorPaymentRowSections {
   const asOfYmd = localYmd(asOf);
   const tripsById = new Map(trips.map((trip) => [trip.id, trip]));
+  const ledgerByTripId = new Map<
+    number,
+    ReturnType<typeof summarizeOperatorTripPaymentLedger>
+  >();
+  for (const trip of trips) {
+    ledgerByTripId.set(
+      trip.id,
+      summarizeOperatorTripPaymentLedger(trip, expenses, trip.id),
+    );
+  }
   const pendingPaymentRows: OperatorPaymentRow[] = [];
   const recentPaymentRows: OperatorPaymentRow[] = [];
 
@@ -204,26 +218,33 @@ export function buildOperatorPaymentRows(
       continue;
     }
     const trip = expense.tripId != null ? tripsById.get(expense.tripId) : undefined;
+    const ledger =
+      expense.tripId != null ? ledgerByTripId.get(expense.tripId) : undefined;
     const paid = expense.paidAt != null;
     const status = resolvePaymentStatus(paid, dueYmd, asOfYmd);
     const paidAtYmd = expensePaidYmd(expense);
     const completionYmd = trip?.completedAt
       ? formatOperationalIncurredDateYmd(trip.completedAt)
       : null;
+    const tripBalance = ledger?.balance ?? 0;
     const row: OperatorPaymentRow = {
       tripId: expense.tripId ?? 0,
       maneuverCode: trip?.maneuverCode?.trim() || (expense.tripId != null ? `#${expense.tripId}` : '—'),
       dueYmd,
       dueLabel: dateLabel(dueYmd),
-      quotaAmount: amount,
-      balance: paid ? 0 : amount,
-      paidAmount: paid ? amount : 0,
+      quotaAmount: ledger?.quota ?? amount,
+      balance: paid ? 0 : tripBalance > 0 ? tripBalance : amount,
+      paidAmount: paid ? amount : ledger?.paid ?? 0,
       status,
       badgeVariant: paid ? 'success' : dueBadgeVariant(dueYmd, asOfYmd),
       statusHint: paymentStatusHint(status, dueYmd, asOfYmd),
       expenseId: expense.id,
       paidAtYmd,
-      canConfirm: !paid && trip?.status === 'completed',
+      canConfirm:
+        !paid &&
+        (ledger != null
+          ? canConfirmOperatorTripPayment(trip, ledger)
+          : false),
       completionYmd,
     };
 

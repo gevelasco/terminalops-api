@@ -1,10 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ExpensesService } from 'src/expenses/expenses.service';
 import { formatOperationalIncurredDateYmd } from 'src/expenses/expenses-incurred-at.util';
-import {
-  coveragePaymentPeriodLabel,
-  cadenceToMonths,
-} from './fleet-coverage-payment-period.util';
+import { cadenceToMonths } from './fleet-coverage-payment-period.util';
 import type { CreateExpenseDto } from 'src/expenses/dto/create-expense.dto';
 
 export type TenurePaymentProfileLike = {
@@ -113,14 +110,8 @@ export class FleetTenureExpenseSyncService {
         const dueDate = formatYmd(addMonths(startParsed, i * stepMonths));
         if (paidByDate.has(dueDate)) continue;
 
-        const periodLabel = coveragePaymentPeriodLabel(
-          cadence,
-          startDate,
-          dueDate,
-        );
-        const description = periodLabel
-          ? `${TENURE_PAYMENT_DESC_PREFIX} (${periodLabel})`
-          : `${TENURE_PAYMENT_DESC_PREFIX} (${i + 1}/${totalInstallments})`;
+        // Tenencia: numeración 1…N del plan (no ciclos anuales de 12 como el seguro).
+        const description = `${TENURE_PAYMENT_DESC_PREFIX} (${i + 1}/${totalInstallments})`;
 
         drafts.push({
           category,

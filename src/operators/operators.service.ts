@@ -24,6 +24,10 @@ import {
   tripCompletionAnchorOperationalYmd,
 } from 'src/operators/operator-payment-schedule.util';
 import {
+  canConfirmOperatorTripPayment,
+  summarizeOperatorTripPaymentLedger,
+} from 'src/operators/operator-trip-payment-confirm.util';
+import {
   formatOperationalIncurredDateYmd,
   parseOperationalIncurredAt,
 } from 'src/expenses/expenses-incurred-at.util';
@@ -374,37 +378,31 @@ export class OperatorsService {
         );
       }
 
-      const quota = Number(trip.operatorQuota ?? 0);
-      if (!Number.isFinite(quota) || quota <= 0) {
+      const expenses = await em.getRepository(Expense).find({
+        where: { companyId, tripId, discardedAt: IsNull() },
+        select: ['id', 'tripId', 'kind', 'amount', 'paidAt', 'discardedAt'],
+      });
+      const ledger = summarizeOperatorTripPaymentLedger(trip, expenses, tripId);
+      const quota = ledger.quota;
+      if (quota <= 0) {
         throw new BadRequestException(
           'La maniobra no tiene cuota de operador.',
         );
       }
-
-      const expenses = await em.getRepository(Expense).find({
-        where: { companyId, tripId, discardedAt: IsNull() },
-        select: ['id', 'tripId', 'kind', 'amount', 'paidAt'],
-      });
-      let paid = 0;
-      const pending: Expense[] = [];
-      for (const expense of expenses) {
-        if (
-          expense.kind !== 'operator_payment' &&
-          expense.kind !== 'operator_commission'
-        ) {
-          continue;
-        }
-        const amount = Number(expense.amount ?? 0);
-        if (!Number.isFinite(amount) || amount <= 0) {
-          continue;
-        }
-        if (expense.paidAt != null) {
-          paid += amount;
-        } else {
-          pending.push(expense);
-        }
+      if (!canConfirmOperatorTripPayment(trip, ledger)) {
+        throw new BadRequestException(
+          'No hay saldo pendiente por confirmar en esta maniobra.',
+        );
       }
-      const balance = Math.max(0, quota - paid);
+
+      const balance = ledger.balance;
+      const pending = expenses.filter(
+        (expense) =>
+          (expense.kind === 'operator_payment' ||
+            expense.kind === 'operator_commission') &&
+          expense.paidAt == null &&
+          Number(expense.amount ?? 0) > 0,
+      );
       const paidAt = parseOperationalIncurredAt(
         formatOperationalIncurredDateYmd(new Date()),
       );

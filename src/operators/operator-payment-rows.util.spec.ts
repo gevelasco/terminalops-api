@@ -71,6 +71,32 @@ describe('operator-payment-rows.util', () => {
     expect(sections.recentPaymentRows[0]?.status).toBe('paid');
   });
 
+  it('does not offer confirm when the trip has no operator quota', () => {
+    const sections = buildOperatorPaymentRows(
+      [
+        trip({
+          id: 4,
+          maneuverCode: 'PROD-004',
+          completedAt: new Date('2026-06-10T18:00:00Z'),
+          operatorQuota: '0',
+        }),
+      ],
+      [
+        expense({
+          id: 40,
+          tripId: 4,
+          amount: '1500',
+          incurredAt: new Date('2026-06-10T18:00:00Z'),
+          paidAt: null,
+        }),
+      ],
+      new Date('2026-06-12T18:00:00Z'),
+    );
+
+    expect(sections.pendingPaymentRows).toHaveLength(1);
+    expect(sections.pendingPaymentRows[0]?.canConfirm).toBe(false);
+  });
+
   it('does not invent a pending payment from quota when the ledger has no row', () => {
     const sections = buildOperatorPaymentRows(
       [
