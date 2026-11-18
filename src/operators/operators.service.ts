@@ -812,6 +812,10 @@ export class OperatorsService {
             imssAltaDate: this.emptyDateToUndefined(
               dto.publicInsurance.imssAltaDate,
             ),
+            dailyInsuredAmount: this.dailyInsuredAmountToDb(
+              dto.publicInsurance.dailyInsuredAmount,
+            ),
+            salaryType: this.imssSalaryTypeToDb(dto.publicInsurance.salaryType),
             infonavit: dto.publicInsurance.infonavit ?? false,
             infonavitCreditNumber:
               dto.publicInsurance.infonavitCreditNumber ?? '',
@@ -848,6 +852,10 @@ export class OperatorsService {
             imssAltaDate: this.emptyDateToUndefined(
               dto.publicInsurance.imssAltaDate,
             ),
+            dailyInsuredAmount: this.dailyInsuredAmountToDb(
+              dto.publicInsurance.dailyInsuredAmount,
+            ),
+            salaryType: this.imssSalaryTypeToDb(dto.publicInsurance.salaryType),
             infonavit: dto.publicInsurance.infonavit ?? false,
             infonavitCreditNumber:
               dto.publicInsurance.infonavitCreditNumber ?? '',
@@ -944,6 +952,24 @@ export class OperatorsService {
   private emptyDateToUndefined(value?: string): string | undefined {
     const t = value?.trim();
     return t ? t : undefined;
+  }
+
+  private imssSalaryTypeToDb(
+    value?: string | null,
+  ): 'fixed' | 'variable' | 'mixed' | null {
+    if (value === 'fixed' || value === 'variable' || value === 'mixed') {
+      return value;
+    }
+    return null;
+  }
+
+  private dailyInsuredAmountToDb(
+    value: number | null | undefined,
+  ): string | null {
+    if (value == null || !Number.isFinite(value)) {
+      return null;
+    }
+    return String(value);
   }
 
   private async applyListMetrics(

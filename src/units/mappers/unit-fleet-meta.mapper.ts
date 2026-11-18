@@ -55,7 +55,9 @@ export function fleetMetaDtoToProfile(
     grossVehicleWeightLb: meta.grossVehicleWeightLb?.trim() || undefined,
     odometerKm: meta.odometerKm?.trim() || undefined,
     tireCondition: meta.tireCondition?.trim() || undefined,
-    maintenanceKmCounter: numToDb(meta.maintenanceKmCounter ?? 0),
+    maintenanceKmCounter: fleetMetaFieldProvided(meta, 'maintenanceKmCounter')
+      ? numToDb(meta.maintenanceKmCounter)
+      : undefined,
     verificationDoubleArticulatedApplies: meta.verificationDoubleArticulatedApplies,
     insurancePolicyNumber: meta.insurancePolicyNumber?.trim() || undefined,
     insuranceCarrierName: meta.insuranceCarrierName?.trim() || undefined,

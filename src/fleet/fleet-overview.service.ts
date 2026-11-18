@@ -42,7 +42,10 @@ import {
 } from './fleet-latest-entries.loader';
 
 export type FleetOverviewListOptions = {
-  /** Reports: omite filas de equipo (solo usa items de unidad). */
+  /**
+   * Reportes: solo unidades. No carga equipos ni el detalle de la maniobra
+   * (estatus, mantenimiento y días sin operar salen de columnas mínimas).
+   */
   includeEquipmentRows?: boolean;
 };
 
@@ -192,11 +195,24 @@ export class FleetOverviewService {
       deletedAt: IsNull(),
     };
 
-    const trips = await this.tripsRepo.find({
-      where: tripWhere,
-      relations: ['tripEquipment', 'operator'],
-      order: { plannedDepartureAt: 'ASC' },
-    });
+    const trips = await this.tripsRepo.find(
+      includeEquipmentRows
+        ? {
+            where: tripWhere,
+            relations: ['tripEquipment', 'operator'],
+            order: { plannedDepartureAt: 'ASC' },
+          }
+        : {
+            where: tripWhere,
+            select: {
+              id: true,
+              unitId: true,
+              status: true,
+              plannedDepartureAt: true,
+            },
+            order: { plannedDepartureAt: 'ASC' },
+          },
+    );
 
     const unitIds = null;
 
@@ -207,11 +223,13 @@ export class FleetOverviewService {
           relations: ['fleetProfile'],
           order: { plate: 'ASC' },
         }),
-        this.equipmentRepo.find({
-          where: { companyId },
-          relations: ['fleetProfile'],
-          order: { name: 'ASC' },
-        }),
+        includeEquipmentRows
+          ? this.equipmentRepo.find({
+              where: { companyId },
+              relations: ['fleetProfile'],
+              order: { name: 'ASC' },
+            })
+          : Promise.resolve([] as Equipment[]),
         this.configsRepo.find({
           where: { companyId, active: true },
           order: { name: 'ASC' },

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, SelectQueryBuilder, IsNull } from 'typeorm';
+import { Repository, SelectQueryBuilder } from 'typeorm';
 import { Expense } from 'src/expenses/entities/expense.entity';
 import { FleetOverviewService } from 'src/fleet/fleet-overview.service';
 import { CompanyOperationConfiguration } from 'src/operation-configurations/entities/company-operation-configuration.entity';
@@ -46,7 +46,7 @@ import {
   parseApproxWeightTons,
 } from './reports-fleet-tire-wear.util';
 
-function parseMoneySum(raw: string | null | undefined): number {
+function parseMoneySum(raw: string | number | null | undefined): number {
   if (raw == null || !String(raw).trim()) {
     return 0;
   }
@@ -107,8 +107,43 @@ const ROUTE_DESTINATION_LABEL_SQL = `COALESCE(
   'Sin destino'
 )`;
 
+/** Evita `invalid input syntax for type double precision: ""` en columnas text/numeric. */
+function sqlTripNumeric(column: string): string {
+  return `NULLIF(TRIM(${column}::text), '')::double precision`;
+}
+
 /** Km operativos = route_distance_km × 2 (ida+vuelta siempre). */
-const OPERATIONAL_KM_EXPR = `COALESCE(trip.route_distance_km, 0) * 2`;
+const OPERATIONAL_KM_EXPR = `COALESCE(${sqlTripNumeric('trip.route_distance_km')}, 0) * 2`;
+
+const AVG_APPROX_WEIGHT_TONS_SQL = `AVG(
+  CASE
+    WHEN ${sqlTripNumeric('trip.approximate_weight_tons')} IS NOT NULL
+      AND ${sqlTripNumeric('trip.approximate_weight_tons')} > 0
+    THEN ${sqlTripNumeric('trip.approximate_weight_tons')}
+    ELSE NULL
+  END
+)::double precision`;
+
+/**
+ * Rango sargable equivalente a
+ * `(column AT TIME ZONE tz)::date BETWEEN from AND to` para timestamptz.
+ */
+function occurredInOperationalPeriod(
+  column: string,
+  fromParam: string,
+  toParam: string,
+): string {
+  return `${column} >= (${fromParam}::timestamp AT TIME ZONE '${OPERATIONAL_TZ}')
+    AND ${column} < ((${toParam}::date + 1)::timestamp AT TIME ZONE '${OPERATIONAL_TZ}')`;
+}
+
+const EXPENSE_PAID_GATE_KINDS = new Set([
+  'insurance',
+  'gps',
+  'tenure_payment',
+  'operator_payment',
+  'operator_commission',
+]);
 
 function operationDisplayLabel(
   nameSnapshot: string | null | undefined,
@@ -157,69 +192,67 @@ export class ReportsService {
     const scope = parseReportsScope(companyId, query);
 
     const [
-      collectedRow,
-      receivableRow,
-      accruedRow,
-      expensesRow,
-      expensesCount,
-      provisionsRow,
+      tripTotals,
+      expenseFacts,
       creditRows,
       incomeRows,
-      marginRows,
-      profitabilityRow,
-      expenseKindRows,
-      tollsSpendRow,
-      operatorSpendRow,
-      maintenanceSpendRow,
+      clientProfitRows,
       incomeEventRows,
-      expenseEventRows,
       receivableEventRows,
-      payableEventRows,
       payableExpenses,
     ] = await Promise.all([
-      this.sumCollectedInPeriod(scope),
-      this.sumReceivableOpen(scope),
-      this.sumCompletedRevenue(scope),
-      this.sumExpenses(scope),
-      this.countExpenses(scope),
-      this.sumProvisions(scope),
+      this.queryBalanceTripTotals(scope),
+      this.queryPeriodExpenseFacts(scope),
       this.queryCreditByClient(scope),
       this.queryIncomeByClient(scope),
-      this.queryMarginByClient(scope),
-      this.queryProfitabilityTotals(scope),
-      this.queryExpensesByKind(scope),
-      this.sumExpenseByKinds(scope, ['tolls']),
-      this.sumExpenseByKinds(scope, [
-        'operator_payment',
-        'operator_commission',
-      ]),
-      this.sumExpenseByKinds(scope, ['maintenance', 'repair', 'tires']),
+      this.queryClientProfitability(scope),
       this.queryDailyIncomeEvents(scope),
-      this.queryDailyExpenseEvents(scope),
       this.queryDailyReceivableEvents(scope),
-      this.queryDailyPayableEvents(scope),
       this.expensesRepo
         .createQueryBuilder('e')
+        .select([
+          'e.id',
+          'e.kind',
+          'e.description',
+          'e.category',
+          'e.amount',
+          'e.vendor',
+          'e.incurredAt',
+          'e.paidAt',
+          'e.discardedAt',
+        ])
         .where('e.companyId = :companyId', { companyId: scope.companyId })
         .andWhere('e.discarded_at IS NULL')
         .andWhere('e.paid_at IS NULL')
         .andWhere('e.kind IN (:...kinds)', { kinds: [...LEDGER_PAYABLE_KINDS] })
         .andWhere(
-          `(e.incurred_at AT TIME ZONE '${OPERATIONAL_TZ}')::date <= :to::date`,
+          `e.incurred_at < ((:to::date + 1)::timestamp AT TIME ZONE '${OPERATIONAL_TZ}')`,
           { to: scope.to },
         )
         .getMany(),
     ]);
 
-    const collectedInPeriod =
-      Math.round(parseMoneySum(collectedRow?.sum) * 100) / 100;
-    const receivableOpen =
-      Math.round(parseMoneySum(receivableRow?.sum) * 100) / 100;
-    const accruedRevenue =
-      Math.round(parseMoneySum(accruedRow?.sum) * 100) / 100;
-    const expenses = Math.round(parseMoneySum(expensesRow?.sum) * 100) / 100;
-    const provisions =
-      Math.round(parseMoneySum(provisionsRow?.sum) * 100) / 100;
+    const collectedInPeriod = tripTotals.collected;
+    const receivableOpen = tripTotals.receivable;
+    const accruedRevenue = tripTotals.accrued;
+    const expenses = expenseFacts.expenses;
+    const expensesCount = expenseFacts.expensesCount;
+    const provisions = expenseFacts.provisions;
+    const expenseEventRows = expenseFacts.expenseEvents;
+    const payableEventRows = expenseFacts.payableEvents;
+    const expenseKindRows = expenseFacts.kindRows;
+    const tollsSpendRow = { sum: String(expenseFacts.tolls) };
+    const operatorSpendRow = { sum: String(expenseFacts.operatorSpend) };
+    const maintenanceSpendRow = { sum: String(expenseFacts.maintenanceSpend) };
+    const marginRows = clientProfitRows.slice(0, 3);
+    const profitabilityRow = clientProfitRows.reduce(
+      (totals, row) => ({
+        revenue: totals.revenue + parseMoneySum(row.revenue),
+        direct_cost: totals.direct_cost + parseMoneySum(row.direct_cost),
+        trip_expenses: totals.trip_expenses + parseMoneySum(row.trip_expenses),
+      }),
+      { revenue: 0, direct_cost: 0, trip_expenses: 0 },
+    );
     const realExpenses =
       Math.round(Math.max(expenses - provisions, 0) * 100) / 100;
     const cashMargin = Math.round((collectedInPeriod - expenses) * 100) / 100;
@@ -338,6 +371,275 @@ export class ReportsService {
         payableItems,
       },
     };
+  }
+
+  /** Cobrado del periodo, cartera abierta y venta completada, en una pasada. */
+  private queryBalanceTripTotals(scope: ReportsScope): Promise<{
+    collected: number;
+    receivable: number;
+    accrued: number;
+  }> {
+    const filter = tripScopeSql('trip', scope, 4);
+    const params = [scope.companyId, scope.from, scope.to, ...filter.params];
+    const schema = this.tripsRepo.metadata.schema;
+    const collectedPeriod = occurredInOperationalPeriod(
+      'trip.client_collected_at',
+      '$2',
+      '$3',
+    );
+    const completedPeriod = occurredInOperationalPeriod(
+      'trip.completed_at',
+      '$2',
+      '$3',
+    );
+
+    return this.tripsRepo
+      .query(
+        `
+      SELECT
+        COALESCE(SUM(trip.client_charge) FILTER (
+          WHERE ${this.billableTripCondition('trip')}
+            AND trip.client_collected_at IS NOT NULL
+            AND ${collectedPeriod}
+        ), 0)::float AS collected,
+        COALESCE(SUM(trip.client_charge) FILTER (
+          WHERE ${this.billableTripCondition('trip')}
+            AND trip.client_collected_at IS NULL
+        ), 0)::float AS receivable,
+        COALESCE(SUM(trip.client_charge) FILTER (
+          WHERE trip.status = 'completed'
+            AND trip.completed_at IS NOT NULL
+            AND ${completedPeriod}
+        ), 0)::float AS accrued
+      FROM ${schema}.trips trip
+      WHERE trip.company_id = $1
+        AND trip.deleted_at IS NULL
+        ${filter.sql}
+      `,
+        params,
+      )
+      .then((rows: Array<{ collected: string; receivable: string; accrued: string }>) => {
+        const row = rows[0];
+        return {
+          collected: Math.round(parseMoneySum(row?.collected) * 100) / 100,
+          receivable: Math.round(parseMoneySum(row?.receivable) * 100) / 100,
+          accrued: Math.round(parseMoneySum(row?.accrued) * 100) / 100,
+        };
+      });
+  }
+
+  /**
+   * Gastos del periodo en una sola lectura: totales, rubros y eventos diarios.
+   */
+  private queryPeriodExpenseFacts(scope: ReportsScope): Promise<{
+    expenses: number;
+    expensesCount: number;
+    provisions: number;
+    tolls: number;
+    operatorSpend: number;
+    maintenanceSpend: number;
+    kindRows: Array<{ kind: string; has_trip: number; sum: string; count: string }>;
+    expenseEvents: Array<{ date: string; label: string; amount: string }>;
+    payableEvents: Array<{ date: string; label: string; amount: string }>;
+  }> {
+    const schema = this.expensesRepo.metadata.schema;
+    const period = occurredInOperationalPeriod('e.incurred_at', '$2', '$3');
+
+    return this.expensesRepo
+      .query(
+        `
+      SELECT
+        e.kind,
+        e.trip_id,
+        (e.paid_at IS NOT NULL) AS is_paid,
+        e.amount::float AS amount,
+        to_char((e.incurred_at AT TIME ZONE '${OPERATIONAL_TZ}')::date, 'YYYY-MM-DD') AS date,
+        COALESCE(
+          NULLIF(TRIM(e.description), ''),
+          NULLIF(TRIM(e.vendor), ''),
+          NULLIF(TRIM(e.category), ''),
+          INITCAP(REPLACE(TRIM(e.kind), '_', ' '))
+        ) AS label
+      FROM ${schema}.expenses e
+      WHERE e.company_id = $1
+        AND e.discarded_at IS NULL
+        AND ${period}
+      ORDER BY e.incurred_at ASC, e.id ASC
+      `,
+        [scope.companyId, scope.from, scope.to],
+      )
+      .then(
+        (
+          rows: Array<{
+            kind: string | null;
+            trip_id: number | null;
+            is_paid: boolean | string | null;
+            amount: string | number | null;
+            date: string | null;
+            label: string | null;
+          }>,
+        ) => {
+          let expenses = 0;
+          let expensesCount = 0;
+          let provisions = 0;
+          let tolls = 0;
+          let operatorSpend = 0;
+          let maintenanceSpend = 0;
+          const kindBuckets = new Map<
+            string,
+            { kind: string; has_trip: number; sum: number; count: number }
+          >();
+          const expenseEvents: Array<{ date: string; label: string; amount: string }> =
+            [];
+          const payableEvents: Array<{ date: string; label: string; amount: string }> =
+            [];
+          const payableKinds = new Set<string>(LEDGER_PAYABLE_KINDS);
+
+          for (const row of rows) {
+            const kind = String(row.kind ?? '');
+            const amount = Number(row.amount ?? 0);
+            const cents = Number.isFinite(amount) ? Math.round(amount * 100) : 0;
+            const paid =
+              row.is_paid === true || row.is_paid === 't' || row.is_paid === 'true';
+            const passesPaidGate = !EXPENSE_PAID_GATE_KINDS.has(kind) || paid;
+            const hasTrip = row.trip_id != null ? 1 : 0;
+
+            if (kind === 'operational_control') {
+              provisions += cents;
+            }
+            if (passesPaidGate) {
+              expenses += cents;
+              expensesCount += 1;
+              if (kind !== 'operational_control') {
+                const key = `${kind}|${hasTrip}`;
+                const bucket = kindBuckets.get(key) ?? {
+                  kind,
+                  has_trip: hasTrip,
+                  sum: 0,
+                  count: 0,
+                };
+                bucket.sum += cents;
+                bucket.count += 1;
+                kindBuckets.set(key, bucket);
+              }
+            }
+            if (kind === 'tolls') {
+              tolls += cents;
+            }
+            if (kind === 'operator_payment' || kind === 'operator_commission') {
+              operatorSpend += cents;
+            }
+            if (kind === 'maintenance' || kind === 'repair' || kind === 'tires') {
+              maintenanceSpend += cents;
+            }
+
+            const event = {
+              date: String(row.date ?? ''),
+              label: String(row.label ?? ''),
+              amount: String(cents / 100),
+            };
+            if (passesPaidGate && event.date) {
+              expenseEvents.push(event);
+            }
+            if (!paid && payableKinds.has(kind) && event.date) {
+              payableEvents.push(event);
+            }
+          }
+
+          const fromCents = (value: number) => value / 100;
+          return {
+            expenses: fromCents(expenses),
+            expensesCount,
+            provisions: fromCents(provisions),
+            tolls: fromCents(tolls),
+            operatorSpend: fromCents(operatorSpend),
+            maintenanceSpend: fromCents(maintenanceSpend),
+            kindRows: [...kindBuckets.values()].map((bucket) => ({
+              kind: bucket.kind,
+              has_trip: bucket.has_trip,
+              sum: String(fromCents(bucket.sum)),
+              count: String(bucket.count),
+            })),
+            expenseEvents,
+            payableEvents,
+          };
+        },
+      );
+  }
+
+  /** Margen por cliente y totales de rentabilidad, con un solo agregado de gastos. */
+  private queryClientProfitability(scope: ReportsScope): Promise<
+    Array<{
+      client_name: string;
+      revenue: string;
+      cost: string;
+      direct_cost: string;
+      trip_expenses: string;
+      trip_count: string;
+    }>
+  > {
+    const filter = tripScopeSql('trip', scope, 4);
+    const params = [scope.companyId, scope.from, scope.to, ...filter.params];
+    const resolvedCost = this.tripResolvedCostSql('trip', 'te.trip_expense');
+    const directCost = this.tripDirectCostSql('trip');
+    const schema = this.tripsRepo.metadata.schema;
+    const completedPeriod = occurredInOperationalPeriod(
+      'trip.completed_at',
+      '$2',
+      '$3',
+    );
+    const tripExpenses = `(
+        SELECT
+          e.trip_id,
+          COALESCE(SUM(e.amount), 0)::float AS trip_expense,
+          BOOL_OR(${this.tripProgrammedLedgerKindCondition('e')}) AS has_programmed_ledger
+        FROM ${schema}.expenses e
+        WHERE e.company_id = $1
+          AND e.discarded_at IS NULL
+          AND e.kind <> 'operational_control'
+          AND e.trip_id IN (
+            SELECT trip.id
+            FROM ${schema}.trips trip
+            WHERE trip.company_id = $1
+              AND trip.deleted_at IS NULL
+              AND trip.status = 'completed'
+              AND trip.completed_at IS NOT NULL
+              AND ${completedPeriod}
+              AND ${this.billableTripCondition('trip')}
+              ${filter.sql}
+          )
+        GROUP BY e.trip_id
+      )`;
+
+    return this.tripsRepo.query(
+      `
+      SELECT
+        COALESCE(NULLIF(TRIM(trip.client_name), ''), 'Sin cliente') AS client_name,
+        COALESCE(SUM(trip.client_charge), 0)::float AS revenue,
+        COALESCE(SUM(${resolvedCost}), 0)::float AS cost,
+        COALESCE(SUM(
+          CASE
+            WHEN COALESCE(te.has_programmed_ledger, false) THEN 0
+            ELSE ${directCost}
+          END
+        ), 0)::float AS direct_cost,
+        COALESCE(SUM(COALESCE(te.trip_expense, 0)), 0)::float AS trip_expenses,
+        COUNT(*)::int AS trip_count
+      FROM ${schema}.trips trip
+      LEFT JOIN ${tripExpenses} te ON te.trip_id = trip.id
+      WHERE trip.company_id = $1
+        AND trip.deleted_at IS NULL
+        AND trip.status = 'completed'
+        AND trip.completed_at IS NOT NULL
+        AND ${completedPeriod}
+        AND ${this.billableTripCondition('trip')}
+        ${filter.sql}
+      GROUP BY trip.client_id, trip.client_name
+      HAVING COALESCE(SUM(trip.client_charge), 0) > 0
+      ORDER BY revenue DESC
+      `,
+      params,
+    );
   }
 
   private buildDailyActivity(
@@ -568,14 +870,7 @@ export class ReportsService {
     const previous = previousPeriodRange(scope.from, scope.to);
 
     const [
-      completedTripsCount,
-      completedTripsPriorCount,
-      tripsInTransit,
-      tripsScheduledInPeriod,
-      cancelledTripsCount,
-      totalKmRow,
-      uniqueDestinationsRow,
-      avgDurationRow,
+      maniobraScalars,
       containerTypeRows,
       recurringIncidentRows,
       operatorRows,
@@ -583,24 +878,7 @@ export class ReportsService {
       geoRows,
       ralentiTripRows,
     ] = await Promise.all([
-      this.countCompletedTrips(scope),
-      this.countCompletedTrips({
-        ...scope,
-        from: previous.from,
-        to: previous.to,
-      }),
-      this.tripsRepo.count({
-        where: {
-          companyId: scope.companyId,
-          status: 'in_transit',
-          deletedAt: IsNull(),
-        },
-      }),
-      this.countScheduledInPeriod(scope),
-      this.countCancelledInPeriod(scope),
-      this.sumOperationalKm(scope),
-      this.countUniqueDestinations(scope),
-      this.queryAvgManeuverDurationDays(scope),
+      this.queryManiobraScalars(scope, previous),
       this.queryContainerTypeMix(scope),
       this.queryRecurringIncidentRoutes(scope),
       this.queryTopOperators(scope),
@@ -609,8 +887,14 @@ export class ReportsService {
       this.queryManiobraRalentiTrips(scope),
     ]);
 
-    const totalOperationalKm =
-      Math.round(parseMoneySum(totalKmRow?.sum) * 10) / 10;
+    const completedTripsCount = maniobraScalars.completedTripsCount;
+    const completedTripsPriorCount = maniobraScalars.completedTripsPriorCount;
+    const tripsInTransit = maniobraScalars.tripsInTransit;
+    const tripsScheduledInPeriod = maniobraScalars.tripsScheduledInPeriod;
+    const cancelledTripsCount = maniobraScalars.cancelledTripsCount;
+    const totalOperationalKm = maniobraScalars.totalOperationalKm;
+    const uniqueDestinations = maniobraScalars.uniqueDestinations;
+    const avgManeuverDurationDays = maniobraScalars.avgManeuverDurationDays;
     const avgKmPerTrip =
       completedTripsCount > 0
         ? Math.round((totalOperationalKm / completedTripsCount) * 10) / 10
@@ -665,9 +949,8 @@ export class ReportsService {
         ralentiHoursTotal: ralenti.totalHours,
         totalOperationalKm,
         avgKmPerTrip,
-        avgManeuverDurationDays:
-          Math.round(parseMoneySum(avgDurationRow?.avg_days) * 10) / 10,
-        uniqueDestinations: Number(uniqueDestinationsRow?.count ?? 0) || 0,
+        avgManeuverDurationDays,
+        uniqueDestinations,
       },
       insights: {
         recurringIncidentRoutes,
@@ -717,6 +1000,135 @@ export class ReportsService {
         },
       },
     };
+  }
+
+  /** Conteos y km de maniobras en una pasada (periodo actual y anterior). */
+  private queryManiobraScalars(
+    scope: ReportsScope,
+    previous: { from: string; to: string },
+  ): Promise<{
+    completedTripsCount: number;
+    completedTripsPriorCount: number;
+    tripsInTransit: number;
+    tripsScheduledInPeriod: number;
+    cancelledTripsCount: number;
+    totalOperationalKm: number;
+    uniqueDestinations: number;
+    avgManeuverDurationDays: number;
+  }> {
+    const filter = tripScopeSql('trip', scope, 6);
+    const params = [
+      scope.companyId,
+      scope.from,
+      scope.to,
+      previous.from,
+      previous.to,
+      ...filter.params,
+    ];
+    const schema = this.tripsRepo.metadata.schema;
+    const completedNow = occurredInOperationalPeriod('trip.completed_at', '$2', '$3');
+    const completedPrev = occurredInOperationalPeriod('trip.completed_at', '$4', '$5');
+    const createdNow = occurredInOperationalPeriod('trip.created_at', '$2', '$3');
+    const plannedNow = occurredInOperationalPeriod(
+      'trip.planned_departure_at',
+      '$2',
+      '$3',
+    );
+    const scoped = `TRUE ${filter.sql}`;
+    const durationEnd = `COALESCE(trip.return_at, trip.planned_completion_at, trip.arrived_at, trip.planned_arrival_at)`;
+    const durationStart = `COALESCE(trip.departure_at, trip.planned_departure_at)`;
+
+    return this.tripsRepo
+      .query(
+        `
+      SELECT
+        COUNT(*) FILTER (
+          WHERE trip.status = 'completed'
+            AND trip.completed_at IS NOT NULL
+            AND ${completedNow}
+            AND ${scoped}
+        )::int AS completed,
+        COUNT(*) FILTER (
+          WHERE trip.status = 'completed'
+            AND trip.completed_at IS NOT NULL
+            AND ${completedPrev}
+            AND ${scoped}
+        )::int AS completed_prior,
+        COUNT(*) FILTER (
+          WHERE trip.status = 'in_transit'
+        )::int AS in_transit,
+        COUNT(*) FILTER (
+          WHERE trip.status = 'scheduled'
+            AND ${plannedNow}
+            AND ${scoped}
+        )::int AS scheduled,
+        COUNT(*) FILTER (
+          WHERE trip.status = 'cancelled'
+            AND ${createdNow}
+            AND ${scoped}
+        )::int AS cancelled,
+        COALESCE(SUM(${OPERATIONAL_KM_EXPR}) FILTER (
+          WHERE trip.status = 'completed'
+            AND trip.completed_at IS NOT NULL
+            AND ${completedNow}
+            AND ${scoped}
+        ), 0)::float AS km,
+        COUNT(DISTINCT CONCAT_WS(
+          '|',
+          COALESCE(trip.destination_postal_code, ''),
+          COALESCE(trip.destination_locality, ''),
+          COALESCE(trip.destination_city_municipality, '')
+        )) FILTER (
+          WHERE trip.status != 'cancelled'
+            AND ${createdNow}
+            AND ${DESTINATION_HAS_LABEL_SQL}
+            AND ${scoped}
+        )::int AS destinations,
+        AVG(
+          EXTRACT(EPOCH FROM (${durationEnd} - ${durationStart})) / 86400.0
+        ) FILTER (
+          WHERE trip.status = 'completed'
+            AND trip.completed_at IS NOT NULL
+            AND ${completedNow}
+            AND ${durationEnd} IS NOT NULL
+            AND ${durationStart} IS NOT NULL
+            AND ${durationEnd} >= ${durationStart}
+            AND ${scoped}
+        )::float AS avg_days
+      FROM ${schema}.trips trip
+      WHERE trip.company_id = $1
+        AND trip.deleted_at IS NULL
+      `,
+        params,
+      )
+      .then(
+        (
+          rows: Array<{
+            completed: string | number;
+            completed_prior: string | number;
+            in_transit: string | number;
+            scheduled: string | number;
+            cancelled: string | number;
+            km: string | number;
+            destinations: string | number;
+            avg_days: string | number | null;
+          }>,
+        ) => {
+          const row = rows[0];
+          return {
+            completedTripsCount: Number(row?.completed) || 0,
+            completedTripsPriorCount: Number(row?.completed_prior) || 0,
+            tripsInTransit: Number(row?.in_transit) || 0,
+            tripsScheduledInPeriod: Number(row?.scheduled) || 0,
+            cancelledTripsCount: Number(row?.cancelled) || 0,
+            totalOperationalKm:
+              Math.round(parseMoneySum(row?.km) * 10) / 10,
+            uniqueDestinations: Number(row?.destinations) || 0,
+            avgManeuverDurationDays:
+              Math.round(parseMoneySum(row?.avg_days) * 10) / 10,
+          };
+        },
+      );
   }
 
   private tripPeriodCreatedSql(alias = 'trip'): string {
@@ -995,7 +1407,12 @@ export class ReportsService {
       LEFT JOIN LATERAL (
         SELECT latitude, longitude
         FROM ${schema}.client_delivery
-        WHERE client_id = trip.client_id
+        WHERE (
+            dr.id IS NULL
+            OR dr.destination_latitude IS NULL
+            OR dr.destination_longitude IS NULL
+          )
+          AND client_id = trip.client_id
           AND (
             trip.destination_postal_code IS NULL
             OR btrim(postal_code) = btrim(trip.destination_postal_code)
@@ -1536,25 +1953,23 @@ export class ReportsService {
 
     const [
       overview,
-      totalKmRow,
-      dieselRow,
-      topUnitRows,
+      fleetTripTotals,
+      fleetUnitRows,
       maintenanceEventRows,
       maintenanceEventsCount,
       maintenanceSpendRow,
-      tireWearRows,
     ] = await Promise.all([
       this.fleetOverview.listOverview(scope.companyId, undefined, {
         includeEquipmentRows: false,
       }),
-      this.sumOperationalKm(scope),
-      this.sumFleetDiesel(scope),
-      this.queryTopUnitsByKm(scope),
+      this.queryFleetTripTotals(scope),
+      this.queryFleetUnits(scope),
       this.queryFleetMaintenanceEvents(scope),
       this.countFleetMaintenanceEvents(scope),
       this.sumFleetExpenseKind(scope, ['maintenance', 'repair', 'tires']),
-      this.queryTireWearByUnit(scope),
     ]);
+    const topUnitRows = fleetUnitRows.slice(0, 8);
+    const tireWearRows = fleetUnitRows;
 
     const statusMix = buildReportsFleetStatusMix(overview.items);
     const complianceUnits = buildReportsFleetComplianceUnits(overview.items);
@@ -1563,12 +1978,9 @@ export class ReportsService {
       overview.items,
     );
 
-    const totalOperationalKm =
-      Math.round(parseMoneySum(totalKmRow?.sum) * 10) / 10;
-    const totalDieselLiters =
-      Math.round(parseMoneySum(dieselRow?.liters) * 10) / 10;
-    const totalDieselAmount =
-      Math.round(parseMoneySum(dieselRow?.amount) * 100) / 100;
+    const totalOperationalKm = fleetTripTotals.totalOperationalKm;
+    const totalDieselLiters = fleetTripTotals.totalDieselLiters;
+    const totalDieselAmount = fleetTripTotals.totalDieselAmount;
     const maintenanceSpendInPeriod =
       Math.round(parseMoneySum(maintenanceSpendRow?.sum) * 100) / 100;
 
@@ -1591,25 +2003,30 @@ export class ReportsService {
           operationalKm: Math.round(parseMoneySum(row.km) * 10) / 10,
           dieselLiters: Math.round(parseMoneySum(row.diesel_liters) * 10) / 10,
         })),
-        maintenanceEvents: maintenanceEventRows.map((row) => ({
-          assetLabel: String(row.asset_label ?? '—'),
-          assetKind: row.equipment_id != null ? 'equipment' : 'unit',
-          entryDate: row.entry_date ? String(row.entry_date) : null,
-          entryType: String(row.entry_type ?? '—'),
-          // status ya no vive en fleet_maintenance_entries (PRD slim).
-          status: 'Registrado',
-          cost: Math.round(parseMoneySum(row.cost) * 100) / 100,
-        })),
+        maintenanceEvents: maintenanceEventRows.map((row) => {
+          const notesRaw = row.notes != null ? String(row.notes).trim() : '';
+          return {
+            entryId: Number(row.entry_id) || 0,
+            assetLabel: String(row.asset_label ?? '—'),
+            assetKind: row.equipment_id != null ? 'equipment' : 'unit',
+            entryDate: row.entry_date ? String(row.entry_date) : null,
+            entryType: String(row.entry_type ?? '—'),
+            // status ya no vive en fleet_maintenance_entries (PRD slim).
+            status: 'Registrado',
+            cost: Math.round(parseMoneySum(row.cost) * 100) / 100,
+            notes: notesRaw.length > 0 ? notesRaw : null,
+          };
+        }),
         complianceUnits,
         tireWearByUnit: tireWearRows.map((row) => {
           const operationalKm =
-            Math.round(parseMoneySum(row.operational_km) * 10) / 10;
+            Math.round(parseMoneySum(row.km) * 10) / 10;
           const avgWeightTons =
             Math.round(parseApproxWeightTons(row.avg_weight_tons) * 10) / 10;
           const wear = estimateTireWearMxn(operationalKm, avgWeightTons);
           return {
-            unitCode: String(row.unit_code ?? '—'),
-            tripCount: Number(row.trip_count) || 0,
+            unitCode: String(row.unit_label ?? '—'),
+            tripCount: Number(row.completed) || 0,
             operationalKm,
             avgWeightTons,
             tireWearMxn: wear.tireWearMxn,
@@ -1619,6 +2036,83 @@ export class ReportsService {
         }),
       },
     };
+  }
+
+  private queryFleetTripTotals(scope: ReportsScope): Promise<{
+    totalOperationalKm: number;
+    totalDieselLiters: number;
+    totalDieselAmount: number;
+  }> {
+    const filter = tripScopeSql('trip', scope, 4);
+    const params = [scope.companyId, scope.from, scope.to, ...filter.params];
+    const period = occurredInOperationalPeriod('trip.completed_at', '$2', '$3');
+    const schema = this.tripsRepo.metadata.schema;
+
+    return this.tripsRepo
+      .query(
+        `
+      SELECT
+        COALESCE(SUM(${OPERATIONAL_KM_EXPR}), 0)::float AS km,
+        COALESCE(SUM(COALESCE(${sqlTripNumeric('trip.diesel_liters')}, 0)), 0)::float AS liters,
+        COALESCE(SUM(COALESCE(${sqlTripNumeric('trip.diesel_amount')}, 0)), 0)::float AS amount
+      FROM ${schema}.trips trip
+      WHERE trip.company_id = $1
+        AND trip.deleted_at IS NULL
+        AND trip.status = 'completed'
+        AND trip.completed_at IS NOT NULL
+        AND ${period}
+        ${filter.sql}
+      `,
+        params,
+      )
+      .then((rows: Array<{ km: string; liters: string; amount: string }>) => {
+        const row = rows[0];
+        return {
+          totalOperationalKm: Math.round(parseMoneySum(row?.km) * 10) / 10,
+          totalDieselLiters: Math.round(parseMoneySum(row?.liters) * 10) / 10,
+          totalDieselAmount: Math.round(parseMoneySum(row?.amount) * 100) / 100,
+        };
+      });
+  }
+
+  private queryFleetUnits(scope: ReportsScope): Promise<
+    Array<{
+      unit_label: string;
+      completed: string;
+      km: string;
+      diesel_liters: string;
+      avg_weight_tons: string | null;
+    }>
+  > {
+    const filter = tripScopeSql('trip', scope, 4);
+    const params = [scope.companyId, scope.from, scope.to, ...filter.params];
+    const schema = this.tripsRepo.metadata.schema;
+    const period = occurredInOperationalPeriod('trip.completed_at', '$2', '$3');
+
+    return this.tripsRepo.query(
+      `
+      SELECT
+        ${UNIT_OPERATIONAL_CODE_SQL} AS unit_label,
+        COUNT(*)::int AS completed,
+        COALESCE(SUM(${OPERATIONAL_KM_EXPR}), 0)::float AS km,
+        COALESCE(SUM(COALESCE(${sqlTripNumeric('trip.diesel_liters')}, 0)), 0)::float AS diesel_liters,
+        ${AVG_APPROX_WEIGHT_TONS_SQL} AS avg_weight_tons
+      FROM ${schema}.trips trip
+      INNER JOIN ${schema}.units unit ON unit.id = trip.unit_id
+      WHERE trip.company_id = $1
+        AND trip.deleted_at IS NULL
+        AND trip.status = 'completed'
+        AND trip.completed_at IS NOT NULL
+        AND trip.unit_id IS NOT NULL
+        AND ${period}
+        ${filter.sql}
+      GROUP BY trip.unit_id, unit.id, unit.trailer_brand_abbr, unit.trailer_year, unit.plate
+      HAVING COUNT(*) > 0
+      ORDER BY km DESC, completed DESC
+      LIMIT 12
+      `,
+      params,
+    );
   }
 
   private sumFleetDiesel(
@@ -1658,7 +2152,7 @@ export class ReportsService {
         ${UNIT_OPERATIONAL_CODE_SQL} AS unit_label,
         COUNT(*)::int AS completed,
         COALESCE(SUM(${OPERATIONAL_KM_EXPR}), 0)::float AS km,
-        COALESCE(SUM(COALESCE(trip.diesel_liters, 0)), 0)::float AS diesel_liters
+        COALESCE(SUM(COALESCE(${sqlTripNumeric('trip.diesel_liters')}, 0)), 0)::float AS diesel_liters
       FROM ${schema}.trips trip
       INNER JOIN ${schema}.units unit ON unit.id = trip.unit_id
       WHERE trip.company_id = $1
@@ -1696,24 +2190,28 @@ export class ReportsService {
 
   private queryFleetMaintenanceEvents(scope: ReportsScope): Promise<
     Array<{
+      entry_id: number;
       asset_label: string;
       unit_id: number | null;
       equipment_id: number | null;
       entry_date: string | null;
       entry_type: string | null;
       cost: string | null;
+      notes: string | null;
     }>
   > {
     const schema = this.maintenanceEntriesRepo.metadata.schema;
     return this.maintenanceEntriesRepo.query(
       `
       SELECT
+        me.id AS entry_id,
         COALESCE(${UNIT_OPERATIONAL_CODE_SQL}, '—') AS asset_label,
         me.unit_id,
         NULL::int AS equipment_id,
         me.entry_date::text AS entry_date,
         me.entry_type,
-        me.cost
+        me.cost,
+        me.notes
       FROM ${schema}.fleet_maintenance_entries me
       INNER JOIN ${schema}.units unit ON unit.id = me.unit_id
       WHERE unit.company_id = $1
@@ -1744,14 +2242,7 @@ export class ReportsService {
         ${UNIT_OPERATIONAL_CODE_SQL} AS unit_code,
         COUNT(*)::int AS trip_count,
         COALESCE(SUM(${OPERATIONAL_KM_EXPR}), 0)::float AS operational_km,
-        AVG(
-          CASE
-            WHEN trip.approximate_weight_tons IS NOT NULL
-              AND trip.approximate_weight_tons::float > 0
-            THEN trip.approximate_weight_tons::float
-            ELSE NULL
-          END
-        )::float AS avg_weight_tons
+        ${AVG_APPROX_WEIGHT_TONS_SQL} AS avg_weight_tons
       FROM ${schema}.trips trip
       INNER JOIN ${schema}.units unit ON unit.id = trip.unit_id
       WHERE trip.company_id = $1

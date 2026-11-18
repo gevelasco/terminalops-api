@@ -26,12 +26,14 @@ export type ReportsFleetUnitActivityRowDto = {
 };
 
 export type ReportsFleetMaintenanceEventRowDto = {
+  entryId: number;
   assetLabel: string;
   assetKind: 'unit' | 'equipment';
   entryDate: string | null;
   entryType: string;
   status: string;
   cost: number;
+  notes: string | null;
 };
 
 export type ReportsFleetComplianceUnitRowDto = {

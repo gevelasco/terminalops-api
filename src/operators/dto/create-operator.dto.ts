@@ -4,8 +4,10 @@ import {
   IsBoolean,
   IsIn,
   IsInt,
+  IsNumber,
   IsOptional,
   IsString,
+  Min,
   MaxLength,
   ValidateNested,
 } from 'class-validator';
@@ -48,6 +50,38 @@ export class CreateOperatorPublicInsuranceDto {
   @ApiPropertyOptional()
   @OptionalIsoDate()
   imssAltaDate?: string;
+
+  @ApiPropertyOptional({
+    description: 'Cantidad diaria con la que se asegura al operador ante el IMSS.',
+    nullable: true,
+  })
+  @Transform(({ value }) => {
+    if (value == null || value === '') {
+      return null;
+    }
+    const n = typeof value === 'number' ? value : Number(String(value).replace(/,/g, ''));
+    return Number.isFinite(n) ? n : value;
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  dailyInsuredAmount?: number | null;
+
+  @ApiPropertyOptional({
+    enum: ['fixed', 'variable', 'mixed'],
+    description: 'Tipo de salario ante el IMSS.',
+    nullable: true,
+  })
+  @Transform(({ value }) => {
+    if (value == null || value === '') {
+      return null;
+    }
+    const raw = String(value).trim();
+    return raw === 'fixed' || raw === 'variable' || raw === 'mixed' ? raw : value;
+  })
+  @IsOptional()
+  @IsIn(['fixed', 'variable', 'mixed'])
+  salaryType?: 'fixed' | 'variable' | 'mixed' | null;
 
   @ApiPropertyOptional({ default: false })
   @IsOptional()

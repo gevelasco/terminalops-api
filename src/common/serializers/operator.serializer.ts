@@ -100,6 +100,16 @@ function serializeEmergencyContact(
   };
 }
 
+function serializeDailyInsuredAmount(
+  value: string | null | undefined,
+): number | null {
+  if (value == null || value === '') {
+    return null;
+  }
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
 function serializePublicInsurance(
   row: OperatorPublicInsurance,
   operatorId: number,
@@ -108,6 +118,8 @@ function serializePublicInsurance(
     operatorId,
     nss: row.nss,
     imssAltaDate: row.imssAltaDate ?? null,
+    dailyInsuredAmount: serializeDailyInsuredAmount(row.dailyInsuredAmount),
+    salaryType: row.salaryType ?? null,
     infonavit: row.infonavit,
     infonavitCreditNumber: row.infonavitCreditNumber,
     fonacot: row.fonacot,

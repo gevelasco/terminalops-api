@@ -20,6 +20,20 @@ export class OperatorPublicInsurance {
   @Column({ name: 'imss_alta_date', type: 'date', nullable: true })
   imssAltaDate?: string;
 
+  /** Cantidad diaria con la que se asegura al operador (IMSS). */
+  @Column({
+    name: 'daily_insured_amount',
+    type: 'numeric',
+    precision: 12,
+    scale: 2,
+    nullable: true,
+  })
+  dailyInsuredAmount?: string | null;
+
+  /** Tipo de salario IMSS: fixed, variable o mixed. */
+  @Column({ name: 'salary_type', type: 'varchar', length: 16, nullable: true })
+  salaryType?: string | null;
+
   @Column({ default: false })
   infonavit: boolean;
 
