@@ -408,6 +408,16 @@ async function main() {
           WHERE deleted_at IS NULL
       `);
       console.log('Schema ensure: trips list created_at indexes OK');
+      // Hard ensure: IMSS cobertura operadores (covers migrations_list drift).
+      await dataSource.query(`
+        ALTER TABLE terminalops.operator_public_insurance
+          ADD COLUMN IF NOT EXISTS daily_insured_amount numeric(12,2) NULL;
+      `);
+      await dataSource.query(`
+        ALTER TABLE terminalops.operator_public_insurance
+          ADD COLUMN IF NOT EXISTS salary_type varchar(16) NULL;
+      `);
+      console.log('Schema ensure: operator_public_insurance IMSS columns OK');
       // Hard ensure: varios destinos por cliente (covers migrations_list drift).
       await ensureClientDeliveryMultipleSchema((sql) => dataSource.query(sql));
       console.log('Schema ensure: client_delivery multiple OK');
