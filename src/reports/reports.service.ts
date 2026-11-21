@@ -914,7 +914,6 @@ export class ReportsService {
         returnAt: row.return_at,
         estimatedArrivalTimeValue: row.estimated_arrival_time_value,
         estimatedReturnTimeValue: row.estimated_return_time_value,
-        estimatedTimeUnit: row.estimated_time_unit,
       })),
     );
 
@@ -1161,7 +1160,6 @@ export class ReportsService {
       return_at: Date | string | null;
       estimated_arrival_time_value: string | null;
       estimated_return_time_value: string | null;
-      estimated_time_unit: string | null;
     }>
   > {
     const filter = tripScopeSql('trip', scope, 4);
@@ -1182,8 +1180,7 @@ export class ReportsService {
         trip.arrived_at,
         trip.return_at,
         rate.estimated_arrival_time_value,
-        rate.estimated_return_time_value,
-        rate.estimated_time_unit
+        rate.estimated_return_time_value
       FROM ${schema}.trips trip
       LEFT JOIN ${schema}.destination_rates rate
         ON rate.id = trip.destination_rate_id

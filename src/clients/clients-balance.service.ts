@@ -79,7 +79,7 @@ export class ClientsBalanceService {
 
     const [clients, countRows, openTripEntities] = await Promise.all([
       this.clientsRepo.find({
-        where: { companyId },
+        where: { companyId, isActive: true },
         select: ['id', 'name'],
         order: { name: 'ASC' },
       }),

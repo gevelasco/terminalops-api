@@ -43,6 +43,9 @@ export class DestinationRatePrice {
   })
   estimatedTollAmount: string;
 
+  @Column({ name: 'axle_count', type: 'smallint', nullable: true })
+  axleCount?: number;
+
   @Column({
     name: 'per_diem_amount',
     type: 'numeric',

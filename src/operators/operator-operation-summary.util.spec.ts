@@ -28,6 +28,15 @@ function trip(partial: Partial<Trip> & Pick<Trip, 'id' | 'status'>): Trip {
 
 describe('operator-operation-summary.util', () => {
   it('statusCounts and completedKm only include trips from the last 30 days', () => {
+    const ratesById = new Map([
+      [
+        10,
+        {
+          estimatedArrivalTimeValue: '20',
+          estimatedReturnTimeValue: '18',
+        },
+      ],
+    ]);
     const summary = buildOperatorOperationSummary(
       [
         trip({
@@ -35,12 +44,14 @@ describe('operator-operation-summary.util', () => {
           status: 'completed',
           completedAt: new Date('2026-06-01T12:00:00Z'),
           routeDistanceKm: '500',
+          destinationRateId: 10,
         }),
         trip({
           id: 2,
           status: 'completed',
           completedAt: new Date('2026-06-20T12:00:00Z'),
           routeDistanceKm: '992',
+          destinationRateId: 10,
         }),
         trip({
           id: 3,
@@ -56,18 +67,16 @@ describe('operator-operation-summary.util', () => {
       ],
       [] as Expense[],
       new Map(),
+      ratesById,
       new Date('2026-06-20T12:00:00Z'),
     );
 
     expect(OPERATOR_SUMMARY_RECENT_DAYS).toBe(30);
     expect(summary.hasTrips).toBe(true);
-    expect(summary.statusCounts).toEqual({
-      completed: 2,
-      inTransit: 0,
-      scheduled: 1,
-      cancelled: 0,
-      total: 3,
-    });
+    expect(summary.periodManeuverTotal).toBe(3);
     expect(summary.completedKm).toBe(2984);
+    expect(summary.workedHours).toBe(76);
+    expect(summary.workedDays).toBe(4.8);
+    expect(summary.incidentManeuverCount).toBe(0);
   });
 });

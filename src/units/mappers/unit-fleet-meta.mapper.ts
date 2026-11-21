@@ -6,6 +6,10 @@ import type { CreateUnitFleetMetaDto } from 'src/units/dto/create-unit-fleet-met
 import { FleetAssetTenure } from 'src/fleet/entities/fleet-asset-tenure.entity';
 import { mergeTenureIntoFleetMeta } from 'src/fleet/mappers/fleet-asset-tenure.mapper';
 import {
+  normalizeMaintenanceDocumentFileNames,
+  maintenanceDocumentNamesForApi,
+} from 'src/fleet/fleet-maintenance-document-names.util';
+import {
   isSubstantiveMaintenanceEntry,
   maintenanceEntryDateYmd,
   recomputeLastMaintenanceFields,
@@ -124,6 +128,9 @@ export function fleetMetaDtoToMaintenanceEntries(
         cost: numToDb(entry.cost),
         notes: entry.notes?.trim() || undefined,
         paymentMethod: entry.paymentMethod?.trim() || undefined,
+        documentFileNames: normalizeMaintenanceDocumentFileNames(
+          entry.documentNames,
+        ),
         sortOrder: index,
       }));
   }
@@ -259,6 +266,7 @@ export function profileToFleetMeta(
         cost: dbNumToApi(e.cost),
         notes: e.notes ?? undefined,
         paymentMethod: e.paymentMethod ?? undefined,
+        documentNames: maintenanceDocumentNamesForApi(e.documentFileNames),
       }))
       .filter(isSubstantiveMaintenanceEntry);
     if (maintenanceRows.length > 0) {

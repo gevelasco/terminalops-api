@@ -72,6 +72,18 @@ export class UpdateCompanyOperationalSettingsDto {
   @IsIn(EXPENSE_PAYMENT_METHODS)
   tripAutoControlPaymentMethod?: string;
 
+  @ApiPropertyOptional({
+    description:
+      'Nombre del rubro en gastos para el % automático del cobro al cliente (por defecto Control operativo)',
+    example: 'Depreciación',
+    maxLength: 80,
+    nullable: true,
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  tripAutoOperationalControlLabel?: string | null;
+
   @ApiPropertyOptional({ description: 'Estimación automática de diesel en maniobras' })
   @IsOptional()
   @IsBoolean()

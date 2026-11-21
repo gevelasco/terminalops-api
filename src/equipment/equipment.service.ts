@@ -57,6 +57,7 @@ import {
   resolveVerificationEntriesFromMeta,
   verificationEntriesToMetaScalars,
 } from 'src/fleet/fleet-verification-entries.util';
+import { isDollyEquipmentType } from './equipment-dolly.util';
 import {
   assertEquipmentHitchAssignmentAllowed,
   assertUnitCanHitchEquipment,
@@ -135,7 +136,13 @@ export class EquipmentService {
       : undefined;
     const resolvedPosition = unitId ? hitchPosition ?? 'lead' : null;
     if (unitId) {
-      await this.assertHitchSlotAvailable(companyId, unitId, resolvedPosition);
+      await this.assertHitchSlotAvailable(
+        companyId,
+        unitId,
+        resolvedPosition,
+        undefined,
+        core['type'] as string | undefined,
+      );
     }
     const saved = await this.repo.save(
       this.repo.create({
@@ -344,6 +351,7 @@ export class EquipmentService {
         nextUnitId,
         nextHitchPosition,
         equipmentId,
+        current.type,
       );
     }
     await this.ensureEquipmentBrand(companyId, fleetMeta);
@@ -521,10 +529,22 @@ export class EquipmentService {
     unitId: number,
     hitchPosition: 'lead' | 'rear' | null,
     excludeEquipmentId?: number,
+    equipmentType?: string | null,
   ): Promise<void> {
+    if (
+      hitchPosition === 'rear' &&
+      excludeEquipmentId != null &&
+      !isDollyEquipmentType(equipmentType)
+    ) {
+      await this.releaseDollyRearForThirdTrailer(
+        companyId,
+        unitId,
+        excludeEquipmentId,
+      );
+    }
     const others = await this.repo.find({
       where: { companyId, unitId },
-      select: ['id', 'unitId', 'hitchPosition'],
+      select: ['id', 'unitId', 'hitchPosition', 'type'],
     });
     assertEquipmentHitchAssignmentAllowed({
       unitId,
@@ -532,7 +552,38 @@ export class EquipmentService {
       isSecondTrailer: hitchPosition === 'rear',
       othersOnUnit: others,
       excludeEquipmentId,
+      equipmentType,
     });
+  }
+
+  /**
+   * Al enganchar el 3.er chasis, el dolly deja de ocupar `rear` (solo hay lead|rear en API).
+   */
+  private async releaseDollyRearForThirdTrailer(
+    companyId: number,
+    unitId: number,
+    excludeEquipmentId: number,
+  ): Promise<void> {
+    const others = await this.repo.find({
+      where: { companyId, unitId },
+      select: ['id', 'unitId', 'hitchPosition', 'type'],
+    });
+    const dolly = others.find(
+      (e) =>
+        e.id !== excludeEquipmentId &&
+        isDollyEquipmentType(e.type) &&
+        e.hitchPosition === 'rear',
+    );
+    const rearTrailer = others.find(
+      (e) =>
+        e.id !== excludeEquipmentId &&
+        e.hitchPosition === 'rear' &&
+        !isDollyEquipmentType(e.type),
+    );
+    if (!dolly || rearTrailer) {
+      return;
+    }
+    await this.repo.update({ id: dolly.id, companyId }, { hitchPosition: null });
   }
 
   private async resolveUnitId(

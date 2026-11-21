@@ -38,6 +38,8 @@ export function serializeCompanyOperationalSettings(
     tripAutoControlPaymentMethod: normalizeExpensePaymentMethod(
       company.tripAutoControlPaymentMethod,
     ),
+    tripAutoOperationalControlLabel:
+      company.tripAutoOperationalControlLabel?.trim() || null,
     maintenanceKmControlEnabled: company.maintenanceKmControlEnabled,
     maintenanceKmIntervalDefault: dbNumToApi(company.maintenanceKmIntervalDefault),
     maintenanceKmControlChangedAt: toIsoString(company.maintenanceKmControlChangedAt),
@@ -47,6 +49,8 @@ export function serializeCompanyOperationalSettings(
     dieselControlEnabled: company.dieselControlEnabled,
     dieselControlChangedAt: toIsoString(company.dieselControlChangedAt),
     paymentReminderDaysBefore: company.paymentReminderDaysBefore ?? 5,
+    paymentReminderDaysChangedAt: toIsoString(company.paymentReminderDaysChangedAt),
+    tripAutoPaymentsChangedAt: toIsoString(company.tripAutoPaymentsChangedAt),
     operationalCenterPostalCode: geo.operationalCenterPostalCode,
     operationalCenterCityMunicipality: geo.operationalCenterCityMunicipality,
     operationalCenterLocality: geo.operationalCenterLocality,

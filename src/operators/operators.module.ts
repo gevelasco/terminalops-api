@@ -7,6 +7,7 @@ import { OperatorDocument } from 'src/operators/entities/operator-document.entit
 import { OperatorEmergencyContact } from 'src/operators/entities/operator-emergency-contact.entity';
 import { OperatorPrivateInsurance } from 'src/operators/entities/operator-private-insurance.entity';
 import { OperatorPublicInsurance } from 'src/operators/entities/operator-public-insurance.entity';
+import { DestinationRate } from 'src/destination-rates/entities/destination-rate.entity';
 import { Trip } from 'src/trips/entities/trip.entity';
 import { Unit } from 'src/units/entities/unit.entity';
 import { OperatorsController } from './operators.controller';
@@ -25,6 +26,7 @@ import { OperatorHrHoldWorkflowService } from './operator-hr-hold-workflow.servi
       Trip,
       Expense,
       Unit,
+      DestinationRate,
     ]),
   ],
   controllers: [OperatorsController],

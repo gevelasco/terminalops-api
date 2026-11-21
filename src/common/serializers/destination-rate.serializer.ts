@@ -1,6 +1,17 @@
+import { normalizeRouteTollPlazas } from 'src/common/utils/route-toll-plazas.util';
+import { normalizeRouteWaypoints } from 'src/common/utils/route-waypoints.util';
 import { DestinationRate } from 'src/destination-rates/entities/destination-rate.entity';
 import { DestinationRatePrice } from 'src/destination-rates/entities/destination-rate-price.entity';
 import { toIsoString } from 'src/common/utils/iso-date.util';
+
+export function normalizeExcludedTollPlazaKeys(raw: unknown): string[] {
+  if (!Array.isArray(raw)) {
+    return [];
+  }
+  return raw
+    .map((v) => String(v ?? '').trim())
+    .filter((k) => k.length > 0);
+}
 
 export function serializeDestinationRatePrice(
   price: DestinationRatePrice,
@@ -15,6 +26,8 @@ export function serializeDestinationRatePrice(
     clientCharge: price.clientCharge,
     operatorPaymentEstimate: price.operatorPaymentEstimate,
     estimatedTollAmount: price.estimatedTollAmount,
+    axleCount:
+      price.axleCount != null && price.axleCount >= 2 ? price.axleCount : undefined,
     perDiemAmount: price.perDiemAmount,
     notes: price.notes ?? undefined,
     createdAt: toIsoString(price.createdAt),
@@ -65,7 +78,6 @@ export function serializeDestinationRateSummary(
       row.estimatedReturnTimeValue != null
         ? Number(row.estimatedReturnTimeValue)
         : undefined,
-    estimatedTimeUnit: row.estimatedTimeUnit ?? undefined,
     prices,
     active: row.active,
   };
@@ -116,7 +128,9 @@ export function serializeDestinationRate(
       row.estimatedReturnTimeValue != null
         ? Number(row.estimatedReturnTimeValue)
         : undefined,
-    estimatedTimeUnit: row.estimatedTimeUnit ?? undefined,
+    excludedTollPlazaKeys: normalizeExcludedTollPlazaKeys(row.excludedTollPlazaKeys),
+    routeWaypoints: normalizeRouteWaypoints(row.routeWaypoints),
+    routeTollPlazas: normalizeRouteTollPlazas(row.routeTollPlazas),
     maneuverCount:
       typeof row.maneuverCount === 'number' ? row.maneuverCount : undefined,
     prices,

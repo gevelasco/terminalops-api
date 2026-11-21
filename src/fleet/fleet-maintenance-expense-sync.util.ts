@@ -7,6 +7,7 @@ export type MaintenanceEntryLike = {
   notes?: string | null;
   paymentMethod?: string | null;
   status?: string | null;
+  documentNames?: string[];
 };
 
 export type MaintenanceExpenseLike = {
@@ -84,6 +85,9 @@ export function isSubstantiveMaintenanceEntry(entry: MaintenanceEntryLike): bool
     return true;
   }
   if (isBillableMaintenanceEntry(entry)) {
+    return true;
+  }
+  if ((entry.documentNames?.length ?? 0) > 0) {
     return true;
   }
   return false;

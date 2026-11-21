@@ -35,6 +35,8 @@ export type AuthUser = {
   tripAutoTollsPaymentMethod?: string;
   tripAutoPerDiemPaymentMethod?: string;
   tripAutoControlPaymentMethod?: string;
+  /** Etiqueta en gastos del % automático; vacío/null = Control operativo. */
+  tripAutoOperationalControlLabel?: string | null;
   maintenanceKmControlEnabled?: boolean;
   maintenanceKmIntervalDefault?: number;
   maintenanceDateControlEnabled?: boolean;
@@ -44,6 +46,8 @@ export type AuthUser = {
   dieselControlEnabled?: boolean;
   dieselControlChangedAt?: string;
   paymentReminderDaysBefore?: number;
+  paymentReminderDaysChangedAt?: string;
+  tripAutoPaymentsChangedAt?: string;
   /** ID público del centro operativo principal (único por empresa hoy). */
   operationalCenterId?: string;
   operationalCenterName?: string;

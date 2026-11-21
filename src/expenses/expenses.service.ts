@@ -202,6 +202,7 @@ export class ExpensesService {
       tollsPaymentMethod?: string;
       perDiemPaymentMethod?: string;
       controlPaymentMethod?: string;
+      operationalControlLabel?: string | null;
     } = {},
     manager?: EntityManager,
   ): Promise<void> {

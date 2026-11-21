@@ -1,4 +1,5 @@
 import type { Trip } from 'src/trips/entities/trip.entity';
+import { resolveOperationalControlExpenseLabel } from 'src/trips/operational-control-expense-label.util';
 
 /** Tipos de gasto automático al crear maniobra (kind en tabla expenses). */
 export const TRIP_AUTO_EXPENSE_KIND = {
@@ -30,6 +31,7 @@ export type TripAutoExpenseBuildOptions = {
   tollsPaymentMethod?: string;
   perDiemPaymentMethod?: string;
   controlPaymentMethod?: string;
+  operationalControlLabel?: string | null;
 };
 
 export function parseTripMoneyAmount(raw?: string | null): number {
@@ -74,6 +76,9 @@ export function buildTripAutoExpenses(
   const tollsPaymentMethod = options.tollsPaymentMethod?.trim() || undefined;
   const perDiemPaymentMethod = options.perDiemPaymentMethod?.trim() || undefined;
   const controlPaymentMethod = options.controlPaymentMethod?.trim() || undefined;
+  const operationalControlLabel = resolveOperationalControlExpenseLabel(
+    options.operationalControlLabel,
+  );
 
   const dieselAmount = parseTripMoneyAmount(trip.dieselAmount);
   if (dieselAmount > 0) {
@@ -146,12 +151,12 @@ export function buildTripAutoExpenses(
     provisionRate > 0 ? totalCost * (provisionRate / 100) : 0;
   if (operationalControlAmount > 0) {
     drafts.push({
-      category: 'Control operativo',
+      category: operationalControlLabel,
       amount: formatExpenseAmount(operationalControlAmount),
       currency: 'MXN',
       incurredAt,
       kind: TRIP_AUTO_EXPENSE_KIND.OPERATIONAL_CONTROL,
-      description: `Control operativo ${provisionRate}% — maniobra ${maneuverRef}`,
+      description: `${operationalControlLabel} ${provisionRate}% — maniobra ${maneuverRef}`,
       paymentMethod: controlPaymentMethod,
     });
   }

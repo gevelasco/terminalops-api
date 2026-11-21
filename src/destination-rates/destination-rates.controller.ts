@@ -37,7 +37,7 @@ export class DestinationRatesController {
     @Param('rateId', ParseIntPipe) rateId: number,
     @LoggedUser() user: AuthUser,
   ) {
-    assertModuleRead(user, APP_MODULE_CODES.CLIENTS);
+    assertModuleRead(user, APP_MODULE_CODES.DESTINATION_RATES);
     const companyId = await this.tenantContext.resolveInternalIdFromAuthUser(user);
     return this.service.findOne(companyId, rateId);
   }
@@ -48,7 +48,7 @@ export class DestinationRatesController {
     @Body() dto: UpdateDestinationRateDto,
     @LoggedUser() user: AuthUser,
   ) {
-    assertModuleWrite(user, APP_MODULE_CODES.CLIENTS);
+    assertModuleWrite(user, APP_MODULE_CODES.DESTINATION_RATES);
     const companyId = await this.tenantContext.resolveInternalIdFromAuthUser(user);
     return this.service.update(companyId, rateId, dto);
   }
@@ -58,7 +58,7 @@ export class DestinationRatesController {
     @Param('rateId', ParseIntPipe) rateId: number,
     @LoggedUser() user: AuthUser,
   ) {
-    assertModuleWrite(user, APP_MODULE_CODES.CLIENTS);
+    assertModuleWrite(user, APP_MODULE_CODES.DESTINATION_RATES);
     const companyId = await this.tenantContext.resolveInternalIdFromAuthUser(user);
     return this.service.remove(companyId, rateId);
   }

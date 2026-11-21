@@ -13,6 +13,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { DestinationRatePriceInputDto } from './destination-rate-price-input.dto';
+import { RouteWaypointInputDto } from './route-waypoint-input.dto';
 
 export class CreateDestinationRateDto {
   @ApiProperty({ description: 'ID público del centro operativo de origen' })
@@ -84,13 +85,37 @@ export class CreateDestinationRateDto {
   @Min(0)
   estimatedReturnTimeValue?: number | null;
 
-  @ApiPropertyOptional({ enum: ['hours', 'days'] })
-  @IsOptional()
-  @IsIn(['hours', 'days'])
-  estimatedTimeUnit?: 'hours' | 'days' | null;
-
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   notes?: string;
+
+  @ApiPropertyOptional({
+    description: 'Claves INEGI de casetas excluidas en esta ruta (por libre).',
+    type: [String],
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  excludedTollPlazaKeys?: string[];
+
+  @ApiPropertyOptional({
+    description:
+      'Puntos intermedios de la ruta personalizada (orden de recorrido).',
+    type: [RouteWaypointInputDto],
+  })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => RouteWaypointInputDto)
+  routeWaypoints?: RouteWaypointInputDto[];
+
+  @ApiPropertyOptional({
+    description: 'Casetas en ruta para esta tarifa (misma lista que al guardar).',
+    type: 'array',
+    items: { type: 'object' },
+  })
+  @IsOptional()
+  @IsArray()
+  routeTollPlazas?: Record<string, unknown>[];
 }

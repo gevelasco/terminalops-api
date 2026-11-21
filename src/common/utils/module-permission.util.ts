@@ -57,8 +57,22 @@ function grantLevelForModule(
   grants: readonly StaffModuleGrant[] | undefined,
   module: AppModuleCode,
 ): ModuleAccessLevel | null {
-  const row = (grants ?? []).find((grant) => grant.module === module);
-  return row?.level ?? null;
+  const resolved = resolveStaffModuleGrants(grants);
+  return resolved.find((grant) => grant.module === module)?.level ?? null;
+}
+
+function effectiveGrantLevel(
+  grants: readonly StaffModuleGrant[] | undefined,
+  module: AppModuleCode,
+): ModuleAccessLevel | null {
+  const direct = grantLevelForModule(grants, module);
+  if (direct) {
+    return direct;
+  }
+  if (module === APP_MODULE_CODES.DESTINATION_RATES) {
+    return grantLevelForModule(grants, APP_MODULE_CODES.CLIENTS);
+  }
+  return null;
 }
 
 export function canReadModule(
@@ -70,10 +84,7 @@ export function canReadModule(
   if (normalizedRole === 'superadmin' || normalizedRole === 'admin') {
     return resolveAllowedModules(role, moduleCodesFromGrants(grants)).includes(module);
   }
-  if (module === APP_MODULE_CODES.DASHBOARD) {
-    return true;
-  }
-  const level = grantLevelForModule(grants, module);
+  const level = effectiveGrantLevel(grants, module);
   if (level === 'read' || level === 'write') {
     return true;
   }
@@ -89,10 +100,7 @@ export function canWriteModule(
   if (normalizedRole === 'superadmin' || normalizedRole === 'admin') {
     return resolveAllowedModules(role, moduleCodesFromGrants(grants)).includes(module);
   }
-  if (module === APP_MODULE_CODES.DASHBOARD) {
-    return false;
-  }
-  const level = grantLevelForModule(grants, module);
+  const level = effectiveGrantLevel(grants, module);
   if (level === 'write') {
     return true;
   }
@@ -190,8 +198,12 @@ function moduleLabel(module: AppModuleCode): string {
       return 'Flota';
     case APP_MODULE_CODES.OPERATORS:
       return 'Operadores';
+    case APP_MODULE_CODES.DASHBOARD:
+      return 'Dashboard';
     case APP_MODULE_CODES.CLIENTS:
-      return 'Comercial';
+      return 'Clientes';
+    case APP_MODULE_CODES.DESTINATION_RATES:
+      return 'Tarifas';
     case APP_MODULE_CODES.EXPENSES:
       return 'Gastos';
     case APP_MODULE_CODES.REPORTS:

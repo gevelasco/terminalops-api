@@ -38,6 +38,10 @@ export class Client {
   @Column({ type: 'text', nullable: true })
   notes?: string;
 
+  /** Soft delete: inactivo no aparece en catálogo comercial; maniobras conservan `client_id`. */
+  @Column({ name: 'is_active', type: 'boolean', default: true })
+  isActive: boolean;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 

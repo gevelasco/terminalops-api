@@ -33,6 +33,10 @@ export class FleetMaintenanceEntry {
   @Column({ nullable: true })
   notes?: string;
 
+  /** Nombres de archivo en `fleet_documents` / `unit_fleet_documents` (kind maintenance). */
+  @Column({ name: 'document_file_names', type: 'text', array: true, nullable: true })
+  documentFileNames?: string[] | null;
+
   @Column({ name: 'payment_method', type: 'text', nullable: true })
   paymentMethod?: string;
 

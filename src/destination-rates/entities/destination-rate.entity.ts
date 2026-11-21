@@ -110,19 +110,47 @@ export class DestinationRate {
   })
   estimatedReturnTimeValue?: string;
 
-  @Column({
-    name: 'estimated_time_unit',
-    type: 'varchar',
-    length: 5,
-    nullable: true,
-  })
-  estimatedTimeUnit?: 'hours' | 'days';
-
   @Column({ default: true })
   active: boolean;
 
   @Column({ type: 'text', nullable: true })
   notes?: string;
+
+  /** Claves INEGI de casetas que esta tarifa no cruza (por libre). */
+  @Column({
+    name: 'excluded_toll_plaza_keys',
+    type: 'jsonb',
+    default: () => "'[]'",
+  })
+  excludedTollPlazaKeys: string[];
+
+  /** Puntos intermedios de ruta personalizada (orden de recorrido). */
+  @Column({
+    name: 'route_waypoints',
+    type: 'jsonb',
+    default: () => "'[]'",
+  })
+  routeWaypoints: Array<{
+    label: string;
+    lat: number;
+    lon: number;
+    searchLabel?: string;
+  }>;
+
+  /** Casetas en ruta para esta tarifa (lista guardada al persistir). */
+  @Column({
+    name: 'route_toll_plazas',
+    type: 'jsonb',
+    default: () => "'[]'",
+  })
+  routeTollPlazas: Array<{
+    order: number;
+    plazaKey: string;
+    plazaKeySource?: 'inegi' | 'fallback';
+    inegiPoint?: string;
+    name: string;
+    costMxn: number | null;
+  }>;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;

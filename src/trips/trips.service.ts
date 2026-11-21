@@ -895,6 +895,7 @@ export class TripsService {
         'tripAutoTollsPaymentMethod',
         'tripAutoPerDiemPaymentMethod',
         'tripAutoControlPaymentMethod',
+        'tripAutoOperationalControlLabel',
       ],
     });
 
@@ -928,6 +929,7 @@ export class TripsService {
               tollsPaymentMethod: company?.tripAutoTollsPaymentMethod,
               perDiemPaymentMethod: company?.tripAutoPerDiemPaymentMethod,
               controlPaymentMethod: company?.tripAutoControlPaymentMethod,
+              operationalControlLabel: company?.tripAutoOperationalControlLabel,
             },
             em,
           );

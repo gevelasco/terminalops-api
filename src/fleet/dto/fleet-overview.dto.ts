@@ -31,6 +31,7 @@ export class FleetOverviewHitchedEquipmentDto {
   operationalCode: string;
   /** Nombre o alias interno (campo `name` en alta). */
   alias?: string;
+  serialNumber?: string;
   equipmentType: string;
   hitchPosition?: 'lead' | 'rear';
   status: FleetOverviewAssetStatus;
@@ -80,6 +81,7 @@ export class FleetOverviewItemDto {
   /** Nombre o alias interno de la unidad (campo `name` en alta). */
   unitAlias?: string;
   unitPlate: string;
+  unitSerialNumber?: string;
   /** Tipo de transporte de la unidad (tractocamion, rabon_plataforma, …). */
   unitTransportType?: string;
   equipment: FleetOverviewEquipmentDto;
@@ -99,6 +101,7 @@ export class FleetOverviewEquipmentRowDto {
   operationalCode: string;
   /** Nombre o alias interno (campo `name` en alta). */
   alias?: string;
+  serialNumber?: string;
   brand: string;
   model: string;
   plate: string;

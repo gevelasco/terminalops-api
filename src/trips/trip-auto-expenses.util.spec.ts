@@ -55,6 +55,23 @@ describe('trip-auto-expenses.util', () => {
     );
   });
 
+  it('buildTripAutoExpenses uses custom operational control label', () => {
+    const drafts = buildTripAutoExpenses(
+      tripStub({
+        dieselAmount: '0',
+        casetasAmount: '0',
+        operatorQuota: '0',
+        clientCharge: '10000',
+        unitId: 1,
+      }),
+      { operationalControlLabel: 'Depreciación' },
+    );
+
+    expect(drafts).toHaveLength(1);
+    expect(drafts[0]?.category).toBe('Depreciación');
+    expect(drafts[0]?.description).toBe('Depreciación 5% — maniobra ACME-001');
+  });
+
   it('buildTripAutoExpenses uses configurable maintenance provision percent', () => {
     const drafts = buildTripAutoExpenses(
       tripStub({

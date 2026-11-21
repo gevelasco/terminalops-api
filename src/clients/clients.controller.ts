@@ -72,7 +72,7 @@ export class ClientsController {
   ) {
     assertModuleWrite(user, APP_MODULE_CODES.CLIENTS);
     const companyId = await this.tenantContext.resolveInternalIdFromAuthUser(user);
-    return this.clientsService.remove(companyId, clientId);
+    return this.clientsService.remove(companyId, clientId, user);
   }
 
   @Post(':clientId/documents')

@@ -4,6 +4,7 @@ export const APP_MODULE_CODES = {
   FLEET: 'fleet',
   OPERATORS: 'operators',
   CLIENTS: 'clients',
+  DESTINATION_RATES: 'destination_rates',
   EXPENSES: 'expenses',
   REPORTS: 'reports',
   ACCOUNT: 'account',
@@ -14,10 +15,12 @@ export type AppModuleCode =
   (typeof APP_MODULE_CODES)[keyof typeof APP_MODULE_CODES];
 
 export const STAFF_GRANTABLE_MODULE_CODES = [
+  APP_MODULE_CODES.DASHBOARD,
   APP_MODULE_CODES.TRIPS,
   APP_MODULE_CODES.FLEET,
   APP_MODULE_CODES.OPERATORS,
   APP_MODULE_CODES.CLIENTS,
+  APP_MODULE_CODES.DESTINATION_RATES,
   APP_MODULE_CODES.EXPENSES,
   APP_MODULE_CODES.REPORTS,
 ] as const satisfies readonly AppModuleCode[];
@@ -27,10 +30,12 @@ export type StaffGrantableModuleCode =
 
 /** Módulos con permisos Lectura / Escritura por separado. */
 export const STAFF_RBAC_MODULE_CODES = [
+  APP_MODULE_CODES.DASHBOARD,
   APP_MODULE_CODES.TRIPS,
   APP_MODULE_CODES.FLEET,
   APP_MODULE_CODES.OPERATORS,
   APP_MODULE_CODES.CLIENTS,
+  APP_MODULE_CODES.DESTINATION_RATES,
   APP_MODULE_CODES.EXPENSES,
   APP_MODULE_CODES.REPORTS,
 ] as const satisfies readonly StaffGrantableModuleCode[];

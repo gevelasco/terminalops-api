@@ -16,7 +16,8 @@ export type ManiobraRalentiTripInput = {
   returnAt: Date | string | null;
   estimatedArrivalTimeValue: string | number | null;
   estimatedReturnTimeValue: string | number | null;
-  estimatedTimeUnit: string | null;
+  /** Legacy: `days` en filas migradas; nuevas tarifas usan solo horas. */
+  estimatedTimeUnit?: string | null;
 };
 
 export type ManiobraRalentiEvent = {
@@ -92,10 +93,8 @@ export function rateEstimatedHours(
   if (normalized === 'days') {
     return amount * 24;
   }
-  if (normalized === 'hours') {
-    return amount;
-  }
-  return null;
+  // `hours` o sin unidad (valores guardados solo en horas).
+  return amount;
 }
 
 function roundHours(value: number): number {
@@ -168,11 +167,11 @@ export function buildManiobraRalentiReport(
 
     const rateOutbound = rateEstimatedHours(
       trip.estimatedArrivalTimeValue,
-      trip.estimatedTimeUnit,
+      trip.estimatedTimeUnit ?? 'hours',
     );
     const rateReturn = rateEstimatedHours(
       trip.estimatedReturnTimeValue,
-      trip.estimatedTimeUnit,
+      trip.estimatedTimeUnit ?? 'hours',
     );
 
     let evaluated = false;

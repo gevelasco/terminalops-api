@@ -12,7 +12,7 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { TenantContextService } from '../common/tenant/tenant-context.service';
 import { APP_MODULE_CODES } from '../common/constants/app-modules';
 import {
-  assertModuleRead,
+  assertModuleReadAny,
   assertModuleWrite,
 } from '../common/utils/module-permission.util';
 import { LoggedUser } from '../decorators/logged-user.decorator';
@@ -37,7 +37,11 @@ export class OperationConfigurationsController {
     @Param('configId', ParseIntPipe) configId: number,
     @LoggedUser() user: AuthUser,
   ) {
-    assertModuleRead(user, APP_MODULE_CODES.CLIENTS);
+    assertModuleReadAny(user, [
+      APP_MODULE_CODES.DESTINATION_RATES,
+      APP_MODULE_CODES.CLIENTS,
+      APP_MODULE_CODES.TRIPS,
+    ]);
     const companyId = await this.tenantContext.resolveInternalIdFromAuthUser(user);
     return this.service.findOne(companyId, configId);
   }
@@ -48,7 +52,7 @@ export class OperationConfigurationsController {
     @Body() dto: UpdateOperationConfigurationDto,
     @LoggedUser() user: AuthUser,
   ) {
-    assertModuleWrite(user, APP_MODULE_CODES.CLIENTS);
+    assertModuleWrite(user, APP_MODULE_CODES.DESTINATION_RATES);
     const companyId = await this.tenantContext.resolveInternalIdFromAuthUser(user);
     return this.service.update(companyId, configId, dto);
   }
@@ -58,7 +62,7 @@ export class OperationConfigurationsController {
     @Param('configId', ParseIntPipe) configId: number,
     @LoggedUser() user: AuthUser,
   ) {
-    assertModuleWrite(user, APP_MODULE_CODES.CLIENTS);
+    assertModuleWrite(user, APP_MODULE_CODES.DESTINATION_RATES);
     const companyId = await this.tenantContext.resolveInternalIdFromAuthUser(user);
     return this.service.remove(companyId, configId);
   }

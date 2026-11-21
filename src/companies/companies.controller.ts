@@ -161,13 +161,14 @@ export class CompaniesController {
 
   @Patch(':companyId/settings/diesel-reference-price')
   @ApiOperation({
-    summary: 'Precio de referencia de diésel de la empresa (solo admin)',
+    summary: 'Precio de referencia de diésel (permiso escritura Dashboard)',
   })
   async updateDieselReferencePrice(
     @Param('companyId', ParseIntPipe) companyId: number,
     @Body() dto: UpdateCompanyDieselReferencePriceDto,
     @LoggedUser() user: AuthUser,
   ) {
+    assertModuleWrite(user, APP_MODULE_CODES.DASHBOARD);
     const company = await this.companiesService.updateDieselReferencePrice(
       user,
       companyId,
@@ -562,7 +563,11 @@ export class CompaniesController {
     @Param('companyId', ParseIntPipe) companyId: number,
     @LoggedUser() user: AuthUser,
   ) {
-    assertModuleRead(user, APP_MODULE_CODES.CLIENTS);
+    assertModuleReadAny(user, [
+      APP_MODULE_CODES.DESTINATION_RATES,
+      APP_MODULE_CODES.CLIENTS,
+      APP_MODULE_CODES.TRIPS,
+    ]);
     const tenantId = await this.companiesService.assertAccessAndResolve(
       user,
       companyId,
@@ -576,7 +581,7 @@ export class CompaniesController {
     @Body() dto: CreateOperationConfigurationDto,
     @LoggedUser() user: AuthUser,
   ) {
-    assertModuleWrite(user, APP_MODULE_CODES.CLIENTS);
+    assertModuleWrite(user, APP_MODULE_CODES.DESTINATION_RATES);
     const tenantId = await this.companiesService.assertAccessAndResolve(
       user,
       companyId,
@@ -613,7 +618,7 @@ export class CompaniesController {
     @Query() query: CheckDestinationRateRouteQueryDto,
     @LoggedUser() user: AuthUser,
   ) {
-    assertModuleRead(user, APP_MODULE_CODES.CLIENTS);
+    assertModuleRead(user, APP_MODULE_CODES.DESTINATION_RATES);
     const tenantId = await this.companiesService.assertAccessAndResolve(
       user,
       companyId,
@@ -630,7 +635,11 @@ export class CompaniesController {
     @Query() query: MatchDestinationRateQueryDto,
     @LoggedUser() user: AuthUser,
   ) {
-    assertModuleReadAny(user, [APP_MODULE_CODES.CLIENTS, APP_MODULE_CODES.TRIPS]);
+    assertModuleReadAny(user, [
+      APP_MODULE_CODES.DESTINATION_RATES,
+      APP_MODULE_CODES.CLIENTS,
+      APP_MODULE_CODES.TRIPS,
+    ]);
     const tenantId = await this.companiesService.assertAccessAndResolve(
       user,
       companyId,
@@ -647,7 +656,7 @@ export class CompaniesController {
     @Param('companyId', ParseIntPipe) companyId: number,
     @LoggedUser() user: AuthUser,
   ) {
-    assertModuleRead(user, APP_MODULE_CODES.CLIENTS);
+    assertModuleRead(user, APP_MODULE_CODES.DESTINATION_RATES);
     const tenantId = await this.companiesService.assertAccessAndResolve(
       user,
       companyId,
@@ -661,7 +670,7 @@ export class CompaniesController {
     @Body() dto: CreateDestinationRateDto,
     @LoggedUser() user: AuthUser,
   ) {
-    assertModuleWrite(user, APP_MODULE_CODES.CLIENTS);
+    assertModuleWrite(user, APP_MODULE_CODES.DESTINATION_RATES);
     const tenantId = await this.companiesService.assertAccessAndResolve(
       user,
       companyId,

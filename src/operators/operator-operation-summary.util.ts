@@ -10,10 +10,12 @@ import {
   buildOperatorPaymentRows,
   summarizeOperatorPaymentRows,
 } from './operator-payment-rows.util';
+import type { DestinationRate } from 'src/destination-rates/entities/destination-rate.entity';
 import type {
   OperatorActiveAssignmentDto,
   OperatorOperationSummaryDto,
 } from './dto/operator-operation-summary.dto';
+import { computeOperatorWorkedHoursFromTrips } from './operator-worked-hours.util';
 
 type TripLike = Pick<
   Trip,
@@ -38,6 +40,8 @@ type TripLike = Pick<
   | 'completedAt'
   | 'creditDays'
   | 'routeDistanceKm'
+  | 'destinationRateId'
+  | 'hasIncident'
   | 'tripEquipment'
   | 'unit'
 >;
@@ -139,37 +143,6 @@ function isTripWithinRecentDays(
   return activityYmd >= fromYmd && activityYmd <= asOfYmd;
 }
 
-function countTripsByStatus(
-  trips: readonly TripLike[],
-): OperatorOperationSummaryDto['statusCounts'] {
-  const statusCounts = {
-    completed: 0,
-    inTransit: 0,
-    scheduled: 0,
-    cancelled: 0,
-    total: trips.length,
-  };
-  for (const t of trips) {
-    switch (t.status) {
-      case 'completed':
-        statusCounts.completed += 1;
-        break;
-      case 'in_transit':
-        statusCounts.inTransit += 1;
-        break;
-      case 'scheduled':
-        statusCounts.scheduled += 1;
-        break;
-      case 'cancelled':
-        statusCounts.cancelled += 1;
-        break;
-      default:
-        break;
-    }
-  }
-  return statusCounts;
-}
-
 function buildActiveAssignment(
   trips: readonly TripLike[],
   unitsById: ReadonlyMap<number, Unit>,
@@ -194,6 +167,10 @@ export function buildOperatorOperationSummary(
   trips: readonly TripLike[],
   expenses: readonly Expense[],
   unitsById: ReadonlyMap<number, Unit>,
+  ratesById: ReadonlyMap<
+    number,
+    Pick<DestinationRate, 'estimatedArrivalTimeValue' | 'estimatedReturnTimeValue'>
+  >,
   asOf: Date = new Date(),
   periodFrom?: string,
   periodTo?: string,
@@ -210,13 +187,19 @@ export function buildOperatorOperationSummary(
         isTripWithinRecentDays(trip, asOfYmd, OPERATOR_SUMMARY_RECENT_DAYS),
       );
 
-  const statusCounts = countTripsByStatus(scopedTrips);
+  const completedInPeriod = scopedTrips.filter((t) => t.status === 'completed');
+  const { workedHours, workedDays } = computeOperatorWorkedHoursFromTrips(
+    completedInPeriod,
+    ratesById,
+  );
 
   const completedKm = Math.round(
-    scopedTrips
-      .filter((t) => t.status === 'completed')
-      .reduce((sum, t) => sum + tripKm(t), 0),
+    completedInPeriod.reduce((sum, t) => sum + tripKm(t), 0),
   );
+
+  const incidentManeuverCount = scopedTrips.filter(
+    (t) => t.hasIncident === true,
+  ).length;
 
   const paymentSections = buildOperatorPaymentRows(
     trips,
@@ -229,8 +212,11 @@ export function buildOperatorOperationSummary(
 
   return {
     hasTrips: trips.length > 0,
-    statusCounts,
+    periodManeuverTotal: scopedTrips.length,
     completedKm,
+    workedHours,
+    workedDays,
+    incidentManeuverCount,
     activeAssignment: buildActiveAssignment(trips, unitsById),
     owedTripCount: paymentSummary.owedTripCount,
     owedAmount: paymentSummary.owedAmount,

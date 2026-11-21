@@ -41,6 +41,13 @@ import {
   loadLatestVerificationByOwnerIds,
 } from './fleet-latest-entries.loader';
 
+function optionalFleetSerial(
+  value: string | null | undefined,
+): string | undefined {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : undefined;
+}
+
 export type FleetOverviewListOptions = {
   /**
    * Reportes: solo unidades. No carga equipos ni el detalle de la maniobra
@@ -356,6 +363,7 @@ export class FleetOverviewService {
         unitName: buildUnitOperationalId(unit),
         unitAlias: unit.name?.trim() || undefined,
         unitPlate: unit.plate?.trim() || '',
+        unitSerialNumber: optionalFleetSerial(unit.serialNumber),
         unitTransportType: unit.transportType?.trim() || undefined,
         equipment: {
           equipmentId: primaryEq?.id ?? null,
@@ -368,6 +376,7 @@ export class FleetOverviewService {
           equipmentId: eq.id,
           operationalCode: buildEquipmentOperationalCode(eq),
           alias: eq.name?.trim() || undefined,
+          serialNumber: optionalFleetSerial(eq.serialNumber),
           equipmentType: (eq.type ?? '').trim() || '—',
           hitchPosition:
             eq.hitchPosition === 'lead' || eq.hitchPosition === 'rear'
@@ -513,6 +522,7 @@ export class FleetOverviewService {
             unitName: unit ? buildUnitOperationalId(unit) : null,
             operationalCode: buildEquipmentOperationalCode(eq),
             alias: eq.name?.trim() || undefined,
+            serialNumber: optionalFleetSerial(eq.serialNumber),
             brand,
             model: modelParts.length ? modelParts.join(' · ') : '—',
             plate: eq.plate?.trim() || '—',
@@ -675,6 +685,7 @@ export class FleetOverviewService {
         unitName: buildUnitOperationalId(unit),
         unitAlias: unit.name?.trim() || undefined,
         unitPlate: unit.plate?.trim() || '',
+        unitSerialNumber: optionalFleetSerial(unit.serialNumber),
         unitTransportType: unit.transportType?.trim() || undefined,
         equipment: {
           equipmentId: primaryEq?.id ?? null,
@@ -687,6 +698,7 @@ export class FleetOverviewService {
           equipmentId: eq.id,
           operationalCode: buildEquipmentOperationalCode(eq),
           alias: eq.name?.trim() || undefined,
+          serialNumber: optionalFleetSerial(eq.serialNumber),
           equipmentType: (eq.type ?? '').trim() || '—',
           hitchPosition:
             eq.hitchPosition === 'lead' || eq.hitchPosition === 'rear'
@@ -754,6 +766,7 @@ export class FleetOverviewService {
         unitName: unit ? buildUnitOperationalId(unit) : null,
         operationalCode: buildEquipmentOperationalCode(eq),
         alias: eq.name?.trim() || undefined,
+        serialNumber: optionalFleetSerial(eq.serialNumber),
         brand: eq.trailerBrandAbbr?.trim() || '—',
         model: eq.trailerYear?.trim() || '—',
         plate: eq.plate?.trim() || '—',

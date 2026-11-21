@@ -1,4 +1,5 @@
 import {
+  buildClientBalancePeriodSummary,
   buildClientBalanceSummary,
   deriveClientCommercialHealthFromSummary,
   toBalanceOverviewItem,
@@ -61,6 +62,36 @@ describe('client-balance.util', () => {
     expect(item.summary.upcomingPayments.length).toBe(1);
     expect(item.summary).not.toHaveProperty('paymentHistory');
     expect(item.summary).not.toHaveProperty('totalKm');
+  });
+
+  it('volumen del periodo suma totales (sin promedio mensual)', () => {
+    const trips: ClientBalanceTripRow[] = [
+      trip({
+        id: '1',
+        clientId: '7',
+        clientCharge: '51000',
+        createdAt: '2026-01-15T00:00:00.000Z',
+      }),
+      trip({
+        id: '2',
+        clientId: '7',
+        clientCharge: '55000',
+        createdAt: '2026-03-15T00:00:00.000Z',
+        dieselAmount: '2000',
+      }),
+    ];
+    const period = buildClientBalancePeriodSummary(
+      '7',
+      trips,
+      [],
+      '2026-01-01',
+      '2026-12-31',
+    );
+    expect(period.volumeBilledPerMonth).toBe(106_000);
+    expect(period.volumeOperationalPerMonth).toBe(3000);
+    expect(period.volumeProfitPerMonth).toBe(103_000);
+    expect(period.volumeMonthsWindow).toBe(0);
+    expect(period.volumeBillableCount).toBe(2);
   });
 
   it('usa gastos de ledger cuando cubren rubros programados', () => {

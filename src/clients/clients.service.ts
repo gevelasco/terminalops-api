@@ -76,6 +76,7 @@ export class ClientsService {
       rfc: dto.rfc,
       relationshipStartedOn: dto.relationshipStartedOn,
       notes: dto.notes,
+      isActive: true,
     });
     const saved = await this.clientsRepo.save(client);
     await this.saveNested(companyId, saved.id, dto);
@@ -98,7 +99,9 @@ export class ClientsService {
     const limit = normalizeResourceListLimit(options?.limit);
     const page = normalizeResourceListPage(options?.page);
 
-    const total = await this.clientsRepo.count({ where: { companyId } });
+    const total = await this.clientsRepo.count({
+      where: { companyId, isActive: true },
+    });
 
     const qb = this.clientsRepo
       .createQueryBuilder('client')
@@ -108,6 +111,7 @@ export class ClientsService {
       .leftJoinAndSelect('client.contacts', 'contacts')
       .leftJoinAndSelect('client.documents', 'documents')
       .where('client.companyId = :companyId', { companyId })
+      .andWhere('client.isActive = :isActive', { isActive: true })
       .orderBy('client.name', 'ASC')
       .addOrderBy('deliveries.sortOrder', 'ASC')
       .addOrderBy('deliveries.id', 'ASC')
@@ -133,6 +137,7 @@ export class ClientsService {
       .select('client.id', 'id')
       .addSelect('client.name', 'name')
       .where('client.companyId = :companyId', { companyId })
+      .andWhere('client.is_active = TRUE')
       .orderBy('client.name', 'ASC')
       .getRawMany<{ id: string; name: string }>();
 
@@ -192,9 +197,31 @@ export class ClientsService {
     return this.findOne(companyId, clientId);
   }
 
-  async remove(companyId: number, clientId: number) {
-    await this.findOne(companyId, clientId);
-    await this.clientsRepo.delete({ id: clientId, companyId });
+  /** Baja lógica irreversible en producto: no hay PATCH a `isActive: true`. */
+  async remove(companyId: number, clientId: number, actor?: AuthUser) {
+    const row = await this.clientsRepo.findOne({
+      where: { companyId, id: clientId },
+      select: ['id', 'isActive', 'name'],
+    });
+    if (!row) {
+      throw new NotFoundException(`Client ${clientId} not found`);
+    }
+    if (row.isActive === false) {
+      return { id: clientId, deleted: true };
+    }
+    await this.clientsRepo.update(
+      { id: clientId, companyId },
+      { isActive: false },
+    );
+    await this.activityEvents.record({
+      companyId,
+      kind: COMPANY_ACTIVITY_KIND.CLIENT_UPDATED,
+      entityType: 'client',
+      entityId: clientId,
+      subjectLabel: row.name?.trim() || `Cliente #${clientId}`,
+      title: 'Cliente dado de baja (inactivo en comercial)',
+      actor,
+    });
     return { id: clientId, deleted: true };
   }
 

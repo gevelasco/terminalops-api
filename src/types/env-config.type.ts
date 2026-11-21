@@ -43,6 +43,8 @@ type EnvConfig = {
   EMAIL_FROM?: string;
   /** URL pública del FE para links de correo (fallback: primer ORIGIN). */
   APP_URL?: string;
+  /** Token SAKBÉ — API de Ruteo INEGI (casetas). */
+  INEGI_SAKBE_KEY?: string;
 };
 
 export default EnvConfig;

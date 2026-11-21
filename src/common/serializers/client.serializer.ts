@@ -9,6 +9,7 @@ export function serializeClient(client: Client): Record<string, unknown> {
   return {
     id: client.id,
     companyId: client.companyId,
+    isActive: client.isActive !== false,
     name: client.name,
     rfc: client.rfc ?? undefined,
     relationshipStartedOn: client.relationshipStartedOn ?? undefined,

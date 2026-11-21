@@ -67,6 +67,15 @@ export class Company {
   @Column({ name: 'trip_auto_control_payment_method', default: 'cash' })
   tripAutoControlPaymentMethod: string;
 
+  /** Etiqueta del gasto automático % cobro (kind operational_control); null = Control operativo. */
+  @Column({
+    name: 'trip_auto_operational_control_label',
+    type: 'varchar',
+    length: 80,
+    nullable: true,
+  })
+  tripAutoOperationalControlLabel?: string | null;
+
   @Column({ name: 'maintenance_km_control_enabled', default: false })
   maintenanceKmControlEnabled: boolean;
 
@@ -112,6 +121,20 @@ export class Company {
   /** Días de anticipación para avisos de pagos programados (1–15). */
   @Column({ name: 'payment_reminder_days_before', type: 'int', default: 5 })
   paymentReminderDaysBefore: number;
+
+  @Column({
+    name: 'payment_reminder_days_changed_at',
+    type: 'timestamptz',
+    nullable: true,
+  })
+  paymentReminderDaysChangedAt?: Date;
+
+  @Column({
+    name: 'trip_auto_payments_changed_at',
+    type: 'timestamptz',
+    nullable: true,
+  })
+  tripAutoPaymentsChangedAt?: Date;
 
   @Column({
     name: 'diesel_reference_price_per_liter',

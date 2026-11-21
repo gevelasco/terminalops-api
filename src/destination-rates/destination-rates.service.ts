@@ -7,9 +7,12 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import {
+  normalizeExcludedTollPlazaKeys,
   serializeDestinationRate,
   serializeDestinationRateSummary,
 } from 'src/common/serializers/destination-rate.serializer';
+import { normalizeRouteTollPlazas } from 'src/common/utils/route-toll-plazas.util';
+import { normalizeRouteWaypoints } from 'src/common/utils/route-waypoints.util';
 import { parseOptionalNumericId } from 'src/common/utils/tenant.util';
 import { OperationalCentersService } from 'src/operational-centers/operational-centers.service';
 import { OperationConfigurationsService } from 'src/operation-configurations/operation-configurations.service';
@@ -87,6 +90,11 @@ export class DestinationRatesService {
         ...estimatedTimeFields,
         active: dto.active ?? true,
         notes: dto.notes?.trim() || undefined,
+        excludedTollPlazaKeys: normalizeExcludedTollPlazaKeys(
+          dto.excludedTollPlazaKeys ?? [],
+        ),
+        routeWaypoints: normalizeRouteWaypoints(dto.routeWaypoints ?? []),
+        routeTollPlazas: normalizeRouteTollPlazas(dto.routeTollPlazas ?? []),
         prices: priceRows,
       }),
     );
@@ -495,6 +503,17 @@ export class DestinationRatesService {
         ...(dto.notes !== undefined && {
           notes: dto.notes.trim() || undefined,
         }),
+        ...(dto.excludedTollPlazaKeys !== undefined && {
+          excludedTollPlazaKeys: normalizeExcludedTollPlazaKeys(
+            dto.excludedTollPlazaKeys,
+          ),
+        }),
+        ...(dto.routeWaypoints !== undefined && {
+          routeWaypoints: normalizeRouteWaypoints(dto.routeWaypoints),
+        }),
+        ...(dto.routeTollPlazas !== undefined && {
+          routeTollPlazas: normalizeRouteTollPlazas(dto.routeTollPlazas),
+        }),
         ...(dto.destinationLatitude !== undefined && {
           destinationLatitude: String(dto.destinationLatitude),
         }),
@@ -552,68 +571,57 @@ export class DestinationRatesService {
   private resolveEstimatedTimeFieldsForPersist(
     dto: Pick<
       CreateDestinationRateDto,
-      | 'estimatedArrivalTimeValue'
-      | 'estimatedReturnTimeValue'
-      | 'estimatedTimeUnit'
+      'estimatedArrivalTimeValue' | 'estimatedReturnTimeValue'
     >,
   ):
     | {
         estimatedArrivalTimeValue: string;
         estimatedReturnTimeValue: string;
-        estimatedTimeUnit: 'hours' | 'days';
       }
     | Record<string, never> {
     const hasAny =
       dto.estimatedArrivalTimeValue != null ||
-      dto.estimatedReturnTimeValue != null ||
-      dto.estimatedTimeUnit != null;
+      dto.estimatedReturnTimeValue != null;
     if (!hasAny) {
       return {};
     }
     const arrival = dto.estimatedArrivalTimeValue;
     const returnValue = dto.estimatedReturnTimeValue;
-    const unit = dto.estimatedTimeUnit;
     if (
       arrival == null ||
       returnValue == null ||
-      !unit ||
       arrival <= 0 ||
       returnValue <= 0
     ) {
       throw new BadRequestException(
-        'Los tiempos estimados requieren valor de ida, retorno y unidad (hours o days).',
+        'Los tiempos de manejo requieren ida y retorno en horas (mayor a 0).',
       );
     }
     return {
       estimatedArrivalTimeValue: String(arrival),
       estimatedReturnTimeValue: String(returnValue),
-      estimatedTimeUnit: unit,
     };
   }
 
   private resolveEstimatedTimeFieldsForUpdate(
     dto: UpdateDestinationRateDto,
-  ): Record<string, string | 'hours' | 'days' | null | undefined> {
+  ): Record<string, string | null | undefined> {
     const touched =
       dto.estimatedArrivalTimeValue !== undefined ||
-      dto.estimatedReturnTimeValue !== undefined ||
-      dto.estimatedTimeUnit !== undefined;
+      dto.estimatedReturnTimeValue !== undefined;
     if (!touched) {
       return {};
     }
     const hasAny =
       dto.estimatedArrivalTimeValue != null ||
-      dto.estimatedReturnTimeValue != null ||
-      dto.estimatedTimeUnit != null;
+      dto.estimatedReturnTimeValue != null;
     if (!hasAny) {
       return {
         estimatedArrivalTimeValue: null,
         estimatedReturnTimeValue: null,
-        estimatedTimeUnit: null,
       };
     }
-    const resolved = this.resolveEstimatedTimeFieldsForPersist(dto);
-    return resolved;
+    return this.resolveEstimatedTimeFieldsForPersist(dto);
   }
 
   private resolveDistanceFieldsForPersist(
@@ -644,6 +652,10 @@ export class DestinationRatesService {
           clientCharge: String(input.clientCharge),
           operatorPaymentEstimate: String(input.operatorPaymentEstimate),
           estimatedTollAmount: String(input.estimatedTollAmount ?? 0),
+          axleCount:
+            input.axleCount != null && input.axleCount >= 2
+              ? Math.round(input.axleCount)
+              : undefined,
           perDiemAmount: String(input.perDiemAmount ?? 0),
           notes: input.notes?.trim() || undefined,
         }),

@@ -307,6 +307,8 @@ export class UsersService {
         user.company?.tripAutoPerDiemPaymentMethod ?? 'cash',
       tripAutoControlPaymentMethod:
         user.company?.tripAutoControlPaymentMethod ?? 'cash',
+      tripAutoOperationalControlLabel:
+        user.company?.tripAutoOperationalControlLabel?.trim() || null,
       maintenanceKmControlEnabled:
         user.company?.maintenanceKmControlEnabled ?? false,
       maintenanceKmIntervalDefault: (() => {
@@ -337,6 +339,10 @@ export class UsersService {
         }
         return Math.min(15, Math.max(1, Math.round(n)));
       })(),
+      paymentReminderDaysChangedAt: toIsoString(
+        user.company?.paymentReminderDaysChangedAt,
+      ),
+      tripAutoPaymentsChangedAt: toIsoString(user.company?.tripAutoPaymentsChangedAt),
       ...(() => {
         const primary = user.company?.primaryOperationalCenter;
         const geo = operationalCenterGeoForApi(primary);

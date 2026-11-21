@@ -18,6 +18,7 @@ import { InvitationCodesService } from '../invitation-codes/invitation-codes.ser
 import type { CreateCompanyInput } from './dto/create-company.dto';
 import { UpdateCompanyOperationalSettingsDto } from './dto/update-company-operational-settings.dto';
 import { normalizeExpensePaymentMethod } from 'src/expenses/expense-payment-method.util';
+import { normalizeOperationalControlExpenseLabelInput } from 'src/trips/operational-control-expense-label.util';
 import {
   assertDieselAutomaticAllowed,
   assertMaintenancePolicyAllowed,
@@ -85,6 +86,8 @@ export class CompaniesService {
         dieselControlEnabled: false,
         dieselControlChangedAt: now,
         paymentReminderDaysBefore: 5,
+        paymentReminderDaysChangedAt: now,
+        tripAutoPaymentsChangedAt: now,
       }),
     );
     await this.operationalCenters.ensureDefaultCenterForCompany(company.id);
@@ -148,6 +151,9 @@ export class CompaniesService {
     }
     const company = await this.findOne(companyId);
     assertCompanyAccess(user, companyId);
+    const bumpTripAutoPaymentsChangedAt = (): void => {
+      company.tripAutoPaymentsChangedAt = new Date();
+    };
     if (dto.operationalAnalysisEnabled !== undefined) {
       company.operationalAnalysisEnabled = dto.operationalAnalysisEnabled;
       company.operationalAnalysisChangedAt = new Date();
@@ -158,24 +164,36 @@ export class CompaniesService {
       );
     }
     if (dto.tripAutoFuelPaymentMethod !== undefined) {
-      company.tripAutoFuelPaymentMethod = normalizeExpensePaymentMethod(
-        dto.tripAutoFuelPaymentMethod,
-      );
+      const next = normalizeExpensePaymentMethod(dto.tripAutoFuelPaymentMethod);
+      if (company.tripAutoFuelPaymentMethod !== next) {
+        bumpTripAutoPaymentsChangedAt();
+      }
+      company.tripAutoFuelPaymentMethod = next;
     }
     if (dto.tripAutoTollsPaymentMethod !== undefined) {
-      company.tripAutoTollsPaymentMethod = normalizeExpensePaymentMethod(
-        dto.tripAutoTollsPaymentMethod,
-      );
+      const next = normalizeExpensePaymentMethod(dto.tripAutoTollsPaymentMethod);
+      if (company.tripAutoTollsPaymentMethod !== next) {
+        bumpTripAutoPaymentsChangedAt();
+      }
+      company.tripAutoTollsPaymentMethod = next;
     }
     if (dto.tripAutoPerDiemPaymentMethod !== undefined) {
-      company.tripAutoPerDiemPaymentMethod = normalizeExpensePaymentMethod(
-        dto.tripAutoPerDiemPaymentMethod,
-      );
+      const next = normalizeExpensePaymentMethod(dto.tripAutoPerDiemPaymentMethod);
+      if (company.tripAutoPerDiemPaymentMethod !== next) {
+        bumpTripAutoPaymentsChangedAt();
+      }
+      company.tripAutoPerDiemPaymentMethod = next;
     }
     if (dto.tripAutoControlPaymentMethod !== undefined) {
       company.tripAutoControlPaymentMethod = normalizeExpensePaymentMethod(
         dto.tripAutoControlPaymentMethod,
       );
+    }
+    if (dto.tripAutoOperationalControlLabel !== undefined) {
+      company.tripAutoOperationalControlLabel =
+        normalizeOperationalControlExpenseLabelInput(
+          dto.tripAutoOperationalControlLabel,
+        );
     }
     if (dto.dieselControlEnabled !== undefined) {
       if (dto.dieselControlEnabled) {
@@ -187,10 +205,11 @@ export class CompaniesService {
       company.dieselControlEnabled = dto.dieselControlEnabled;
     }
     if (dto.paymentReminderDaysBefore !== undefined) {
-      company.paymentReminderDaysBefore = Math.min(
-        15,
-        Math.max(1, Math.round(dto.paymentReminderDaysBefore)),
-      );
+      const next = Math.min(15, Math.max(1, Math.round(dto.paymentReminderDaysBefore)));
+      if (company.paymentReminderDaysBefore !== next) {
+        company.paymentReminderDaysChangedAt = new Date();
+      }
+      company.paymentReminderDaysBefore = next;
     }
     if (dto.maintenanceKmControlEnabled !== undefined) {
       if (dto.maintenanceKmControlEnabled) {
@@ -256,11 +275,6 @@ export class CompaniesService {
     companyId: number,
     pricePerLiter: number,
   ): Promise<Company> {
-    if (user.role !== 'admin' && user.role !== 'superadmin') {
-      throw new ForbiddenException(
-        'Solo administradores pueden actualizar el precio de referencia de diésel',
-      );
-    }
     const company = await this.findOne(companyId);
     assertCompanyAccess(user, companyId);
     if (!company.dieselControlEnabled) {

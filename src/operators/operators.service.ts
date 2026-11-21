@@ -8,6 +8,7 @@ import { In, IsNull, Repository, type SelectQueryBuilder } from 'typeorm';
 import { FileService } from 'src/common/file/file.service';
 import { serializeOperator } from 'src/common/serializers/operator.serializer';
 import { TERMINALOPS_SCHEMA } from 'src/common/constants/schema-name';
+import { DestinationRate } from 'src/destination-rates/entities/destination-rate.entity';
 import { Expense } from 'src/expenses/entities/expense.entity';
 import { Trip } from 'src/trips/entities/trip.entity';
 import { Unit } from 'src/units/entities/unit.entity';
@@ -111,6 +112,8 @@ export class OperatorsService {
     private readonly expenseRepo: Repository<Expense>,
     @InjectRepository(Unit)
     private readonly unitRepo: Repository<Unit>,
+    @InjectRepository(DestinationRate)
+    private readonly destinationRateRepo: Repository<DestinationRate>,
     private readonly fileService: FileService,
     private readonly activityEvents: ActivityEventsService,
     private readonly hrHoldWorkflow: OperatorHrHoldWorkflowService,
@@ -342,10 +345,28 @@ export class OperatorsService {
         : Promise.resolve([] as Unit[]),
     ]);
     const unitsById = new Map(units.map((u) => [u.id, u] as const));
+    const rateIds = [
+      ...new Set(
+        trips
+          .map((t) => t.destinationRateId)
+          .filter((id): id is number => id != null && id > 0),
+      ),
+    ];
+    const destinationRates =
+      rateIds.length > 0
+        ? await this.destinationRateRepo.find({
+            where: { companyId, id: In(rateIds) },
+            select: ['id', 'estimatedArrivalTimeValue', 'estimatedReturnTimeValue'],
+          })
+        : [];
+    const ratesById = new Map(
+      destinationRates.map((rate) => [rate.id, rate] as const),
+    );
     return buildOperatorOperationSummary(
       trips,
       expenses,
       unitsById,
+      ratesById,
       now,
       periodFrom,
       periodTo,

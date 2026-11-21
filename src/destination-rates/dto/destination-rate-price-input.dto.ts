@@ -38,6 +38,15 @@ export class DestinationRatePriceInputDto {
   @Min(0)
   estimatedTollAmount?: number;
 
+  @ApiPropertyOptional({
+    example: 5,
+    description: 'Ejes del tracto (referencia casetas INEGI)',
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(2)
+  axleCount?: number;
+
   @ApiPropertyOptional({ example: 350, description: 'Viáticos del operador (MXN)' })
   @IsOptional()
   @IsNumber()

@@ -369,7 +369,6 @@ function computeVolumeSummary(
 
   let billedTotal = 0;
   let opsTotal = 0;
-  const dates: Date[] = [];
 
   for (const trip of billable) {
     billedTotal += tripRevenue(trip);
@@ -378,49 +377,20 @@ function computeVolumeSummary(
       parseMoney(trip.casetasAmount) +
       parseMoney(trip.operatorQuota) +
       parseMoney(trip.perDiemAmount);
-    const iso = (trip.createdAt ?? '').trim();
-    if (iso) {
-      const d = new Date(iso);
-      if (!Number.isNaN(d.getTime())) dates.push(d);
-    }
   }
 
-  if (dates.length === 0) {
-    return {
-      volumeMonthsWindow: 0,
-      volumeBillableCount,
-      volumeAllCount,
-      volumeManeuversPerMonth: 0,
-      volumeBilledPerMonth: 0,
-      volumeOperationalPerMonth: 0,
-      volumeProfitPerMonth: 0,
-    };
-  }
-
-  const minT = Math.min(...dates.map((d) => d.getTime()));
-  const maxT = Math.max(...dates.map((d) => d.getTime()));
-  const lo = new Date(minT);
-  const hi = new Date(maxT);
-  const volumeMonthsWindow = Math.max(
-    1,
-    (hi.getUTCFullYear() - lo.getUTCFullYear()) * 12 +
-      (hi.getUTCMonth() - lo.getUTCMonth()) +
-      1,
-  );
-
-  const volumeManeuversPerMonth = volumeBillableCount / volumeMonthsWindow;
-  const volumeBilledPerMonth = billedTotal / volumeMonthsWindow;
-  const volumeOperationalPerMonth = opsTotal / volumeMonthsWindow;
+  const volumeBilledPerMonth = Math.round(billedTotal);
+  const volumeOperationalPerMonth = Math.round(opsTotal);
   const volumeProfitPerMonth = volumeBilledPerMonth - volumeOperationalPerMonth;
 
   return {
-    volumeMonthsWindow,
+    volumeMonthsWindow: 0,
     volumeBillableCount,
     volumeAllCount,
-    volumeManeuversPerMonth: Math.round(volumeManeuversPerMonth * 10) / 10,
-    volumeBilledPerMonth: Math.round(volumeBilledPerMonth),
-    volumeOperationalPerMonth: Math.round(volumeOperationalPerMonth),
-    volumeProfitPerMonth: Math.round(volumeProfitPerMonth),
+    volumeManeuversPerMonth: volumeBillableCount,
+    volumeBilledPerMonth,
+    volumeOperationalPerMonth,
+    volumeProfitPerMonth,
   };
 }
 
