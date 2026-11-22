@@ -82,6 +82,12 @@ async function main() {
           WHERE storage_key IS NOT NULL;
       `);
       console.log('Schema ensure: equipment_fleet_documents storage columns OK');
+      // Hard ensure: historial mantenimiento (unidades y equipos; migración 175296).
+      await dataSource.query(`
+        ALTER TABLE terminalops.fleet_maintenance_entries
+          ADD COLUMN IF NOT EXISTS document_file_names text[] NULL;
+      `);
+      console.log('Schema ensure: fleet_maintenance_entries.document_file_names OK');
       // Hard ensure: trip documents table (covers migrations_list drift).
       await dataSource.query(`
         CREATE TABLE IF NOT EXISTS terminalops.trip_documents (
@@ -333,18 +339,55 @@ async function main() {
           ADD COLUMN IF NOT EXISTS per_diem_amount numeric(12, 2) NOT NULL DEFAULT 0;
       `);
       console.log('Schema ensure: destination_rate_prices.per_diem_amount OK');
-      // Hard ensure: tiempos estimados de tarifa solo en horas (drop estimated_time_unit).
+      // Hard ensure: tarifas / mapa maniobras (JSONB casetas y ruta; drift post-175300).
       await dataSource.query(`
-        UPDATE terminalops.destination_rates
-        SET estimated_arrival_time_value = estimated_arrival_time_value * 24
-        WHERE estimated_time_unit = 'days'
-          AND estimated_arrival_time_value IS NOT NULL;
+        ALTER TABLE terminalops.destination_rates
+          ADD COLUMN IF NOT EXISTS excluded_toll_plaza_keys jsonb NOT NULL DEFAULT '[]'::jsonb;
       `);
       await dataSource.query(`
-        UPDATE terminalops.destination_rates
-        SET estimated_return_time_value = estimated_return_time_value * 24
-        WHERE estimated_time_unit = 'days'
-          AND estimated_return_time_value IS NOT NULL;
+        ALTER TABLE terminalops.destination_rates
+          ADD COLUMN IF NOT EXISTS route_waypoints jsonb NOT NULL DEFAULT '[]'::jsonb;
+      `);
+      await dataSource.query(`
+        ALTER TABLE terminalops.destination_rates
+          ADD COLUMN IF NOT EXISTS route_toll_plazas jsonb NOT NULL DEFAULT '[]'::jsonb;
+      `);
+      await dataSource.query(`
+        CREATE TABLE IF NOT EXISTS terminalops.toll_plaza_aliases (
+          id serial PRIMARY KEY,
+          company_id int NOT NULL REFERENCES terminalops.companies(id) ON DELETE CASCADE,
+          plaza_key varchar(64) NOT NULL,
+          display_name varchar(200) NOT NULL,
+          created_at timestamptz NOT NULL DEFAULT now(),
+          updated_at timestamptz NOT NULL DEFAULT now(),
+          CONSTRAINT uq_toll_plaza_aliases_company_key UNIQUE (company_id, plaza_key)
+        );
+      `);
+      await dataSource.query(`
+        CREATE INDEX IF NOT EXISTS idx_toll_plaza_aliases_company
+          ON terminalops.toll_plaza_aliases (company_id);
+      `);
+      console.log('Schema ensure: destination_rates toll/route jsonb OK');
+      // Hard ensure: tiempos estimados de tarifa solo en horas (drop estimated_time_unit).
+      await dataSource.query(`
+        DO $$
+        BEGIN
+          IF EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_schema = 'terminalops'
+              AND table_name = 'destination_rates'
+              AND column_name = 'estimated_time_unit'
+          ) THEN
+            UPDATE terminalops.destination_rates
+            SET estimated_arrival_time_value = estimated_arrival_time_value * 24
+            WHERE estimated_time_unit = 'days'
+              AND estimated_arrival_time_value IS NOT NULL;
+            UPDATE terminalops.destination_rates
+            SET estimated_return_time_value = estimated_return_time_value * 24
+            WHERE estimated_time_unit = 'days'
+              AND estimated_return_time_value IS NOT NULL;
+          END IF;
+        END $$;
       `);
       await dataSource.query(`
         ALTER TABLE terminalops.destination_rates
@@ -453,6 +496,16 @@ async function main() {
       console.log(
         'Schema ensure: companies payment/auto-payments changed_at OK',
       );
+      // Hard ensure: clientes soft delete (covers drift / balance-overview SELECT).
+      await dataSource.query(`
+        ALTER TABLE terminalops.clients
+          ADD COLUMN IF NOT EXISTS is_active boolean NOT NULL DEFAULT true;
+      `);
+      await dataSource.query(`
+        CREATE INDEX IF NOT EXISTS clients_company_id_is_active_idx
+          ON terminalops.clients (company_id, is_active);
+      `);
+      console.log('Schema ensure: clients.is_active OK');
       // Hard ensure: etiqueta gasto control operativo (covers migrations_list drift / login SELECT).
       await dataSource.query(`
         ALTER TABLE terminalops.companies
