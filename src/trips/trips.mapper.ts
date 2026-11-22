@@ -1,5 +1,7 @@
 import type { IncidentAuthorLookup } from 'src/common/utils/incident-author.util';
 import { formatIncidentAuthorLabel } from 'src/common/utils/incident-author.util';
+import { Operator } from 'src/operators/entities/operator.entity';
+import { Unit } from 'src/units/entities/unit.entity';
 import { Equipment } from 'src/equipment/entities/equipment.entity';
 import { Trip } from 'src/trips/entities/trip.entity';
 import { TripIncident } from 'src/trips/entities/trip-incident.entity';
@@ -210,5 +212,49 @@ function mapIncident(i: TripIncident, authorLookup?: IncidentAuthorLookup) {
       : i.postedBy,
     isIncident: i.isIncident === true,
     images,
+  };
+}
+
+/** Respuesta mínima para vincular gastos a una maniobra (sin drawer / bitácora). */
+export type TripExpenseRelationsResponse = {
+  id: number;
+  maneuverCode: string;
+  unitId: number | null;
+  operatorId: number | null;
+  equipmentIds: number[];
+  operatorName: string | null;
+  unitOperationalCode: string | null;
+  equipment: string[];
+};
+
+export function mapTripExpenseRelationsResponse(input: {
+  trip: Pick<Trip, 'id' | 'maneuverCode' | 'unitId' | 'operatorId' | 'tripEquipment'>;
+  unit: Pick<Unit, 'id' | 'plate' | 'trailerBrandAbbr' | 'trailerYear'> | null;
+  operator: Pick<Operator, 'id' | 'name'> | null;
+  equipment: Array<
+    Pick<Equipment, 'id' | 'plate' | 'trailerBrandAbbr' | 'trailerYear'>
+  >;
+}): TripExpenseRelationsResponse {
+  const equipmentIds = [
+    ...new Set((input.trip.tripEquipment ?? []).map((te) => te.equipmentId)),
+  ];
+  const equipmentLabels = equipmentIds.map((id) => {
+    const row = input.equipment.find((e) => e.id === id);
+    if (!row) {
+      return String(id);
+    }
+    return buildEquipmentOperationalId(row);
+  });
+  return {
+    id: input.trip.id,
+    maneuverCode: input.trip.maneuverCode?.trim() || String(input.trip.id),
+    unitId: input.unit?.id ?? input.trip.unitId ?? null,
+    operatorId: input.operator?.id ?? input.trip.operatorId ?? null,
+    equipmentIds,
+    operatorName: input.operator?.name?.trim() || null,
+    unitOperationalCode: input.unit
+      ? buildUnitOperationalId(input.unit)
+      : null,
+    equipment: equipmentLabels,
   };
 }

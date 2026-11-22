@@ -155,6 +155,24 @@ export class DeploySchemaReconcile1753290000000 implements MigrationInterface {
       ALTER TABLE terminalops.destination_rate_prices
         ADD COLUMN IF NOT EXISTS per_diem_amount numeric(12, 2) NOT NULL DEFAULT 0;
     `);
+    await queryRunner.query(`
+      ALTER TABLE terminalops.destination_rate_prices
+        ADD COLUMN IF NOT EXISTS axle_count smallint NULL;
+
+      UPDATE terminalops.destination_rate_prices
+      SET axle_count = 5
+      WHERE axle_count IS NULL;
+
+      ALTER TABLE terminalops.destination_rate_prices
+        DROP CONSTRAINT IF EXISTS chk_destination_rate_prices_axle_count;
+
+      ALTER TABLE terminalops.destination_rate_prices
+        ADD CONSTRAINT chk_destination_rate_prices_axle_count
+        CHECK (
+          axle_count IS NULL
+          OR (axle_count >= 2 AND axle_count <= 12)
+        );
+    `);
 
     // --- fleet: unidades / equipos (historial mantenimiento) ---
     await queryRunner.query(`

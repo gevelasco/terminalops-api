@@ -64,7 +64,10 @@ import { tripNotDeletedSql } from './trip-visibility.util';
 import { mapTripLinkOption } from './trip-link-option.mapper';
 import { UpdateTripDto } from './dto/update-trip.dto';
 import type { ClientCargoHistoryResponseDto } from './dto/client-cargo-history.dto';
-import { mapTripToResponse } from './trips.mapper';
+import {
+  mapTripExpenseRelationsResponse,
+  mapTripToResponse,
+} from './trips.mapper';
 import { DestinationRatesService } from 'src/destination-rates/destination-rates.service';
 import { OperationalCentersService } from 'src/operational-centers/operational-centers.service';
 import { OperationConfigurationsService } from 'src/operation-configurations/operation-configurations.service';
@@ -538,6 +541,42 @@ export class TripsService {
         containerNumber: row.containerNumber?.trim() || null,
       })),
     });
+  }
+
+  /** GET /trips/:id?view=expense-relations — sin lifecycle, bitácora ni tarifa. */
+  async findOneForExpenseRelations(companyId: number, tripId: number) {
+    const trip = await this.tripsRepo.findOne({
+      where: { companyId, id: tripId, deletedAt: IsNull() },
+      select: ['id', 'maneuverCode', 'unitId', 'operatorId'],
+      relations: ['tripEquipment'],
+    });
+    if (!trip) {
+      throw new NotFoundException(`Trip ${tripId} not found`);
+    }
+    const equipmentIds = [
+      ...new Set((trip.tripEquipment ?? []).map((te) => te.equipmentId)),
+    ];
+    const [unit, operator, equipment] = await Promise.all([
+      trip.unitId
+        ? this.unitsRepo.findOne({
+            where: { companyId, id: trip.unitId },
+            select: ['id', 'plate', 'trailerBrandAbbr', 'trailerYear'],
+          })
+        : Promise.resolve(null),
+      trip.operatorId
+        ? this.operatorsRepo.findOne({
+            where: { companyId, id: trip.operatorId },
+            select: ['id', 'name'],
+          })
+        : Promise.resolve(null),
+      equipmentIds.length > 0
+        ? this.equipmentRepo.find({
+            where: { companyId, id: In(equipmentIds) },
+            select: ['id', 'plate', 'trailerBrandAbbr', 'trailerYear'],
+          })
+        : Promise.resolve([]),
+    ]);
+    return mapTripExpenseRelationsResponse({ trip, unit, operator, equipment });
   }
 
   async uploadDocument(

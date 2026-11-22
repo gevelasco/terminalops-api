@@ -339,6 +339,28 @@ async function main() {
           ADD COLUMN IF NOT EXISTS per_diem_amount numeric(12, 2) NOT NULL DEFAULT 0;
       `);
       console.log('Schema ensure: destination_rate_prices.per_diem_amount OK');
+      await dataSource.query(`
+        ALTER TABLE terminalops.destination_rate_prices
+          ADD COLUMN IF NOT EXISTS axle_count smallint NULL;
+      `);
+      await dataSource.query(`
+        UPDATE terminalops.destination_rate_prices
+        SET axle_count = 5
+        WHERE axle_count IS NULL;
+      `);
+      await dataSource.query(`
+        ALTER TABLE terminalops.destination_rate_prices
+          DROP CONSTRAINT IF EXISTS chk_destination_rate_prices_axle_count;
+      `);
+      await dataSource.query(`
+        ALTER TABLE terminalops.destination_rate_prices
+          ADD CONSTRAINT chk_destination_rate_prices_axle_count
+          CHECK (
+            axle_count IS NULL
+            OR (axle_count >= 2 AND axle_count <= 12)
+          );
+      `);
+      console.log('Schema ensure: destination_rate_prices.axle_count OK');
       // Hard ensure: tarifas / mapa maniobras (JSONB casetas y ruta; drift post-175300).
       await dataSource.query(`
         ALTER TABLE terminalops.destination_rates

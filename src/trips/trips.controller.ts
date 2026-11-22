@@ -7,6 +7,7 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  Query,
   Req,
   UploadedFile,
   UseGuards,
@@ -38,6 +39,7 @@ import {
   assertModuleWrite,
 } from '../common/utils/module-permission.util';
 import { TRIP_DOCUMENT_KINDS } from './trip-document.constants';
+import { GetTripQueryDto } from './dto/get-trip-query.dto';
 import { TripsService } from './trips.service';
 
 @ApiTags('trips')
@@ -65,12 +67,21 @@ export class TripsController {
   }
 
   @Get(':tripId')
+  @ApiOperation({
+    summary: 'Detalle de maniobra',
+    description:
+      'Query `view=expense-relations`: solo vínculos unidad/operador/equipo (gastos).',
+  })
   async findOne(
     @Param('tripId', ParseIntPipe) tripId: number,
+    @Query() query: GetTripQueryDto,
     @LoggedUser() user: AuthUser,
   ) {
     assertModuleRead(user, APP_MODULE_CODES.TRIPS);
     const companyId = await this.tenantContext.resolveInternalIdFromAuthUser(user);
+    if (query.view === 'expense-relations') {
+      return this.service.findOneForExpenseRelations(companyId, tripId);
+    }
     return this.service.findOne(companyId, tripId);
   }
 
