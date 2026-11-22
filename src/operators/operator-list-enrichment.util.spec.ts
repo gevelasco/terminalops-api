@@ -3,6 +3,7 @@ import type { Trip } from 'src/trips/entities/trip.entity';
 import {
   buildNextPayDueByOperatorId,
   buildOperatorLastManeuverSnapshot,
+  buildOperatorListPaymentSnapshots,
 } from './operator-list-enrichment.util';
 
 function trip(partial: Partial<Trip> & Pick<Trip, 'id' | 'operatorId'>): Trip {
@@ -130,6 +131,36 @@ describe('operator-list-enrichment.util', () => {
       new Date('2026-06-17T18:00:00Z'),
     );
     expect(map.get(5)).toBeUndefined();
+  });
+
+  it('buildOperatorListPaymentSnapshots matches operation-summary payment rollup', () => {
+    const trips = [
+      trip({
+        id: 4,
+        operatorId: 1,
+        operatorQuota: '2500',
+        returnAt: new Date('2026-03-03T18:00:00Z'),
+      }),
+    ];
+    const map = buildOperatorListPaymentSnapshots(
+      trips,
+      [
+        {
+          id: 20,
+          tripId: 4,
+          relatedOperatorId: 1,
+          kind: 'operator_payment',
+          amount: '2500',
+          incurredAt: new Date('2026-03-07T18:00:00Z'),
+          paidAt: null,
+          discardedAt: null,
+        } as Expense,
+      ],
+      new Date('2026-03-04T18:00:00Z'),
+    );
+    expect(map.get(1)?.dueOn).toBe('2026-03-07');
+    expect(map.get(1)?.variant).toBe('warning');
+    expect(map.get(1)?.owedAmount).toBe(2500);
   });
 
   it('buildNextPayDueByOperatorId uses the earliest unpaid ledger due date', () => {

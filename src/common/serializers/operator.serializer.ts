@@ -9,8 +9,8 @@ export type OperatorApiResponse = Record<string, unknown>;
 
 export type SerializeOperatorOptions = {
   /**
-   * Listado: omite `photoDataUrl` (data URL puede ser MBs) y expone `hasPhoto`.
-   * Detalle / mutaciones: incluye `photoDataUrl`.
+   * Listado / cards: sin foto ni expediente (contacto, seguros, documentos).
+   * Detalle / mutaciones: payload completo.
    */
   list?: boolean;
 };
@@ -26,30 +26,7 @@ export function serializeOperator(
   const list = options?.list === true;
   const hasPhoto = operatorHasPhoto(operator);
 
-  return {
-    id: operator.id,
-    companyId: operator.companyId,
-    name: operator.name,
-    hasPhoto,
-    ...(list ? {} : { photoDataUrl: operator.photoDataUrl ?? '' }),
-    birthDate: operator.birthDate ?? null,
-    curp: operator.curp ?? '',
-    rfc: operator.rfc ?? '',
-    licenseNumber: operator.licenseNumber ?? '',
-    licenseExpiresOn: operator.licenseExpiresOn ?? null,
-    licenseType: operator.licenseType,
-    licenseEndorsements: operator.licenseEndorsements ?? '',
-    phone: operator.phone ?? '',
-    phoneSecondary: operator.phoneSecondary ?? '',
-    address: operator.address ?? '',
-    companyHireDate: operator.companyHireDate ?? null,
-    employmentContractType: operator.employmentContractType ?? '',
-    paymentSchedule: operator.paymentSchedule ?? 'maneuver',
-    weeklyPayDay: operator.weeklyPayDay?.trim() || null,
-    paymentMethod: operator.paymentMethod?.trim() || null,
-    status: operator.status,
-    isActive: operator.isActive !== false,
-    insuranceKind: operator.insuranceKind,
+  const cardFields = {
     maneuverCount:
       typeof operator.maneuverCount === 'number' ? operator.maneuverCount : undefined,
     lastManeuver: operator.lastManeuver
@@ -77,6 +54,47 @@ export function serializeOperator(
       typeof operator.owedAmount === 'number' && Number.isFinite(operator.owedAmount)
         ? operator.owedAmount
         : null,
+  };
+
+  if (list) {
+    return {
+      id: operator.id,
+      name: operator.name,
+      hasPhoto,
+      status: operator.status,
+      isActive: operator.isActive !== false,
+      licenseNumber: operator.licenseNumber ?? '',
+      licenseExpiresOn: operator.licenseExpiresOn ?? null,
+      companyHireDate: operator.companyHireDate ?? null,
+      ...cardFields,
+    };
+  }
+
+  return {
+    id: operator.id,
+    companyId: operator.companyId,
+    name: operator.name,
+    hasPhoto,
+    photoDataUrl: operator.photoDataUrl ?? '',
+    birthDate: operator.birthDate ?? null,
+    curp: operator.curp ?? '',
+    rfc: operator.rfc ?? '',
+    licenseNumber: operator.licenseNumber ?? '',
+    licenseExpiresOn: operator.licenseExpiresOn ?? null,
+    licenseType: operator.licenseType,
+    licenseEndorsements: operator.licenseEndorsements ?? '',
+    phone: operator.phone ?? '',
+    phoneSecondary: operator.phoneSecondary ?? '',
+    address: operator.address ?? '',
+    companyHireDate: operator.companyHireDate ?? null,
+    employmentContractType: operator.employmentContractType ?? '',
+    paymentSchedule: operator.paymentSchedule ?? 'maneuver',
+    weeklyPayDay: operator.weeklyPayDay?.trim() || null,
+    paymentMethod: operator.paymentMethod?.trim() || null,
+    status: operator.status,
+    isActive: operator.isActive !== false,
+    insuranceKind: operator.insuranceKind,
+    ...cardFields,
     createdAt: toIsoString(operator.createdAt),
     updatedAt: toIsoString(operator.updatedAt),
     emergencyContact: operator.emergencyContact

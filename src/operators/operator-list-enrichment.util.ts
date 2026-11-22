@@ -3,6 +3,10 @@ import type { Trip } from 'src/trips/entities/trip.entity';
 import type { Unit } from 'src/units/entities/unit.entity';
 import { buildUnitOperationalId } from 'src/common/utils/unit-operational-id.util';
 import {
+  buildOperatorPaymentRows,
+  summarizeOperatorPaymentRows,
+} from 'src/operators/operator-payment-rows.util';
+import {
   buildTripDestinationCityPostalLabel,
   buildTripOriginCityPostalLabel,
 } from 'src/trips/trip-route-label.util';
@@ -28,8 +32,8 @@ export interface OperatorActiveServiceSnapshot {
 }
 
 export interface OperatorNextPayDueSnapshot {
-  dueOn: string;
-  variant: OperatorPayDueVariant;
+  dueOn?: string;
+  variant?: OperatorPayDueVariant;
   /** Saldo pendiente total (maniobras completadas con cuota por pagar). */
   owedAmount: number;
 }
@@ -190,6 +194,65 @@ export function buildNextPayDueByOperatorId(
       dueOn: nextDueYmd,
       variant: dueBadgeVariant(nextDueYmd, asOfYmd),
       owedAmount,
+    });
+  }
+
+  return byOperator;
+}
+
+/**
+ * Misma lógica que el resumen del drawer (buildOperatorPaymentRows +
+ * summarizeOperatorPaymentRows), agrupado por operador para el listado.
+ */
+export function buildOperatorListPaymentSnapshots(
+  trips: readonly Trip[],
+  expenses: readonly Expense[],
+  asOf: Date = new Date(),
+): Map<number, OperatorNextPayDueSnapshot> {
+  const asOfYmd = localYmd(asOf);
+  const tripsById = new Map(trips.map((trip) => [trip.id, trip]));
+  const tripsByOperator = new Map<number, Trip[]>();
+  for (const trip of trips) {
+    if (trip.operatorId == null) {
+      continue;
+    }
+    const bucket = tripsByOperator.get(trip.operatorId) ?? [];
+    bucket.push(trip);
+    tripsByOperator.set(trip.operatorId, bucket);
+  }
+
+  const expensesByOperator = new Map<number, Expense[]>();
+  for (const expense of expenses) {
+    const trip =
+      expense.tripId != null ? tripsById.get(expense.tripId) : undefined;
+    const operatorId = trip?.operatorId ?? expense.relatedOperatorId;
+    if (operatorId == null) {
+      continue;
+    }
+    const bucket = expensesByOperator.get(operatorId) ?? [];
+    bucket.push(expense);
+    expensesByOperator.set(operatorId, bucket);
+  }
+
+  const operatorIds = new Set<number>([
+    ...tripsByOperator.keys(),
+    ...expensesByOperator.keys(),
+  ]);
+  const byOperator = new Map<number, OperatorNextPayDueSnapshot>();
+
+  for (const operatorId of operatorIds) {
+    const opTrips = tripsByOperator.get(operatorId) ?? [];
+    const opExpenses = expensesByOperator.get(operatorId) ?? [];
+    const sections = buildOperatorPaymentRows(opTrips, opExpenses, asOf);
+    const summary = summarizeOperatorPaymentRows(sections, asOfYmd);
+    if (summary.owedAmount <= 0) {
+      continue;
+    }
+    const variant = summary.nextPayDueBadgeVariant;
+    byOperator.set(operatorId, {
+      dueOn: summary.nextPayDueYmd ?? undefined,
+      variant: variant === 'neutral' ? undefined : variant,
+      owedAmount: summary.owedAmount,
     });
   }
 

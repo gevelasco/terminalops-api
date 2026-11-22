@@ -13,9 +13,9 @@ import { Expense } from 'src/expenses/entities/expense.entity';
 import { Trip } from 'src/trips/entities/trip.entity';
 import { Unit } from 'src/units/entities/unit.entity';
 import {
-  buildNextPayDueByOperatorId,
   buildOperatorActiveServiceSnapshot,
   buildOperatorLastManeuverSnapshot,
+  buildOperatorListPaymentSnapshots,
 } from 'src/operators/operator-list-enrichment.util';
 import {
   buildOperatorOperationSummary,
@@ -160,22 +160,14 @@ export class OperatorsService {
       this.repo.createQueryBuilder('operator'),
     ).getCount();
 
-    const qb = applyScope(
-      this.repo
-        .createQueryBuilder('operator')
-        .leftJoinAndSelect('operator.emergencyContact', 'emergencyContact')
-        .leftJoinAndSelect('operator.publicInsurance', 'publicInsurance')
-        .leftJoinAndSelect('operator.privateInsurance', 'privateInsurance')
-        .leftJoinAndSelect('operator.documents', 'documents')
-        .loadRelationCountAndMap(
-          'operator.maneuverCount',
-          'operator.trips',
-          'trip',
-          (inner) => inner.andWhere('trip.deleted_at IS NULL'),
-        ),
+    const qb = applyScope(this.repo.createQueryBuilder('operator')).loadRelationCountAndMap(
+      'operator.maneuverCount',
+      'operator.trips',
+      'trip',
+      (inner) => inner.andWhere('trip.deleted_at IS NULL'),
     );
 
-    qb.orderBy('operator.name', 'ASC').addOrderBy('documents.sortOrder', 'ASC');
+    qb.orderBy('operator.name', 'ASC');
     if (limit > 0) {
       qb.skip((page - 1) * limit).take(limit);
     }
@@ -1025,7 +1017,7 @@ export class OperatorsService {
       }
     }
 
-    const nextPayByOperator = buildNextPayDueByOperatorId(
+    const nextPayByOperator = buildOperatorListPaymentSnapshots(
       unpaid.trips,
       unpaid.expenses,
     );
@@ -1064,6 +1056,7 @@ export class OperatorsService {
         SELECT
           t.id,
           t.operator_id AS "operatorId",
+          t.maneuver_code AS "maneuverCode",
           t.status,
           t.operator_quota AS "operatorQuota",
           t.return_at AS "returnAt",
@@ -1108,6 +1101,7 @@ export class OperatorsService {
       trips.push({
         id: tripId,
         operatorId,
+        maneuverCode: String(row['maneuverCode'] ?? ''),
         status: String(row['status'] ?? 'completed'),
         operatorQuota:
           quotaRaw == null || quotaRaw === ''
