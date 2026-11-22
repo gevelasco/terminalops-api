@@ -42,7 +42,9 @@ export function sakbeBuscadestinoCandidates(raw: string): string[] {
   push(trimmed);
 
   const unique = [...new Set(candidates)];
-  return unique.sort((a, b) => a.length - b.length);
+  // Más específico primero: "Manzanillo, Colima" antes que "Colima" (evita anclar
+  // el origen en la capital del estado y saltar casetas costeras).
+  return unique.sort((a, b) => b.length - a.length);
 }
 
 export function isSakbeSearchLengthError(message: string): boolean {

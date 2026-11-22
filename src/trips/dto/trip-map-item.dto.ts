@@ -16,6 +16,20 @@ export interface TripMapGeoPointDto {
   source: TripMapGeoPointSource;
 }
 
+/** Intermedios de la tarifa de destino (solo geometría de ruta en mapa). */
+export interface TripMapRouteWaypointDto {
+  lat: number;
+  lon: number;
+}
+
+/** Casetas persistidas en tarifa (coordenadas para OSRM; no se pintan en mapa de maniobras). */
+export interface TripMapRouteTollPlazaDto {
+  order: number;
+  plazaKey: string;
+  inegiPoint?: string;
+  name: string;
+}
+
 export interface TripMapItemDto {
   id: string;
   maneuverCode: string;
@@ -23,6 +37,8 @@ export interface TripMapItemDto {
   origin: TripMapGeoPointDto;
   destination: TripMapGeoPointDto;
   geoQuality: TripMapGeoQuality;
+  routeWaypoints?: TripMapRouteWaypointDto[];
+  routeTollPlazas?: TripMapRouteTollPlazaDto[];
 }
 
 export interface TripsMapMetaDto {

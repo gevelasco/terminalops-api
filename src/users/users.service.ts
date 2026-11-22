@@ -356,6 +356,7 @@ export class UsersService {
           operationalCenterSettlementConsId: geo.operationalCenterSettlementConsId,
           operationalCenterLatitude: geo.operationalCenterLatitude,
           operationalCenterLongitude: geo.operationalCenterLongitude,
+          operationalCenterChangedAt: geo.operationalCenterChangedAt,
         };
       })(),
     };

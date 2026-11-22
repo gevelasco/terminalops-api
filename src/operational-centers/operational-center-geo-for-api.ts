@@ -1,3 +1,4 @@
+import { toIsoString } from 'src/common/utils/iso-date.util';
 import type { OperationalCenter } from './entities/operational-center.entity';
 
 function coordToApi(value?: string | null): number | undefined {
@@ -16,6 +17,7 @@ export type OperationalCenterGeoForApi = {
   operationalCenterSettlementConsId?: string;
   operationalCenterLatitude?: number;
   operationalCenterLongitude?: number;
+  operationalCenterChangedAt?: string;
 };
 
 /** Geo operativo expuesto en API — SSOT exclusivo: operational_centers. */
@@ -29,8 +31,11 @@ export function operationalCenterGeoForApi(
     | 'settlementConsId'
     | 'latitude'
     | 'longitude'
+    | 'updatedAt'
+    | 'createdAt'
   > | null,
 ): OperationalCenterGeoForApi {
+  const changedAt = primaryCenter?.updatedAt ?? primaryCenter?.createdAt;
   return {
     operationalCenterName: primaryCenter?.name?.trim() || 'Centro Principal',
     operationalCenterPostalCode: primaryCenter?.postalCode ?? undefined,
@@ -39,5 +44,6 @@ export function operationalCenterGeoForApi(
     operationalCenterSettlementConsId: primaryCenter?.settlementConsId ?? undefined,
     operationalCenterLatitude: coordToApi(primaryCenter?.latitude),
     operationalCenterLongitude: coordToApi(primaryCenter?.longitude),
+    operationalCenterChangedAt: toIsoString(changedAt),
   };
 }

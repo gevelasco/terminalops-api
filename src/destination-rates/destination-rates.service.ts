@@ -111,6 +111,7 @@ export class DestinationRatesService {
       .orderBy('rate.postalCode', 'ASC')
       .addOrderBy('rate.locality', 'ASC')
       .getMany();
+    await this.applyManeuverCounts(companyId, rows);
     return rows.map((row) => serializeDestinationRateSummary(row));
   }
 
@@ -122,6 +123,7 @@ export class DestinationRatesService {
     if (!row) {
       throw new NotFoundException(`Destination rate ${rateId} not found`);
     }
+    row.maneuverCount = await this.countLiveManeuvers(companyId, rateId);
     return serializeDestinationRate(row);
   }
 
@@ -551,6 +553,30 @@ export class DestinationRatesService {
     }
     await this.repo.delete({ id: rateId, companyId });
     return { id: rateId, deleted: true };
+  }
+
+  private async applyManeuverCounts(
+    companyId: number,
+    rows: DestinationRate[],
+  ): Promise<void> {
+    if (rows.length === 0) {
+      return;
+    }
+    const ids = rows.map((row) => row.id);
+    const raw = await this.repo
+      .createQueryBuilder('rate')
+      .innerJoin('rate.trips', 'trip')
+      .where('rate.companyId = :companyId', { companyId })
+      .andWhere('rate.id IN (:...ids)', { ids })
+      .andWhere('trip.deletedAt IS NULL')
+      .select('rate.id', 'rateId')
+      .addSelect('COUNT(trip.id)', 'cnt')
+      .groupBy('rate.id')
+      .getRawMany<{ rateId: string; cnt: string }>();
+    const byId = new Map(raw.map((row) => [Number(row.rateId), Number(row.cnt)]));
+    for (const row of rows) {
+      row.maneuverCount = byId.get(row.id) ?? 0;
+    }
   }
 
   private async countLiveManeuvers(

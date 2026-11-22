@@ -10,6 +10,8 @@ import type {
   TripMapGeoPointSource,
   TripMapGeoQuality,
   TripMapItemDto,
+  TripMapRouteTollPlazaDto,
+  TripMapRouteWaypointDto,
   TripMapStatus,
 } from './dto/trip-map-item.dto';
 
@@ -168,12 +170,60 @@ export function resolveOriginPoint(
   return pointFromCoords(null, null, label, 'unresolved');
 }
 
+function pickTripMapRouteWaypoints(
+  rate: Trip['destinationRate'],
+): TripMapRouteWaypointDto[] | undefined {
+  const raw = rate?.routeWaypoints;
+  if (!Array.isArray(raw) || raw.length === 0) {
+    return undefined;
+  }
+  const out: TripMapRouteWaypointDto[] = [];
+  for (const wp of raw) {
+    const lat = parseCoord(wp.lat);
+    const lon = parseCoord(wp.lon);
+    if (lat != null && lon != null) {
+      out.push({ lat, lon });
+    }
+  }
+  return out.length > 0 ? out : undefined;
+}
+
+function pickTripMapRouteTollPlazas(
+  rate: Trip['destinationRate'],
+): TripMapRouteTollPlazaDto[] | undefined {
+  const raw = rate?.routeTollPlazas;
+  if (!Array.isArray(raw) || raw.length === 0) {
+    return undefined;
+  }
+  const out: TripMapRouteTollPlazaDto[] = [];
+  for (const plaza of raw) {
+    const plazaKey = String(plaza.plazaKey ?? '').trim();
+    const name = String(plaza.name ?? '').trim();
+    if (!plazaKey || !name) {
+      continue;
+    }
+    const orderRaw = Number(plaza.order);
+    const order = Number.isFinite(orderRaw) ? orderRaw : out.length + 1;
+    const inegiPoint = String(plaza.inegiPoint ?? '').trim();
+    out.push({
+      order,
+      plazaKey,
+      name,
+      ...(inegiPoint ? { inegiPoint } : {}),
+    });
+  }
+  out.sort((a, b) => a.order - b.order);
+  return out.length > 0 ? out : undefined;
+}
+
 export function mapTripToMapItem(
   trip: Trip,
   ctx: TripGeoResolverContext,
 ): TripMapItemDto {
   const origin = resolveOriginPoint(trip, ctx);
   const destination = resolveDestinationPoint(trip, ctx);
+  const routeWaypoints = pickTripMapRouteWaypoints(trip.destinationRate);
+  const routeTollPlazas = pickTripMapRouteTollPlazas(trip.destinationRate);
   return {
     id: String(trip.id),
     maneuverCode: trip.maneuverCode,
@@ -181,6 +231,8 @@ export function mapTripToMapItem(
     origin,
     destination,
     geoQuality: computeGeoQuality(origin, destination),
+    ...(routeWaypoints ? { routeWaypoints } : {}),
+    ...(routeTollPlazas ? { routeTollPlazas } : {}),
   };
 }
 

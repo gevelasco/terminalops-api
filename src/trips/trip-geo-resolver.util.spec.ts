@@ -163,6 +163,38 @@ describe('trip-geo-resolver.util', () => {
     );
   });
 
+  it('mapTripToMapItem incluye ruta de tarifa para OSRM', () => {
+    const item = mapTripToMapItem(
+      trip({
+        destinationRate: {
+          originLatitude: '25.0',
+          originLongitude: '-100.0',
+          destinationLatitude: '19.0',
+          destinationLongitude: '-99.0',
+          routeWaypoints: [{ label: 'Paso', lat: 22.1, lon: -100.5 }],
+          routeTollPlazas: [
+            {
+              order: 1,
+              plazaKey: 'inegi:22.0,-100.0:abc',
+              name: 'Caseta Norte',
+              inegiPoint: '22.0,-100.0',
+            },
+          ],
+        } as Trip['destinationRate'],
+      }),
+      ctx(),
+    );
+    expect(item.routeWaypoints).toEqual([{ lat: 22.1, lon: -100.5 }]);
+    expect(item.routeTollPlazas).toEqual([
+      {
+        order: 1,
+        plazaKey: 'inegi:22.0,-100.0:abc',
+        name: 'Caseta Norte',
+        inegiPoint: '22.0,-100.0',
+      },
+    ]);
+  });
+
   it('mapTripToMapItem y buildTripsMapMeta agregan métricas', () => {
     const item = mapTripToMapItem(
       trip({

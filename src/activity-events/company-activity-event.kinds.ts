@@ -12,6 +12,7 @@ export const COMPANY_ACTIVITY_KIND = {
   EXPENSE_UPDATED: 'expense.updated',
   CLIENT_UPDATED: 'client.updated',
   TRIP_UPDATED: 'trip.updated',
+  TRIP_SCHEDULE_OVERLAP: 'trip.schedule_overlap',
   TRIP_EXPENSE_ADDED: 'trip.expense_added',
   TRIP_DOCUMENT_ADDED: 'trip.document_added',
   TRIP_TRACKING_UPDATED: 'trip.tracking_updated',

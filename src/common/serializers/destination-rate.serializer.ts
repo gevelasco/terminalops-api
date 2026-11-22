@@ -80,6 +80,8 @@ export function serializeDestinationRateSummary(
         : undefined,
     prices,
     active: row.active,
+    maneuverCount:
+      typeof row.maneuverCount === 'number' ? row.maneuverCount : undefined,
   };
 }
 

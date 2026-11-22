@@ -83,7 +83,9 @@ export function serializeActivityEventRow(
 ): NotificationFeedItemDto {
   const tone = row.kind === 'payment.overdue'
     ? 'danger'
-    : row.kind === 'payment.due_today' || row.kind === 'payment.due_soon'
+    : row.kind === 'payment.due_today' ||
+        row.kind === 'payment.due_soon' ||
+        row.kind === 'trip.schedule_overlap'
       ? 'warning'
       : row.kind.startsWith('incident.')
         ? 'danger'

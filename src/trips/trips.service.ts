@@ -91,6 +91,12 @@ import {
   isCompletedHistoricalSchedule,
 } from './trip-fleet-assignment-guard.util';
 import {
+  findScheduleOverlapsAmongTrips,
+  tripScheduleWindowFromCandidate,
+  tripScheduleWindowFromEntity,
+} from './trip-schedule-overlap.util';
+import { recordTripScheduleOverlapWarnings } from './trip-schedule-overlap-notify.util';
+import {
   assertNoSnapshotMutation,
   assertNoSnapshotMutationDto,
 } from './trip-snapshot-immutability.util';
@@ -816,8 +822,15 @@ export class TripsService {
     const ignoreCurrentAvailability = isCompletedHistoricalSchedule(
       planned.plannedCompletionAt,
     );
+    const assignmentSchedule = ignoreCurrentAvailability
+      ? undefined
+      : {
+          plannedDepartureAt: planned.plannedDepartureAt,
+          plannedCompletionAt: planned.plannedCompletionAt,
+        };
     const resolvedUnitId = await this.resolveUnitId(companyId, dto.unitId, {
       ignoreCurrentAvailability,
+      ...assignmentSchedule,
     });
     if (resolvedUnitId == null) {
       throw new BadRequestException('unitId is required');
@@ -825,6 +838,7 @@ export class TripsService {
     const resolvedOperatorId = dto.operatorId
       ? await this.resolveOperatorId(companyId, dto.operatorId, {
           ignoreCurrentAvailability,
+          ...assignmentSchedule,
         })
       : undefined;
 
@@ -882,6 +896,7 @@ export class TripsService {
     const equipmentIds = dto.equipmentIds?.length
       ? await this.resolveEquipmentIds(companyId, dto.equipmentIds, {
           ignoreCurrentAvailability,
+          ...assignmentSchedule,
         })
       : [];
 
@@ -1037,6 +1052,16 @@ export class TripsService {
       isCompletedHistoricalSchedule(
         plannedPatch.plannedCompletionAt ?? trip.plannedCompletionAt,
       );
+    const resultingPlannedDeparture =
+      plannedPatch.plannedDepartureAt ?? trip.plannedDepartureAt;
+    const resultingPlannedCompletion =
+      plannedPatch.plannedCompletionAt ?? trip.plannedCompletionAt;
+    const assignmentSchedule = ignoreCurrentAvailability
+      ? undefined
+      : {
+          plannedDepartureAt: resultingPlannedDeparture,
+          plannedCompletionAt: resultingPlannedCompletion,
+        };
     const operationPatch =
       operationType !== undefined
         ? await this.resolveOperationConfig(companyId, operationType)
@@ -1052,6 +1077,7 @@ export class TripsService {
       resolvedUnitIdForPatch = await this.resolveUnitId(companyId, unitId, {
         excludeTripId: tripId,
         ignoreCurrentAvailability,
+        ...assignmentSchedule,
       });
     }
 
@@ -1060,8 +1086,42 @@ export class TripsService {
         ? await this.resolveOperatorId(companyId, operatorId, {
             excludeTripId: tripId,
             ignoreCurrentAvailability,
+            ...assignmentSchedule,
           })
         : undefined;
+    }
+
+    if (
+      !ignoreCurrentAvailability &&
+      trip.status === 'scheduled' &&
+      (hasPlannedDatesPatch || unitId !== undefined || operatorId !== undefined)
+    ) {
+      const previewTrip = {
+        id: trip.id,
+        unitId:
+          resolvedUnitIdForPatch !== undefined
+            ? resolvedUnitIdForPatch ?? undefined
+            : trip.unitId ?? undefined,
+        operatorId:
+          resolvedOperatorIdForPatch !== undefined
+            ? resolvedOperatorIdForPatch ?? undefined
+            : trip.operatorId ?? undefined,
+        plannedDepartureAt: resultingPlannedDeparture,
+        plannedCompletionAt: resultingPlannedCompletion,
+        returnAt: trip.returnAt ?? null,
+        status: trip.status,
+      };
+      await this.assertScheduledTripDoesNotOverlapPeers(
+        companyId,
+        previewTrip,
+        equipmentIds
+          ? await this.resolveEquipmentIds(companyId, equipmentIds, {
+              excludeTripId: tripId,
+              ignoreCurrentAvailability,
+              ...assignmentSchedule,
+            })
+          : (trip.tripEquipment ?? []).map((row) => row.equipmentId),
+      );
     }
 
     const emptyDeliveryAtDate = this.validateEmptyDeliveryAt(
@@ -1120,6 +1180,7 @@ export class TripsService {
         {
           excludeTripId: tripId,
           ignoreCurrentAvailability,
+          ...assignmentSchedule,
         },
       );
       await this.syncEquipment(tripId, resolvedEquipmentIds);
@@ -1241,6 +1302,18 @@ export class TripsService {
       title: patchActivity.title,
       actor,
     });
+
+    if (
+      hasPlannedDatesPatch &&
+      (updatedTripEntity.status === 'in_transit' ||
+        updatedTripEntity.status === 'scheduled')
+    ) {
+      await this.warnPeersIfScheduleOverlap(
+        companyId,
+        updatedTripEntity,
+        actor,
+      );
+    }
 
     return this.findOne(companyId, tripId);
   }
@@ -1515,6 +1588,10 @@ export class TripsService {
       updatedAt,
       'system',
     );
+    if (deltas.some((delta) => delta.field === 'returnAt')) {
+      await this.warnPeersIfScheduleOverlap(companyId, reloaded, user);
+    }
+
     await this.activityEvents.record({
       companyId,
       kind: TRIP_TRACKING_UPDATED_ACTIVITY.kind,
@@ -1972,7 +2049,12 @@ export class TripsService {
   private async resolveUnitId(
     companyId: number,
     ref: string,
-    options?: { excludeTripId?: number; ignoreCurrentAvailability?: boolean },
+    options?: {
+      excludeTripId?: number;
+      ignoreCurrentAvailability?: boolean;
+      plannedDepartureAt?: Date;
+      plannedCompletionAt?: Date;
+    },
   ): Promise<number | undefined> {
     const unitId = parseOptionalNumericId(ref, 'Unit');
     if (!unitId) {
@@ -1987,6 +2069,7 @@ export class TripsService {
     }
     assertFleetResourceAssignableForTrip(row, 'Unit');
     if (!options?.ignoreCurrentAvailability) {
+      const candidateWindow = this.assignmentScheduleWindow(options);
       await assertResourceNotOnActiveTrip(
         this.tripsRepo,
         this.tripEquipmentRepo,
@@ -1995,6 +2078,7 @@ export class TripsService {
         row.id,
         'Unit',
         options?.excludeTripId,
+        candidateWindow,
       );
     }
     return row.id;
@@ -2003,7 +2087,12 @@ export class TripsService {
   private async resolveOperatorId(
     companyId: number,
     ref: string,
-    options?: { excludeTripId?: number; ignoreCurrentAvailability?: boolean },
+    options?: {
+      excludeTripId?: number;
+      ignoreCurrentAvailability?: boolean;
+      plannedDepartureAt?: Date;
+      plannedCompletionAt?: Date;
+    },
   ): Promise<number | undefined> {
     const operatorId = parseOptionalNumericId(ref, 'Operator');
     if (!operatorId) {
@@ -2018,6 +2107,7 @@ export class TripsService {
     }
     assertFleetResourceAssignableForTrip(row, 'Operator');
     if (!options?.ignoreCurrentAvailability) {
+      const candidateWindow = this.assignmentScheduleWindow(options);
       await assertResourceNotOnActiveTrip(
         this.tripsRepo,
         this.tripEquipmentRepo,
@@ -2026,6 +2116,7 @@ export class TripsService {
         row.id,
         'Operator',
         options?.excludeTripId,
+        candidateWindow,
       );
     }
     return row.id;
@@ -2074,7 +2165,12 @@ export class TripsService {
   private async resolveEquipmentIds(
     companyId: number,
     refs: string[],
-    options?: { excludeTripId?: number; ignoreCurrentAvailability?: boolean },
+    options?: {
+      excludeTripId?: number;
+      ignoreCurrentAvailability?: boolean;
+      plannedDepartureAt?: Date;
+      plannedCompletionAt?: Date;
+    },
   ): Promise<number[]> {
     const out: number[] = [];
     for (const ref of refs) {
@@ -2089,6 +2185,7 @@ export class TripsService {
       if (row) {
         assertFleetResourceAssignableForTrip(row, 'Equipment');
         if (!options?.ignoreCurrentAvailability) {
+          const candidateWindow = this.assignmentScheduleWindow(options);
           await assertResourceNotOnActiveTrip(
             this.tripsRepo,
             this.tripEquipmentRepo,
@@ -2097,11 +2194,89 @@ export class TripsService {
             row.id,
             'Equipment',
             options?.excludeTripId,
+            candidateWindow,
           );
         }
         out.push(row.id);
       }
     }
     return out;
+  }
+
+  private assignmentScheduleWindow(options?: {
+    plannedDepartureAt?: Date;
+    plannedCompletionAt?: Date;
+  }) {
+    if (!options?.plannedDepartureAt || !options?.plannedCompletionAt) {
+      return undefined;
+    }
+    return tripScheduleWindowFromCandidate(
+      options.plannedDepartureAt,
+      options.plannedCompletionAt,
+    );
+  }
+
+  private async loadActiveTripsWithEquipment(
+    companyId: number,
+  ): Promise<Trip[]> {
+    return this.tripsRepo.find({
+      where: {
+        companyId,
+        status: In(['scheduled', 'in_transit']),
+        deletedAt: IsNull(),
+      },
+      relations: ['tripEquipment'],
+    });
+  }
+
+  private async assertScheduledTripDoesNotOverlapPeers(
+    companyId: number,
+    trip: {
+      id: number;
+      unitId?: number | null;
+      operatorId?: number | null;
+      plannedDepartureAt: Date;
+      plannedCompletionAt: Date;
+      returnAt?: Date | null;
+      status: string;
+    },
+    equipmentIds: readonly number[],
+  ): Promise<void> {
+    if (trip.status !== 'scheduled') {
+      return;
+    }
+    const window = tripScheduleWindowFromEntity(trip);
+    const peers = await this.loadActiveTripsWithEquipment(companyId);
+    const overlaps = findScheduleOverlapsAmongTrips(
+      window,
+      peers,
+      trip as Trip,
+      [...equipmentIds],
+      trip.id,
+    );
+    if (overlaps.length === 0) {
+      return;
+    }
+    const other = overlaps[0]!;
+    const otherCode = other.maneuverCode?.trim() || String(other.id);
+    throw new BadRequestException(
+      `Las fechas se solapan con la maniobra activa ${otherCode}. Ajusta el horario o la asignación.`,
+    );
+  }
+
+  private async warnPeersIfScheduleOverlap(
+    companyId: number,
+    trip: Trip,
+    actor?: AuthUser | null,
+  ): Promise<void> {
+    const equipmentIds = (trip.tripEquipment ?? []).map((row) => row.equipmentId);
+    const peers = await this.loadActiveTripsWithEquipment(companyId);
+    await recordTripScheduleOverlapWarnings(this.activityEvents, {
+      companyId,
+      sourceTrip: trip,
+      sourceEquipmentIds: equipmentIds,
+      peerTrips: peers,
+      actor,
+    });
   }
 }

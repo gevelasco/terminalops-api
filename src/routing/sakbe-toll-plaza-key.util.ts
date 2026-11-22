@@ -57,7 +57,10 @@ export function tollPlazaCatalogKey(params: {
   if (point) {
     const fp = inegiPuntoCasetaFingerprint(point);
     const coordLike = fp != null && !fp.startsWith('h');
-    const plazaKey = `inegi:${fp ?? 'unknown'}:mxn${cost}:o${params.order}`;
+    const plazaKey =
+      fp != null && fp.startsWith('h')
+        ? `inegi:${fp}:d${dirHash}:mxn${cost}:o${params.order}`
+        : `inegi:${fp ?? 'unknown'}:mxn${cost}:o${params.order}`;
     return {
       plazaKey,
       plazaKeySource: 'inegi',

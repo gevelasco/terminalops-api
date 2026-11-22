@@ -1,6 +1,9 @@
 import type { SakbeTollPlazaRow } from './sakbe-route-tolls.parser';
 
-/** Une casetas de varios tramos en orden de recorrido, sin duplicar en cruces compartidos. */
+/**
+ * Une casetas de varios tramos en orden de recorrido.
+ * Deduplica solo cruces repetidos (misma `plazaKey` en unión de tramos).
+ */
 export function mergeSakbeTollPlazasLegs(
   legs: readonly (readonly SakbeTollPlazaRow[])[],
 ): SakbeTollPlazaRow[] {

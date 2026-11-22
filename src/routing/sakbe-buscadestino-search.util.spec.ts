@@ -14,4 +14,16 @@ describe('sakbeBuscadestinoCandidates', () => {
     }
     expect(candidates.some((c) => /monterrey/i.test(c))).toBe(true);
   });
+
+  it('ordena candidatos del más específico al más corto', () => {
+    const candidates = sakbeBuscadestinoCandidates(
+      'Barrio 5, Manzanillo, Colima',
+    );
+    expect(candidates[0]).toMatch(/manzanillo/i);
+    const idxManzanillo = candidates.findIndex((c) => /manzanillo/i.test(c));
+    const idxColima = candidates.findIndex((c) => /^colima$/i.test(c));
+    expect(idxManzanillo).toBeGreaterThanOrEqual(0);
+    expect(idxColima).toBeGreaterThanOrEqual(0);
+    expect(idxManzanillo).toBeLessThan(idxColima);
+  });
 });

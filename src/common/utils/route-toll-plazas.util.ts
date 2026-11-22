@@ -5,6 +5,8 @@ export type RouteTollPlazaPersistedRow = {
   inegiPoint?: string;
   name: string;
   costMxn: number | null;
+  municipality?: string;
+  state?: string;
 };
 
 export function normalizeRouteTollPlazas(raw: unknown): RouteTollPlazaPersistedRow[] {
@@ -33,6 +35,8 @@ export function normalizeRouteTollPlazas(raw: unknown): RouteTollPlazaPersistedR
           : null;
     const source = String(row.plazaKeySource ?? '').trim();
     const inegiPoint = String(row.inegiPoint ?? '').trim();
+    const municipality = String(row.municipality ?? '').trim();
+    const state = String(row.state ?? '').trim();
     out.push({
       order,
       plazaKey,
@@ -40,6 +44,8 @@ export function normalizeRouteTollPlazas(raw: unknown): RouteTollPlazaPersistedR
         ? { plazaKeySource: source as 'inegi' | 'fallback' }
         : {}),
       ...(inegiPoint ? { inegiPoint } : {}),
+      ...(municipality ? { municipality } : {}),
+      ...(state ? { state } : {}),
       name,
       costMxn,
     });

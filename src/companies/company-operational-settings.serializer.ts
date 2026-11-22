@@ -57,5 +57,6 @@ export function serializeCompanyOperationalSettings(
     operationalCenterSettlementConsId: geo.operationalCenterSettlementConsId,
     operationalCenterLatitude: geo.operationalCenterLatitude,
     operationalCenterLongitude: geo.operationalCenterLongitude,
+    operationalCenterChangedAt: geo.operationalCenterChangedAt,
   };
 }

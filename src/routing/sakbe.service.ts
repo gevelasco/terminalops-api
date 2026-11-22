@@ -223,6 +223,7 @@ export class SakbeService {
       )
       .join(';');
     return [
+      'v3',
       input.originLat.toFixed(4),
       input.originLon.toFixed(4),
       input.destinationLat.toFixed(4),
@@ -339,6 +340,7 @@ export class SakbeService {
     vehicleCode: number,
   ): string {
     return [
+      'v3',
       from.lat.toFixed(4),
       from.lon.toFixed(4),
       to.lat.toFixed(4),
@@ -423,11 +425,13 @@ export class SakbeService {
       this.tryResolveDestinationMode(base, originSearch, destinationSearch, key),
       this.tryResolveLineMode(base, input, key),
     ]);
-    if (destMode) {
-      return destMode;
-    }
+    // `line` ancla en las coordenadas reales (buscalinea); `destination` usa buscadestino
+    // y puede omitir casetas cercanas al origen (p. ej. Cuyutlán desde Manzanillo).
     if (lineMode) {
       return lineMode;
+    }
+    if (destMode) {
+      return destMode;
     }
 
     throw new ServiceUnavailableException(

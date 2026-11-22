@@ -53,10 +53,13 @@ export function sakbeTollPlazasFromRouteDetail(
     const cost = parseSegmentCost(seg.costo_caseta);
     const hasPoint =
       seg.punto_caseta != null && String(seg.punto_caseta).trim() !== '';
-    if (cost == null && !hasPoint) {
+    const direccion = String(seg.direccion ?? '').trim();
+    const looksLikeTollPlaza = /caseta|peaje|cuota|cruce\s+la\s+caseta/i.test(
+      direccion,
+    );
+    if (cost == null && !hasPoint && !looksLikeTollPlaza) {
       continue;
     }
-    const direccion = String(seg.direccion ?? '').trim();
     const order = rows.length + 1;
     const key = tollPlazaCatalogKey({
       puntoCaseta: String(seg.punto_caseta ?? ''),

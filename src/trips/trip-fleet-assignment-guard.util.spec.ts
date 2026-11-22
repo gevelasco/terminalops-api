@@ -19,27 +19,34 @@ describe('isCompletedHistoricalSchedule', () => {
 });
 
 describe('assertResourceNotOnActiveTrip', () => {
-  const tripsFindOne = jest.fn();
-  const tripEquipmentGetOne = jest.fn();
+  const tripsFind = jest.fn();
+  const tripEquipmentGetMany = jest.fn();
 
-  const tripsRepo = { findOne: tripsFindOne } as unknown as import('typeorm').Repository<Trip>;
+  const tripsRepo = { find: tripsFind } as unknown as import('typeorm').Repository<Trip>;
   const tripEquipmentRepo = {
     createQueryBuilder: jest.fn(() => ({
       innerJoinAndSelect: jest.fn().mockReturnThis(),
       where: jest.fn().mockReturnThis(),
       andWhere: jest.fn().mockReturnThis(),
-      getOne: tripEquipmentGetOne,
+      getMany: tripEquipmentGetMany,
     })),
   } as unknown as import('typeorm').Repository<TripEquipment>;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    tripsFindOne.mockResolvedValue(null);
-    tripEquipmentGetOne.mockResolvedValue(null);
+    tripsFind.mockResolvedValue([]);
+    tripEquipmentGetMany.mockResolvedValue([]);
   });
 
-  it('blocks unit already on active trip', async () => {
-    tripsFindOne.mockResolvedValue({ id: 99, maneuverCode: 'ADM-0001' });
+  it('blocks unit already on active trip without schedule context', async () => {
+    tripsFind.mockResolvedValue([
+      {
+        id: 99,
+        maneuverCode: 'ADM-0001',
+        plannedDepartureAt: new Date('2026-06-01T08:00:00Z'),
+        plannedCompletionAt: new Date('2026-06-02T08:00:00Z'),
+      },
+    ]);
 
     await expect(
       assertResourceNotOnActiveTrip(
@@ -53,8 +60,15 @@ describe('assertResourceNotOnActiveTrip', () => {
     ).rejects.toThrow(BadRequestException);
   });
 
-  it('allows unit when only conflict is excluded trip', async () => {
-    tripsFindOne.mockResolvedValue(null);
+  it('allows chained schedule when windows do not overlap', async () => {
+    tripsFind.mockResolvedValue([
+      {
+        id: 99,
+        maneuverCode: 'ADM-0001',
+        plannedDepartureAt: new Date('2026-06-01T08:00:00Z'),
+        plannedCompletionAt: new Date('2026-06-02T08:00:00Z'),
+      },
+    ]);
 
     await expect(
       assertResourceNotOnActiveTrip(
@@ -64,7 +78,11 @@ describe('assertResourceNotOnActiveTrip', () => {
         'unit',
         7,
         'Unit',
-        10,
+        undefined,
+        {
+          startMs: new Date('2026-06-02T08:00:00Z').getTime(),
+          endMs: new Date('2026-06-03T08:00:00Z').getTime(),
+        },
       ),
     ).resolves.toBeUndefined();
   });

@@ -57,6 +57,7 @@ export type AuthUser = {
   operationalCenterSettlementConsId?: string;
   operationalCenterLatitude?: number;
   operationalCenterLongitude?: number;
+  operationalCenterChangedAt?: string;
   /** Tareas personales del checklist aún abiertas (login / refresh). */
   openChecklistCount?: number;
 };

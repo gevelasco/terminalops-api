@@ -16,4 +16,13 @@ describe('sakbe-route-tolls.parser', () => {
     expect(rows[1]?.order).toBe(2);
     expect(sakbeTollPlazaTotalMxn(rows)).toBe(205.5);
   });
+
+  it('keeps caseta rows when cost is missing but direccion names a toll', () => {
+    const rows = sakbeTollPlazasFromRouteDetail([
+      { direccion: 'Caseta de cobro Cuyutlan', costo_caseta: 0 },
+      { direccion: 'Continúe derecho', costo_caseta: 0 },
+    ]);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.name).toBe('Cuyutlan');
+  });
 });
