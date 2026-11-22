@@ -348,6 +348,12 @@ async function main() {
           CHECK (payment_reminder_days_before >= 1 AND payment_reminder_days_before <= 15);
       `);
       console.log('Schema ensure: companies.payment_reminder_days_before OK');
+      // Hard ensure: etiqueta gasto control operativo (covers migrations_list drift / login SELECT).
+      await dataSource.query(`
+        ALTER TABLE terminalops.companies
+          ADD COLUMN IF NOT EXISTS trip_auto_operational_control_label varchar(80) NULL;
+      `);
+      console.log('Schema ensure: companies.trip_auto_operational_control_label OK');
       // Hard ensure: bitácora incident images table.
       await dataSource.query(`
         CREATE TABLE IF NOT EXISTS terminalops.trip_incident_images (
