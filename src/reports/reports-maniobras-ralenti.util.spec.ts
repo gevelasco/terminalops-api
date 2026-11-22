@@ -4,10 +4,10 @@ import {
 } from './reports-maniobras-ralenti.util';
 
 describe('reports-maniobras-ralenti.util', () => {
-  it('converts rate estimates in days to hours', () => {
-    expect(rateEstimatedHours(2, 'days')).toBe(48);
-    expect(rateEstimatedHours('4.5', 'hours')).toBe(4.5);
-    expect(rateEstimatedHours(3, null)).toBeNull();
+  it('parses rate estimate hours', () => {
+    expect(rateEstimatedHours(4.5)).toBe(4.5);
+    expect(rateEstimatedHours('6')).toBe(6);
+    expect(rateEstimatedHours(null)).toBeNull();
   });
 
   it('uses rate baseline when available to reveal padded plan', () => {
@@ -27,7 +27,6 @@ describe('reports-maniobras-ralenti.util', () => {
         returnAt: '2026-07-01T22:00:00.000Z',
         estimatedArrivalTimeValue: '6',
         estimatedReturnTimeValue: '4',
-        estimatedTimeUnit: 'hours',
       },
     ]);
 
@@ -53,7 +52,6 @@ describe('reports-maniobras-ralenti.util', () => {
         returnAt: '2026-07-01T20:00:00.000Z',
         estimatedArrivalTimeValue: null,
         estimatedReturnTimeValue: null,
-        estimatedTimeUnit: null,
       },
     ]);
 
@@ -76,7 +74,6 @@ describe('reports-maniobras-ralenti.util', () => {
         returnAt: null,
         estimatedArrivalTimeValue: '4',
         estimatedReturnTimeValue: '4',
-        estimatedTimeUnit: 'hours',
       },
     ]);
 

@@ -333,6 +333,80 @@ async function main() {
           ADD COLUMN IF NOT EXISTS per_diem_amount numeric(12, 2) NOT NULL DEFAULT 0;
       `);
       console.log('Schema ensure: destination_rate_prices.per_diem_amount OK');
+      // Hard ensure: tiempos estimados de tarifa solo en horas (drop estimated_time_unit).
+      await dataSource.query(`
+        UPDATE terminalops.destination_rates
+        SET estimated_arrival_time_value = estimated_arrival_time_value * 24
+        WHERE estimated_time_unit = 'days'
+          AND estimated_arrival_time_value IS NOT NULL;
+      `);
+      await dataSource.query(`
+        UPDATE terminalops.destination_rates
+        SET estimated_return_time_value = estimated_return_time_value * 24
+        WHERE estimated_time_unit = 'days'
+          AND estimated_return_time_value IS NOT NULL;
+      `);
+      await dataSource.query(`
+        ALTER TABLE terminalops.destination_rates
+          DROP CONSTRAINT IF EXISTS chk_destination_rates_estimated_time_unit;
+      `);
+      await dataSource.query(`
+        ALTER TABLE terminalops.destination_rates
+          DROP COLUMN IF EXISTS estimated_time_unit;
+      `);
+      console.log('Schema ensure: destination_rates.estimated_time_unit dropped OK');
+      // Hard ensure: tabla legacy de adjuntos por entrada de mantenimiento.
+      await dataSource.query(`
+        DROP TABLE IF EXISTS terminalops.fleet_maintenance_entry_documents;
+      `);
+      console.log('Schema ensure: fleet_maintenance_entry_documents dropped OK');
+      // Hard ensure: bitácora de status de flota legacy (sin writers).
+      await dataSource.query(`
+        DROP INDEX IF EXISTS terminalops.fleet_status_events_created_at_idx;
+      `);
+      await dataSource.query(`
+        DROP INDEX IF EXISTS terminalops.fleet_status_events_entity_idx;
+      `);
+      await dataSource.query(`
+        DROP TABLE IF EXISTS terminalops.fleet_status_events;
+      `);
+      console.log('Schema ensure: fleet_status_events dropped OK');
+      // Hard ensure: modelo toll_routes* legacy (casetas en destination_rates.route_toll_plazas).
+      await dataSource.query(`
+        DROP TABLE IF EXISTS terminalops.toll_route_booth_prices;
+      `);
+      await dataSource.query(`
+        DROP TABLE IF EXISTS terminalops.toll_route_booths;
+      `);
+      await dataSource.query(`
+        DROP TABLE IF EXISTS terminalops.toll_routes;
+      `);
+      console.log('Schema ensure: toll_routes* dropped OK');
+      await dataSource.query(`
+        DROP TABLE IF EXISTS terminalops.trip_attached_documents;
+      `);
+      await dataSource.query(`
+        DROP INDEX IF EXISTS terminalops.idx_trip_audit_events_trip_id;
+      `);
+      await dataSource.query(`
+        DROP INDEX IF EXISTS terminalops.idx_trip_audit_events_company_id;
+      `);
+      await dataSource.query(`
+        DROP TABLE IF EXISTS terminalops.trip_audit_events;
+      `);
+      console.log('Schema ensure: trip_attached_documents / trip_audit_events dropped OK');
+      await dataSource.query(`
+        ALTER TABLE terminalops.destination_rates
+          DROP COLUMN IF EXISTS operational_distance_km,
+          DROP COLUMN IF EXISTS is_round_trip;
+      `);
+      await dataSource.query(`
+        ALTER TABLE terminalops.trips
+          DROP COLUMN IF EXISTS operational_distance_km,
+          DROP COLUMN IF EXISTS is_round_trip,
+          DROP COLUMN IF EXISTS toll_route_id;
+      `);
+      console.log('Schema ensure: legacy trip/rate distance columns dropped OK');
       // Hard ensure: avisos de pagos (covers migrations_list drift / login SELECT).
       await dataSource.query(`
         ALTER TABLE terminalops.companies
@@ -348,6 +422,37 @@ async function main() {
           CHECK (payment_reminder_days_before >= 1 AND payment_reminder_days_before <= 15);
       `);
       console.log('Schema ensure: companies.payment_reminder_days_before OK');
+      await dataSource.query(`
+        ALTER TABLE terminalops.companies
+          ADD COLUMN IF NOT EXISTS payment_reminder_days_changed_at timestamptz NULL;
+      `);
+      await dataSource.query(`
+        ALTER TABLE terminalops.companies
+          ADD COLUMN IF NOT EXISTS trip_auto_payments_changed_at timestamptz NULL;
+      `);
+      await dataSource.query(`
+        UPDATE terminalops.companies
+        SET payment_reminder_days_changed_at = COALESCE(
+              payment_reminder_days_changed_at,
+              operational_analysis_changed_at,
+              updated_at,
+              created_at
+            )
+        WHERE payment_reminder_days_changed_at IS NULL;
+      `);
+      await dataSource.query(`
+        UPDATE terminalops.companies
+        SET trip_auto_payments_changed_at = COALESCE(
+              trip_auto_payments_changed_at,
+              operational_analysis_changed_at,
+              updated_at,
+              created_at
+            )
+        WHERE trip_auto_payments_changed_at IS NULL;
+      `);
+      console.log(
+        'Schema ensure: companies payment/auto-payments changed_at OK',
+      );
       // Hard ensure: etiqueta gasto control operativo (covers migrations_list drift / login SELECT).
       await dataSource.query(`
         ALTER TABLE terminalops.companies

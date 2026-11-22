@@ -16,8 +16,6 @@ export type ManiobraRalentiTripInput = {
   returnAt: Date | string | null;
   estimatedArrivalTimeValue: string | number | null;
   estimatedReturnTimeValue: string | number | null;
-  /** Legacy: `days` en filas migradas; nuevas tarifas usan solo horas. */
-  estimatedTimeUnit?: string | null;
 };
 
 export type ManiobraRalentiEvent = {
@@ -78,23 +76,11 @@ function parsePositiveNumber(raw: string | number | null | undefined): number | 
   return n;
 }
 
-/** Convierte tiempos estimados de tarifa a horas. */
+/** Tiempos estimados de tarifa guardados en horas. */
 export function rateEstimatedHours(
   value: string | number | null | undefined,
-  unit: string | null | undefined,
 ): number | null {
-  const amount = parsePositiveNumber(value);
-  if (amount == null) {
-    return null;
-  }
-  const normalized = String(unit ?? '')
-    .trim()
-    .toLowerCase();
-  if (normalized === 'days') {
-    return amount * 24;
-  }
-  // `hours` o sin unidad (valores guardados solo en horas).
-  return amount;
+  return parsePositiveNumber(value);
 }
 
 function roundHours(value: number): number {
@@ -165,14 +151,8 @@ export function buildManiobraRalentiReport(
       trip.plannedCompletionAt,
     );
 
-    const rateOutbound = rateEstimatedHours(
-      trip.estimatedArrivalTimeValue,
-      trip.estimatedTimeUnit ?? 'hours',
-    );
-    const rateReturn = rateEstimatedHours(
-      trip.estimatedReturnTimeValue,
-      trip.estimatedTimeUnit ?? 'hours',
-    );
+    const rateOutbound = rateEstimatedHours(trip.estimatedArrivalTimeValue);
+    const rateReturn = rateEstimatedHours(trip.estimatedReturnTimeValue);
 
     let evaluated = false;
 
