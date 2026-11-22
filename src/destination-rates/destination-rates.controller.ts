@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
   Param,
   ParseIntPipe,
@@ -10,7 +11,10 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { TenantContextService } from '../common/tenant/tenant-context.service';
-import { APP_MODULE_CODES } from '../common/constants/app-modules';
+import {
+  APP_MODULE_CODES,
+  isAdminRole,
+} from '../common/constants/app-modules';
 import {
   assertModuleRead,
   assertModuleWrite,
@@ -54,11 +58,15 @@ export class DestinationRatesController {
   }
 
   @Delete(':rateId')
+  @ApiOperation({ summary: 'Eliminar tarifa (solo administrador)' })
   async remove(
     @Param('rateId', ParseIntPipe) rateId: number,
     @LoggedUser() user: AuthUser,
   ) {
     assertModuleWrite(user, APP_MODULE_CODES.DESTINATION_RATES);
+    if (!isAdminRole(user.role)) {
+      throw new ForbiddenException('Solo un administrador puede eliminar tarifas.');
+    }
     const companyId = await this.tenantContext.resolveInternalIdFromAuthUser(user);
     return this.service.remove(companyId, rateId);
   }
