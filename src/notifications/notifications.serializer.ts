@@ -35,6 +35,9 @@ function iconForActivityKind(kind: string): string {
   if (kind === 'trip.tracking_updated') {
     return 'tracking';
   }
+  if (kind.startsWith('trip.reminder.')) {
+    return 'tracking';
+  }
   if (kind === 'trip.expense_added') {
     return 'settlement';
   }
@@ -59,6 +62,9 @@ function entityTabForActivityKind(kind: string, title?: string): string | null {
   }
   if (kind === 'client.updated') {
     return 'details';
+  }
+  if (kind.startsWith('trip.reminder.')) {
+    return 'tracking';
   }
   if (
     kind === 'payment.confirmed' ||
@@ -85,7 +91,8 @@ export function serializeActivityEventRow(
     ? 'danger'
     : row.kind === 'payment.due_today' ||
         row.kind === 'payment.due_soon' ||
-        row.kind === 'trip.schedule_overlap'
+        row.kind === 'trip.schedule_overlap' ||
+        row.kind.startsWith('trip.reminder.')
       ? 'warning'
       : row.kind.startsWith('incident.')
         ? 'danger'

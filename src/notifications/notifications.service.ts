@@ -36,6 +36,13 @@ import {
 } from './notification-access.util';
 import { normalizePaymentReminderDays } from './payment-reminder.util';
 import type AuthUser from 'src/types/auth-user.type';
+import { UserPreferences } from 'src/users/entities/user-preferences.entity';
+import {
+  feedItemVisibleForNotificationModules,
+  intersectRbacAndNotificationEntityTypes,
+  resolveAllowedModulesForAuthUser,
+  resolveEffectiveNotificationFeedModules,
+} from './notification-feed-preferences.util';
 
 export interface NotificationsFeedResult {
   period: 'day' | 'week' | 'month';
@@ -58,7 +65,21 @@ export class NotificationsService {
     private readonly unitsRepo: Repository<Unit>,
     @InjectRepository(Equipment)
     private readonly equipmentRepo: Repository<Equipment>,
+    @InjectRepository(UserPreferences)
+    private readonly userPreferencesRepo: Repository<UserPreferences>,
   ) {}
+
+  private async resolveFeedModuleFilter(user: AuthUser): Promise<Set<string>> {
+    const allowed = resolveAllowedModulesForAuthUser(user);
+    const prefs = await this.userPreferencesRepo.findOne({
+      where: { userId: Number(user.id) },
+      select: ['notificationFeedModules'],
+    });
+    return resolveEffectiveNotificationFeedModules(
+      prefs?.notificationFeedModules,
+      allowed,
+    );
+  }
 
   async getFeed(
     companyId: number,
@@ -68,7 +89,12 @@ export class NotificationsService {
     const period = query.period ?? 'day';
     const limit = Math.min(Math.max(query.limit ?? 50, 1), 100);
     const range = resolveNotificationPeriodRange(period);
-    const entityTypes = allowedNotificationEntityTypes(user);
+    const rbacEntityTypes = allowedNotificationEntityTypes(user);
+    const enabledModules = await this.resolveFeedModuleFilter(user);
+    const entityTypes = intersectRbacAndNotificationEntityTypes(
+      rbacEntityTypes,
+      enabledModules,
+    );
 
     const [eventRows, computedRows] = await Promise.all([
       this.activityEvents.listForCompany(
@@ -78,7 +104,13 @@ export class NotificationsService {
         limit,
         entityTypes,
       ),
-      this.loadComputedNotifications(companyId, range, user),
+      this.loadComputedNotifications(
+        companyId,
+        range,
+        user,
+        enabledModules,
+        entityTypes,
+      ),
     ]);
 
     const events = eventRows.map(serializeActivityEventRow);
@@ -103,10 +135,13 @@ export class NotificationsService {
           })
         : Promise.resolve([]),
     ]);
-    const items = enrichCoveragePaymentFleetAssetLabels(
+  let items = enrichCoveragePaymentFleetAssetLabels(
       enrichCoveragePaymentFeedItems(merged, coverageExpenses),
       units,
       equipment,
+    );
+    items = items.filter((item) =>
+      feedItemVisibleForNotificationModules(item, enabledModules),
     );
 
     if (query.countOnly) {
@@ -154,7 +189,12 @@ export class NotificationsService {
         since: fallback.toISOString(),
       };
     }
-    const entityTypes = allowedNotificationEntityTypes(user);
+    const rbacEntityTypes = allowedNotificationEntityTypes(user);
+    const enabledModules = await this.resolveFeedModuleFilter(user);
+    const entityTypes = intersectRbacAndNotificationEntityTypes(
+      rbacEntityTypes,
+      enabledModules,
+    );
     const summary = await this.activityEvents.summarySince(
       companyId,
       since,
@@ -167,8 +207,9 @@ export class NotificationsService {
     companyId: number,
     range: ReturnType<typeof resolveNotificationPeriodRange>,
     user: AuthUser,
+    enabledModules: Set<string>,
+    entityTypes: string[] | null,
   ): Promise<NotificationFeedItemDto[]> {
-    const entityTypes = allowedNotificationEntityTypes(user);
     const canSeeTrips =
       entityTypes == null || entityTypes.includes('trip');
     const canSeePayments =
@@ -206,10 +247,16 @@ export class NotificationsService {
     const payments = buildComputedPaymentNotifications(dueItems.items, {
       today: range.today,
       soonUntil,
-    }).filter((item) => canSeeNotificationItem(user, item));
-    const receivables = buildReceivableDueNotifications(receivableRows).filter(
-      (item) => canSeeNotificationItem(user, item),
-    );
+    })
+      .filter((item) => canSeeNotificationItem(user, item))
+      .filter((item) =>
+        feedItemVisibleForNotificationModules(item, enabledModules),
+      );
+    const receivables = buildReceivableDueNotifications(receivableRows)
+      .filter((item) => canSeeNotificationItem(user, item))
+      .filter((item) =>
+        feedItemVisibleForNotificationModules(item, enabledModules),
+      );
     return [...payments, ...receivables];
   }
 

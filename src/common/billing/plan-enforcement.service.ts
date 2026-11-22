@@ -70,14 +70,14 @@ export class PlanEnforcementService {
     const normalized = role.trim().toLowerCase();
     if (normalized === 'admin') {
       const count = await this.users.count({
-        where: { companyId, role: 'admin' },
+        where: { companyId, role: 'admin', status: 'active' },
       });
       assertWithinQuota('administradores', count, entitlements.maxAdmins);
       return;
     }
     if (normalized === 'staff') {
       const count = await this.users.count({
-        where: { companyId, role: 'staff' },
+        where: { companyId, role: 'staff', status: 'active' },
       });
       assertWithinQuota('usuarios staff', count, entitlements.maxStaffUsers);
     }

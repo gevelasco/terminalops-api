@@ -19,6 +19,8 @@ export function moduleForNotificationEntity(
       return APP_MODULE_CODES.OPERATORS;
     case 'client':
       return APP_MODULE_CODES.CLIENTS;
+    case 'destination_rate':
+      return APP_MODULE_CODES.DESTINATION_RATES;
     case 'expense':
     case 'expenses':
       return APP_MODULE_CODES.EXPENSES;
@@ -51,6 +53,11 @@ export function allowedNotificationEntityTypes(
   }
   if (canReadModule(user.role, user.moduleGrants, APP_MODULE_CODES.CLIENTS)) {
     types.push('client');
+  }
+  if (
+    canReadModule(user.role, user.moduleGrants, APP_MODULE_CODES.DESTINATION_RATES)
+  ) {
+    types.push('destination_rate');
   }
   if (canReadModule(user.role, user.moduleGrants, APP_MODULE_CODES.EXPENSES)) {
     types.push('expense', 'expenses');

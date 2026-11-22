@@ -14,6 +14,7 @@ import { OperatorPrivateInsurance } from 'src/operators/entities/operator-privat
 import { OperatorPublicInsurance } from 'src/operators/entities/operator-public-insurance.entity';
 import { Trip } from 'src/trips/entities/trip.entity';
 import type {
+  OperatorActiveServiceSnapshot,
   OperatorLastManeuverSnapshot,
   OperatorPayDueVariant,
 } from 'src/operators/operator-list-enrichment.util';
@@ -115,6 +116,9 @@ export class Operator {
 
   /** Última maniobra asignada (solo en listados). */
   lastManeuver?: OperatorLastManeuverSnapshot;
+
+  /** Maniobra en curso o programada (solo en listados / cards). */
+  activeService?: OperatorActiveServiceSnapshot;
 
   /** Próximo vencimiento de pago al operador (solo en listados). */
   nextPayDueOn?: string;

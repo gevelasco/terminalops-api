@@ -9,16 +9,28 @@ import { Unit } from 'src/units/entities/unit.entity';
 import { NotificationsService } from './notifications.service';
 import { PaymentReminderScheduler } from './payment-reminder.scheduler';
 import { PaymentReminderService } from './payment-reminder.service';
+import { TripMilestoneReminderService } from './trip-milestone-reminder.service';
+import { TripMilestoneReminderScheduler } from './trip-milestone-reminder.scheduler';
+import { UserPreferences } from 'src/users/entities/user-preferences.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Trip, Expense, Company, Unit, Equipment]),
+    TypeOrmModule.forFeature([
+      Trip,
+      Expense,
+      Company,
+      Unit,
+      Equipment,
+      UserPreferences,
+    ]),
     ExpensesModule,
   ],
   providers: [
     NotificationsService,
     PaymentReminderService,
     PaymentReminderScheduler,
+    TripMilestoneReminderService,
+    TripMilestoneReminderScheduler,
   ],
   exports: [NotificationsService],
 })

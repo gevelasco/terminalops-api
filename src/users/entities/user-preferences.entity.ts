@@ -17,6 +17,10 @@ export class UserPreferences {
   @Column({ name: 'theme_scheme', default: 'light' })
   themeScheme: string;
 
+  /** null = todas las notificaciones de módulos permitidos (RBAC). */
+  @Column({ name: 'notification_feed_modules', type: 'jsonb', nullable: true })
+  notificationFeedModules?: string[] | null;
+
   @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
   updatedAt: Date;
 

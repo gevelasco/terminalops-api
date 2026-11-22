@@ -14,6 +14,7 @@ import { Trip } from 'src/trips/entities/trip.entity';
 import { Unit } from 'src/units/entities/unit.entity';
 import {
   buildNextPayDueByOperatorId,
+  buildOperatorActiveServiceSnapshot,
   buildOperatorLastManeuverSnapshot,
 } from 'src/operators/operator-list-enrichment.util';
 import {
@@ -1001,8 +1002,9 @@ export class OperatorsService {
       return;
     }
     const operatorIds = operators.map((o) => o.id);
-    const [lastTrips, unpaid] = await Promise.all([
+    const [lastTrips, activeTrips, unpaid] = await Promise.all([
       this.loadLastTripsByOperatorId(companyId, operatorIds),
+      this.loadActiveTripsByOperatorId(companyId, operatorIds),
       this.loadUnpaidCompletedTripsForOperators(companyId, operatorIds),
     ]);
 
@@ -1010,6 +1012,16 @@ export class OperatorsService {
     for (const row of lastTrips) {
       if (row.operatorId != null) {
         lastByOperator.set(row.operatorId, row);
+      }
+    }
+
+    const activeByOperator = new Map<
+      number,
+      { trip: Trip; unit: Unit | undefined }
+    >();
+    for (const row of activeTrips) {
+      if (row.operatorId != null && !activeByOperator.has(row.operatorId)) {
+        activeByOperator.set(row.operatorId, { trip: row.trip, unit: row.unit });
       }
     }
 
@@ -1023,6 +1035,11 @@ export class OperatorsService {
       operator.lastManeuver = last
         ? buildOperatorLastManeuverSnapshot(last)
         : undefined;
+      const active = activeByOperator.get(operator.id);
+      operator.activeService =
+        active != null
+          ? buildOperatorActiveServiceSnapshot(active.trip, active.unit)
+          : undefined;
       const nextPay = nextPayByOperator.get(operator.id);
       operator.nextPayDueOn = nextPay?.dueOn;
       operator.nextPayDueVariant = nextPay?.variant;
@@ -1134,6 +1151,74 @@ export class OperatorsService {
     }
 
     return { trips, expenses };
+  }
+
+  /** Maniobra activa por operador (en curso prioriza sobre programada). */
+  private async loadActiveTripsByOperatorId(
+    companyId: number,
+    operatorIds: readonly number[],
+  ): Promise<{ operatorId: number; trip: Trip; unit?: Unit }[]> {
+    if (operatorIds.length === 0) {
+      return [];
+    }
+    const rows = await this.tripRepo.query(
+      `
+        SELECT DISTINCT ON (t.operator_id)
+          t.id,
+          t.operator_id AS "operatorId",
+          t.maneuver_code AS "maneuverCode",
+          t.origin_locality AS "originLocality",
+          t.origin_city_municipality AS "originCityMunicipality",
+          t.origin_postal_code AS "originPostalCode",
+          t.destination_locality AS "destinationLocality",
+          t.destination_city_municipality AS "destinationCityMunicipality",
+          t.destination_postal_code AS "destinationPostalCode",
+          t.status,
+          t.unit_id AS "unitId",
+          u.id AS "unitRowId",
+          u.trailer_brand_abbr AS "unitTrailerBrandAbbr",
+          u.trailer_year AS "unitTrailerYear",
+          u.plate AS "unitPlate"
+        FROM ${TERMINALOPS_SCHEMA}.trips t
+        LEFT JOIN ${TERMINALOPS_SCHEMA}.units u
+          ON u.id = t.unit_id AND u.is_active = TRUE
+        WHERE t.company_id = $1
+          AND t.deleted_at IS NULL
+          AND t.status IN ('in_transit', 'scheduled')
+          AND t.operator_id = ANY($2::int[])
+        ORDER BY
+          t.operator_id,
+          CASE t.status WHEN 'in_transit' THEN 0 ELSE 1 END,
+          t.planned_departure_at DESC NULLS LAST
+      `,
+      [companyId, operatorIds],
+    );
+
+    return rows.map((row) => {
+      const trip = {
+        id: row.id,
+        operatorId: row.operatorId,
+        maneuverCode: row.maneuverCode,
+        originLocality: row.originLocality,
+        originCityMunicipality: row.originCityMunicipality,
+        originPostalCode: row.originPostalCode,
+        destinationLocality: row.destinationLocality,
+        destinationCityMunicipality: row.destinationCityMunicipality,
+        destinationPostalCode: row.destinationPostalCode,
+        status: row.status,
+        unitId: row.unitId,
+      } as unknown as Trip;
+      const unit =
+        row.unitRowId != null
+          ? ({
+              id: row.unitRowId,
+              trailerBrandAbbr: row.unitTrailerBrandAbbr,
+              trailerYear: row.unitTrailerYear,
+              plate: row.unitPlate,
+            } as Unit)
+          : undefined;
+      return { operatorId: Number(row.operatorId), trip, unit };
+    });
   }
 
   /** Última maniobra completada por operador (misma regla de idle que flota). */

@@ -1,5 +1,7 @@
 import type { Expense } from 'src/expenses/entities/expense.entity';
 import type { Trip } from 'src/trips/entities/trip.entity';
+import type { Unit } from 'src/units/entities/unit.entity';
+import { buildUnitOperationalId } from 'src/common/utils/unit-operational-id.util';
 import {
   buildTripDestinationCityPostalLabel,
   buildTripOriginCityPostalLabel,
@@ -14,6 +16,15 @@ export interface OperatorLastManeuverSnapshot {
   destination: string;
   status: string;
   occurredOn?: string;
+}
+
+/** Maniobra activa (en curso / programada) para cards de operadores. */
+export interface OperatorActiveServiceSnapshot {
+  tripId: number;
+  maneuverCode: string;
+  origin: string;
+  destination: string;
+  unitCode: string;
 }
 
 export interface OperatorNextPayDueSnapshot {
@@ -60,6 +71,24 @@ function operationalYmdMx(d: Date): string {
     month: '2-digit',
     day: '2-digit',
   }).format(d);
+}
+
+export function buildOperatorActiveServiceSnapshot(
+  trip: Trip,
+  unit: Unit | null | undefined,
+): OperatorActiveServiceSnapshot {
+  const unitCode = unit
+    ? buildUnitOperationalId(unit)
+    : trip.unitId != null
+      ? String(trip.unitId)
+      : '—';
+  return {
+    tripId: trip.id,
+    maneuverCode: trip.maneuverCode,
+    origin: buildTripOriginCityPostalLabel(trip),
+    destination: buildTripDestinationCityPostalLabel(trip),
+    unitCode,
+  };
 }
 
 export function buildOperatorLastManeuverSnapshot(

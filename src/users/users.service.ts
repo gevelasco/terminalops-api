@@ -37,6 +37,11 @@ import {
   mergeModuleGrantInput,
   normalizeStaffModuleGrantsFromRows,
 } from 'src/common/utils/module-permission.util';
+import {
+  allowedNotificationFeedModulesForUser,
+  normalizeNotificationFeedModulesInput,
+  validateNotificationFeedModulesPatch,
+} from 'src/notifications/notification-feed-preferences.util';
 
 const ROLE_JOB_TITLES: Record<string, string> = {
   superadmin: 'Propietario',
@@ -103,6 +108,8 @@ export class UsersService {
     const theme = this.resolveTheme(user.preferences?.themeScheme);
     const department = this.resolveUserDepartment(user.role);
     const workLocation = this.resolveUserWorkLocation(user);
+    const allowedNotificationFeedModules =
+      allowedNotificationFeedModulesForUser(this.resolveUserAllowedModules(user));
     return {
       id: user.id,
       username: user.username,
@@ -117,6 +124,9 @@ export class UsersService {
       department,
       workLocation,
       employeeId: String(user.id),
+      notificationFeedModules:
+        user.preferences?.notificationFeedModules ?? null,
+      allowedNotificationFeedModules,
     };
   }
 
@@ -162,6 +172,13 @@ export class UsersService {
 
     if (dto.theme) {
       await this.updateTheme(user.id, dto.theme);
+    }
+
+    if (dto.notificationFeedModules !== undefined) {
+      await this.updateNotificationFeedModules(
+        user,
+        dto.notificationFeedModules,
+      );
     }
 
     const fresh = await this.findOne({ id: user.id });
@@ -432,6 +449,33 @@ export class UsersService {
     await this.preferencesRepo.update({ userId }, { themeScheme: theme });
   }
 
+  private resolveUserAllowedModules(user: AppUser): string[] {
+    const grants = normalizeStaffModuleGrantsFromRows(user.moduleAccess ?? []);
+    return resolveAllowedModules(user.role, grants);
+  }
+
+  async updateNotificationFeedModules(
+    user: AppUser,
+    raw: string[] | null | undefined,
+  ): Promise<void> {
+    const allowed = this.resolveUserAllowedModules(user);
+    let next: string[] | null;
+    if (raw === null) {
+      next = null;
+    } else {
+      const parsed = normalizeNotificationFeedModulesInput(raw);
+      next = validateNotificationFeedModulesPatch(parsed ?? [], allowed);
+    }
+
+    if (!user.preferences) {
+      await this.createPreferences(user.id, this.resolveTheme(undefined));
+    }
+    await this.preferencesRepo.update(
+      { userId: user.id },
+      { notificationFeedModules: next },
+    );
+  }
+
   private resolveTheme(value?: string): ThemeScheme {
     return value === 'dark' ? 'dark' : 'light';
   }
@@ -469,6 +513,12 @@ export class UsersService {
     }
   }
 
+  /** Usuarios visibles en administración (activos o pendientes de activar). */
+  private isCompanyUserListed(status: string | null | undefined): boolean {
+    const normalized = status?.trim().toLowerCase() ?? '';
+    return normalized === 'active' || normalized === 'pending';
+  }
+
   async listCompanyUsers(companyId: number, actor: AuthUser) {
     this.assertCanManageUsers(actor);
     const users = await this.usersRepo.find({
@@ -480,7 +530,9 @@ export class UsersService {
       actor.role === 'superadmin'
         ? users
         : users.filter((user) => user.role !== 'superadmin');
-    return visible.map((user) => this.toCompanyUserResponse(user));
+    return visible
+      .filter((user) => this.isCompanyUserListed(user.status))
+      .map((user) => this.toCompanyUserResponse(user));
   }
 
   toCompanyAccountResponse(company: {
@@ -708,6 +760,41 @@ export class UsersService {
       throw new NotFoundException('Usuario no encontrado');
     }
     return this.toCompanyUserResponse(full);
+  }
+
+  /**
+   * Baja lógica: status `disabled`, sin borrado en BD. El usuario deja de listarse
+   * y no puede iniciar sesión; registros y actividad conservan su user id.
+   */
+  async deleteCompanyUser(
+    companyId: number,
+    userId: number,
+    actor: AuthUser,
+  ): Promise<{ id: number; deleted: boolean }> {
+    this.assertCanManageUsers(actor);
+    if (Number(actor.companyId) !== companyId) {
+      throw new ForbiddenException('Acceso denegado a esta empresa.');
+    }
+    if (userId === Number(actor.id)) {
+      throw new ForbiddenException('No puedes eliminar tu propia cuenta.');
+    }
+    const user = await this.usersRepo.findOne({
+      where: { id: userId, companyId },
+      select: ['id', 'role', 'status', 'displayName', 'username'],
+    });
+    if (!user) {
+      throw new NotFoundException('Usuario no encontrado');
+    }
+    if (user.role === 'superadmin') {
+      throw new ForbiddenException('No puedes eliminar al propietario de la cuenta.');
+    }
+    if (!isAppUserLoginAllowed(user.status) && user.status?.trim().toLowerCase() !== 'pending') {
+      return { id: userId, deleted: true };
+    }
+    user.status = 'disabled';
+    await this.usersRepo.save(user);
+    await this.revokeUserSessions(userId);
+    return { id: userId, deleted: true };
   }
 
   private async replaceModuleAccess(

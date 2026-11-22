@@ -62,6 +62,15 @@ export function serializeOperator(
           occurredOn: operator.lastManeuver.occurredOn ?? null,
         }
       : undefined,
+    activeService: operator.activeService
+      ? {
+          tripId: operator.activeService.tripId,
+          maneuverCode: operator.activeService.maneuverCode,
+          origin: operator.activeService.origin,
+          destination: operator.activeService.destination,
+          unitCode: operator.activeService.unitCode,
+        }
+      : undefined,
     nextPayDueOn: operator.nextPayDueOn ?? null,
     nextPayDueVariant: operator.nextPayDueVariant ?? null,
     owedAmount:

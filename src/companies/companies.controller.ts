@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   ForbiddenException,
   Get,
   Param,
@@ -971,5 +972,19 @@ export class CompaniesController {
   ) {
     await this.companiesService.assertAccessAndResolve(user, companyId);
     return this.usersService.updateCompanyUser(companyId, userId, user, dto);
+  }
+
+  @Delete(':companyId/users/:userId')
+  @ApiOperation({
+    summary:
+      'Baja lógica de usuario (inactivo, oculto en listado; conserva historial)',
+  })
+  async deleteCompanyUser(
+    @Param('companyId', ParseIntPipe) companyId: number,
+    @Param('userId', ParseIntPipe) userId: number,
+    @LoggedUser() user: AuthUser,
+  ) {
+    await this.companiesService.assertAccessAndResolve(user, companyId);
+    return this.usersService.deleteCompanyUser(companyId, userId, user);
   }
 }

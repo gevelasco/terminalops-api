@@ -1,4 +1,5 @@
 import {
+  IsArray,
   IsEmail,
   IsIn,
   IsOptional,
@@ -44,4 +45,10 @@ export class UpdateUserProfileDto {
   @IsOptional()
   @IsIn(['light', 'dark'])
   theme?: 'light' | 'dark';
+
+  /** Códigos de módulo con feed de notificaciones activo. */
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  notificationFeedModules?: string[] | null;
 }

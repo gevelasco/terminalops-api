@@ -1,6 +1,7 @@
 import { DataSource } from 'typeorm';
 import dataSource from '../config/migration.config';
 import { ensureClientDeliveryMultipleSchema } from './database/ensure-client-delivery-multiple';
+import { ensureUserModuleAccessGrantableSchema } from './database/ensure-user-module-access-grantable';
 
 /**
  * Advisory lock global para que solo una instancia corra migraciones a la vez.
@@ -607,6 +608,13 @@ async function main() {
       // Hard ensure: varios destinos por cliente (covers migrations_list drift).
       await ensureClientDeliveryMultipleSchema((sql) => dataSource.query(sql));
       console.log('Schema ensure: client_delivery multiple OK');
+      await dataSource.query(`
+        ALTER TABLE terminalops.user_preferences
+          ADD COLUMN IF NOT EXISTS notification_feed_modules jsonb NULL;
+      `);
+      console.log('Schema ensure: user_preferences notification_feed_modules OK');
+      await ensureUserModuleAccessGrantableSchema((sql) => dataSource.query(sql));
+      console.log('Schema ensure: user_module_access grantable module codes OK');
     } finally {
       await dataSource.query(`SELECT pg_advisory_unlock($1)`, [
         MIGRATION_LOCK_KEY,
