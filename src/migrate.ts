@@ -474,6 +474,31 @@ async function main() {
           DROP COLUMN IF EXISTS toll_route_id;
       `);
       console.log('Schema ensure: legacy trip/rate distance columns dropped OK');
+      // Hard ensure: política de tarifas (login SELECT company.destination_rate_scope).
+      await dataSource.query(`
+        ALTER TABLE terminalops.companies
+          ADD COLUMN IF NOT EXISTS destination_rate_scope varchar(32)
+            NOT NULL DEFAULT 'postal_code';
+      `);
+      await dataSource.query(`
+        ALTER TABLE terminalops.destination_rates
+          ADD COLUMN IF NOT EXISTS destination_scope varchar(32)
+            NOT NULL DEFAULT 'postal_code';
+      `);
+      await dataSource.query(`
+        ALTER TABLE terminalops.destination_rates
+          ADD COLUMN IF NOT EXISTS route_key_incomplete boolean
+            NOT NULL DEFAULT false;
+      `);
+      await dataSource.query(`
+        ALTER TABLE terminalops.destination_rates
+          ADD COLUMN IF NOT EXISTS municipality_name text NOT NULL DEFAULT '';
+      `);
+      await dataSource.query(`
+        ALTER TABLE terminalops.destination_rates
+          ADD COLUMN IF NOT EXISTS state_name text NOT NULL DEFAULT '';
+      `);
+      console.log('Schema ensure: destination_rate_scope / rate geo columns OK');
       // Hard ensure: avisos de pagos (covers migrations_list drift / login SELECT).
       await dataSource.query(`
         ALTER TABLE terminalops.companies
