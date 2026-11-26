@@ -252,7 +252,10 @@ export class NotificationsService {
       .filter((item) =>
         feedItemVisibleForNotificationModules(item, enabledModules),
       );
-    const receivables = buildReceivableDueNotifications(receivableRows)
+    const receivables = buildReceivableDueNotifications(
+      receivableRows,
+      range.today,
+    )
       .filter((item) => canSeeNotificationItem(user, item))
       .filter((item) =>
         feedItemVisibleForNotificationModules(item, enabledModules),

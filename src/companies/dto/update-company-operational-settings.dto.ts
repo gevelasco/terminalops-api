@@ -13,6 +13,7 @@ import {
   MaxLength,
   Min,
 } from 'class-validator';
+import { DESTINATION_RATE_SCOPES } from 'src/common/constants/destination-rate-scope';
 import { EXPENSE_PAYMENT_METHODS } from 'src/expenses/expense-payment-method.util';
 
 export const MAINTENANCE_DATE_PERIODS = [
@@ -163,4 +164,13 @@ export class UpdateCompanyOperationalSettingsDto {
   @Min(1)
   @Max(15)
   paymentReminderDaysBefore?: number;
+
+  @ApiPropertyOptional({
+    description:
+      'Política de tarifas por destino: postal_code | municipality | state',
+    enum: DESTINATION_RATE_SCOPES,
+  })
+  @IsOptional()
+  @IsIn([...DESTINATION_RATE_SCOPES])
+  destinationRateScope?: (typeof DESTINATION_RATE_SCOPES)[number];
 }

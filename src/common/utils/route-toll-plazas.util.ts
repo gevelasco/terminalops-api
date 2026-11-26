@@ -1,9 +1,12 @@
 export type RouteTollPlazaPersistedRow = {
   order: number;
   plazaKey: string;
-  plazaKeySource?: 'inegi' | 'fallback';
+  /** `catalog` = catálogo propio; valores legacy `inegi`/`fallback` se conservan al leer. */
+  plazaKeySource?: 'catalog' | 'inegi' | 'fallback';
+  /** Coordenadas `"lat,lng"` (nombre histórico; ya no depende de INEGI). */
   inegiPoint?: string;
   name: string;
+  section?: string;
   costMxn: number | null;
   municipality?: string;
   state?: string;
@@ -35,15 +38,17 @@ export function normalizeRouteTollPlazas(raw: unknown): RouteTollPlazaPersistedR
           : null;
     const source = String(row.plazaKeySource ?? '').trim();
     const inegiPoint = String(row.inegiPoint ?? '').trim();
+    const section = String(row.section ?? '').trim();
     const municipality = String(row.municipality ?? '').trim();
     const state = String(row.state ?? '').trim();
     out.push({
       order,
       plazaKey,
-      ...(source === 'inegi' || source === 'fallback'
-        ? { plazaKeySource: source as 'inegi' | 'fallback' }
+      ...(source === 'catalog' || source === 'inegi' || source === 'fallback'
+        ? { plazaKeySource: source as 'catalog' | 'inegi' | 'fallback' }
         : {}),
       ...(inegiPoint ? { inegiPoint } : {}),
+      ...(section ? { section } : {}),
       ...(municipality ? { municipality } : {}),
       ...(state ? { state } : {}),
       name,

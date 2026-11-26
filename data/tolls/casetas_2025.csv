@@ -1,0 +1,1377 @@
+﻿ID_PLAZA,ADMINISTRA,NOMBRE,SECCION,SUBSECCION,MODALIDAD,FUNCIONAL,FECHA_ACT,CALIREPR,lat,lng
+1,CAPUFE,Huachichil,La Carbonera - Puerto México,Ent. Huachichil - Ent. Tramo los Chorros,Abierto,N/A,2025-01-23 14:16:17,Definida,25.245531807842845,-100.80147716786219
+2,CAPUFE,La Carbonera,Puerto México - Ojo Caliente,Libramiento Oriente de Saltillo,Abierto,N/A,2025-01-23 14:54:00,Definida,25.51092764508411,-100.8681817862775
+3,CAPUFE,La Carbonera,Puerto México - Ojo Caliente,Libramiento Oriente de Saltillo,Abierto,N/A,2025-01-23 14:50:39,Definida,25.51100303504901,-100.86848431516334
+4,CAPUFE,P.C. 162 Plan de Ayala,Torreón - Saltillo,Loma Bonita - Plan de Ayala,Abierto,N/A,2025-01-23 11:12:14,Definida,25.444234021531994,-101.30388597205057
+5,CAPUFE,P.C. 162 Plan de Ayala,Torreón - Saltillo,Loma Bonita - Plan de Ayala,Abierto,N/A,2025-01-23 11:15:12,Definida,25.444129740244303,-101.3038992659747
+6,CAPUFE,La Cuchilla P.C. 163,Torreón - Saltillo,Matamoros - La Cuchilla,Abierto,N/A,2025-01-23 10:58:09,Definida,25.627060350942713,-102.87836953019901
+7,CAPUFE,La Cuchilla P.C. 163,Torreón - Saltillo,Matamoros - La Cuchilla,Abierto,N/A,2025-01-23 11:08:49,Definida,25.626947812888993,-102.87830453917518
+8,CAPUFE,Plaza de Cobro Torreón,Saltillo - Monterrey,Zacatecas - Monclova,Abierto,N/A,2025-01-23 11:55:35,Definida,25.448419132011136,-101.06705392804402
+9,CAPUFE,Plaza de Cobro Torreón,Saltillo - Monterrey,Zacatecas - Monclova,Abierto,N/A,2025-01-23 14:08:26,Definida,25.44840669501656,-101.06696427007935
+10,CAPUFE,Plaza de Cobro Torreón,Saltillo - Monterrey,Torreón - Monclova,Abierto,N/A,2025-01-23 14:16:56,Definida,25.45704050077513,-101.06385369481877
+11,CAPUFE,Plaza de Cobro Torreón,Saltillo - Monterrey,Torreón - Monclova,Abierto,N/A,2025-01-23 14:21:43,Definida,25.456802370371165,-101.0636380403518
+12,Estatal,N/D,Agujita - Allende,Agujita - Allende,Abierto,N/A,2025-02-05 11:26:06,Definida,28.303384193442955,-100.90997337351399
+13,Estatal,N/D,Agujita - Allende,Agujita - Allende,Abierto,N/A,2025-02-05 11:28:51,Definida,28.303443778069838,-100.91013355896958
+14,CAPUFE,Sabinas,Monterrey - Nuevo Laredo,Monterrey - La Gloria,Abierto,N/A,2025-01-23 13:41:40,Definida,26.512227277029638,-100.00734456606699
+15,CAPUFE,Sabinas,Monterrey - Nuevo Laredo,Monterrey - La Gloria,Mixto,Salida,2025-01-23 13:47:56,Definida,26.512119797000025,-100.00706948999999
+17,CAPUFE,Agualeguas,Monterrey - Nuevo Laredo,Monterrey - Agualeguas,Abierto,N/A,2025-01-23 13:31:06,Definida,26.338923503061597,-100.07192561132747
+18,CAPUFE,Los Ramones,Cadereyta - Reynosa,Los Ramones - Los Herreras,Mixto,Salida,2025-07-21 19:30:53,Definida,25.662943854092394,-99.62860934698739
+19,CAPUFE,Los Ramones,Cadereyta - Reynosa,Cadereyta - Los Ramones,Abierto,N/A,2025-07-21 19:30:53,Definida,25.662865118086582,-99.62861204299536
+20,CAPUFE,Los Ramones,Cadereyta - Reynosa,Los Ramones - La Sierrita,Abierto,N/A,2024-01-26 15:34:58,Definida,25.656045954426784,-99.63107265697452
+21,CAPUFE,Los Ramones,Cadereyta - Reynosa,Cadereyta - Los Ramones,Abierto,N/A,2025-01-23 13:20:15,Definida,25.65597809453279,-99.63107482804399
+22,CAPUFE,Sabinas - Parás,Monterrey - Nuevo Laredo,Monterrey - Sabinas,Abierto,N/A,2025-01-23 13:49:48,Definida,26.508485772622024,-100.00814820586662
+23,CAPUFE,Sabinas,Monterrey - Nuevo Laredo,Sabinas - La Gloria,Mixto,Salida,2025-01-23 13:51:25,Definida,26.50868375129413,-100.00910132824613
+24,CAPUFE,Sabinas - Parás,Monterrey - Nuevo Laredo,Monterrey - Sabinas,Abierto,N/A,2025-01-23 13:52:40,Definida,26.508031983229372,-100.0095512477908
+25,CAPUFE,Periférico,Saltillo - Monterrey,Ojo Caliente 2 - Morones Prieto,Abierto,N/A,2025-07-28 20:54:41,Definida,25.693373078234796,-100.56557825491566
+26,CAPUFE,Periférico,Saltillo - Monterrey,Ojo Caliente 2 - Morones Prieto,Abierto,N/A,2025-07-28 20:54:41,Definida,25.693224813357425,-100.5656436568726
+28,CAPUFE,Periférico,Saltillo - Monterrey,El Jonuco - Periférico,Abierto,N/A,2025-07-28 20:54:41,Definida,25.696416640293513,-100.5772972290042
+29,CAPUFE,Periférico,Saltillo - Monterrey,Periférico - Morones Prieto,Abierto,N/A,2025-07-28 20:54:41,Definida,25.69453978895195,-100.56956340601964
+30,CAPUFE,Periférico,Saltillo - Monterrey,El Jonuco - Morones Prieto,Abierto,N/A,2025-07-28 20:54:41,Definida,25.69500578504318,-100.56942981798082
+31,Estatal,Caseta Guadalupe,Monterrey - Cadereyta,N/D,Abierto,N/A,2025-08-05 18:52:21,Definida,25.69156760900006,-100.15770047199999
+32,Estatal,Caseta Guadalupe,Monterrey - Cadereyta,N/D,Abierto,N/A,2025-08-05 18:52:21,Definida,25.691701258000023,-100.15766867599996
+33,Estatal,Caseta Guadalupe,Monterrey - Cadereyta,N/D,Abierto,N/A,2025-08-05 18:52:21,Definida,25.691436099000043,-100.15772582499994
+34,Estatal,Caseta Guadalupe,Monterrey - Cadereyta,N/D,Abierto,N/A,2025-08-05 18:52:21,Definida,25.69182986100003,-100.15764184599999
+35,Estatal,Ent. Lincoln,Periférico del Área Metropolitana de Monterrey,N/D,Abierto,N/A,2025-08-01 19:00:09,Definida,25.782508492378092,-100.47228063329061
+37,Estatal,Ent. Lincoln,Periférico del Área Metropolitana de Monterrey,N/D,Abierto,N/A,2025-08-01 19:00:09,Definida,25.785196167873504,-100.47058829220781
+38,Estatal,Caseta Lincoln,Periférico del Área Metropolitana de Monterrey,N/D,Abierto,N/A,2025-08-01 19:00:09,Definida,25.790400889724918,-100.4634408727715
+39,Estatal,Caseta Lincoln,Periférico del Área Metropolitana de Monterrey,N/D,Abierto,N/A,2025-08-01 19:00:09,Definida,25.7905310686887,-100.4635773327291
+40,Estatal,Caseta Lincoln,Periférico del Área Metropolitana de Monterrey,N/D,Abierto,N/A,2025-08-01 19:00:09,Definida,25.78939990593442,-100.4642555439606
+41,Estatal,Ent. Miguel Alemán,Periférico del Área Metropolitana de Monterrey,Laredo - Miguel Alemán,Abierto,N/A,2025-04-04 17:04:48,Definida,25.7875624920173,-100.16865615897665
+42,Estatal,Caseta Apodaca,Periférico del Área Metropolitana de Monterrey,N/D,Abierto,N/A,2025-04-04 17:04:48,Definida,25.787615670390384,-100.1685654425063
+43,Estatal,Caseta Apodaca,Periférico del Área Metropolitana de Monterrey,N/D,Abierto,N/A,2025-04-04 17:04:48,Definida,25.7876985161459,-100.16843779780774
+44,Estatal,Ent. Miguel Alemán,Periférico del Área Metropolitana de Monterrey,Laredo - Miguel Alemán,Abierto,N/A,2025-04-04 17:04:48,Definida,25.787765941238447,-100.16833832770436
+45,Estatal,Ent. Miguel Alemán,Periférico del Área Metropolitana de Monterrey,Miguel Alemán - Cadereyta,Abierto,N/A,2025-08-05 18:52:21,Definida,25.775174497000016,-100.15955988199994
+46,Estatal,Ent. Miguel Alemán,Periférico del Área Metropolitana de Monterrey,Miguel Alemán - Cadereyta,Abierto,N/A,2025-08-05 18:52:21,Definida,25.77529880400006,-100.15909413899998
+49,Estatal,Ent. Pedreras,Periférico del Área Metropolitana de Monterrey,N/D,Abierto,N/A,2025-07-24 14:24:36,Definida,25.818312613000046,-100.39347194899995
+50,Estatal,Ent. Pedreras,Periférico del Área Metropolitana de Monterrey,N/D,Abierto,N/A,2025-07-24 14:24:36,Definida,25.817633277000027,-100.39335832299997
+51,Estatal,Ent. Monclova,Periférico del Área Metropolitana de Monterrey,N/D,Abierto,N/A,2025-07-24 14:24:36,Definida,25.83426942400007,-100.30574248799996
+52,Estatal,Ent. Monclova,Periférico del Área Metropolitana de Monterrey,N/D,Abierto,N/A,2025-07-24 14:24:36,Definida,25.83351189900003,-100.30572802599994
+53,CAPUFE,General Bravo,Cadereyta - Reynosa,Cadereyta - La Sierrita,Abierto,N/A,2025-04-09 18:00:58,Definida,25.81364890697025,-99.16961395399699
+54,CAPUFE,General Bravo,Cadereyta - Reynosa,Cadereyta - La Sierrita,Mixto,Salida,2025-04-09 18:00:58,Definida,25.81339517147851,-99.1695851560475
+55,CAPUFE,Doctor Coss,Cadereyta - Reynosa,General Bravo - La Sierrita,Abierto,N/A,2025-04-09 18:00:58,Definida,25.81372014825227,-99.16962492602595
+56,CAPUFE,Doctor Coss,Cadereyta - Reynosa,General Bravo - La Sierrita,Abierto,N/A,2025-04-09 18:00:58,Definida,25.81331640251769,-99.16957859294939
+57,CAPUFE,Doctor Coss,Cadereyta - Reynosa,Cadereyta - General Bravo,Abierto,N/A,2025-04-09 18:00:58,Definida,25.813928202274834,-99.17375251448746
+58,CAPUFE,General Bravo,Cadereyta - Reynosa,Cadereyta - General Bravo,Abierto,N/A,2025-01-23 12:55:07,Definida,25.811883409059924,-99.17359137781395
+61,Municipal,Libramiento los Herreras,Libramiento de los Herreras,N/D,Abierto,N/A,2025-09-22 00:00:00,Definida,25.89868290206639,-99.39361101262502
+62,CAPUFE,Los Chorros,La Carbonera - Puerto México,La Carbonera - Puerto México,Abierto,N/A,2025-07-25 20:27:00,Definida,25.186824872095606,-100.73194049286316
+63,CAPUFE,Los Chorros,La Carbonera - Puerto México,La Carbonera - Puerto México,Abierto,N/A,2025-07-25 20:27:00,Definida,25.186752411822898,-100.7320965082992
+64,CAPUFE,Puente Cadereyta,Monterrey - Reynosa,Monterrey - Reynosa,Abierto,N/A,2025-07-29 22:08:48,Definida,25.601036183123245,-100.00592427299064
+65,Estatal,Caseta de Cadereyta,Monterrey - Cadereyta Jiménez,Monterrey - Cadereyta Jiménez,Abierto,N/A,2025-07-29 22:08:48,Definida,25.60754216257896,-100.00123517105882
+66,Estatal,Caseta de Cadereyta,Monterrey - Cadereyta Jiménez,Monterrey - Cadereyta Jiménez,Abierto,N/A,2025-07-29 22:08:48,Definida,25.60728779477334,-100.00126202903175
+67,CAPUFE,Laredo,Puente Internacional Laredo I,N/D,Abierto,N/A,2024-06-06 16:04:13,Definida,27.498545289983507,-99.50739639722042
+68,Municipal,Nuevo Laredo III,Puente Internacional Nuevo Laredo III,N/D,Abierto,N/A,2022-10-04 14:55:29,Definida,27.59516584893178,-99.54154369497284
+69,Municipal,Nuevo Laredo III,Puente Internacional Nuevo Laredo III,N/D,Abierto,N/A,2022-10-04 14:57:14,Definida,27.595315352926654,-99.54160996597216
+70,CAPUFE,Juárez - Lincoln,Puente Internacional Juárez - Lincoln,N/D,Abierto,N/A,2024-06-06 16:04:13,Definida,27.498155865198772,-99.50253171086663
+71,CAPUFE,Juárez - Lincoln,Puente Internacional Juárez - Lincoln,N/D,Abierto,N/A,2024-06-06 16:04:13,Definida,27.49824194940887,-99.50244076370312
+72,CAPUFE,Puente Miguel Alemán,Puente Internacional Miguel Alemán,N/D,Abierto,N/A,2025-09-22 00:00:00,Definida,26.40287970416663,-99.02067360821283
+73,CAPUFE,San Juan,Libramiento de Camargo,Puente San Juan,Abierto,N/A,2023-09-22 14:19:08,Definida,26.311868799930686,-98.84191357166566
+74,CAPUFE,Camargo,Puente Internacional Camargo,N/D,Abierto,N/A,2023-09-22 14:34:10,Definida,26.362429650864208,-98.80627660182036
+75,Concesionado,Anzaldúas,"Puente Internacional Reynosa - McAllen ""Anzaldúas""",N/D,Abierto,N/A,2025-01-28 09:39:42,Definida,26.109691401991984,-98.34482152199907
+76,CAPUFE,Reynosa,Puente Internacional Reynosa,N/D,Abierto,N/A,2025-09-22 00:00:00,Definida,26.09321843792875,-98.27099819205152
+77,Concesionado,Nuevo Amanecer,Puente Internacional Reynosa - Pharr,N/D,Abierto,N/A,2025-01-28 09:24:33,Definida,26.041844048941662,-98.20883649960042
+79,Concesionado,San Fernando,Ent. San Fernando - Ent. Anzaldúas,Ent. P.I. Reynosa - Pharr,Abierto,N/A,2025-01-27 15:47:53,Definida,25.94474083007426,-98.22755553802976
+80,Concesionado,Nuevo Progreso,Matamoros - Reynosa,Matamoros - Nuevo Progreso,Abierto,N/A,2025-01-27 15:18:53,Definida,26.03713699410267,-97.95453711860151
+81,Concesionado,Nuevo Progreso,Matamoros - Reynosa,Nuevo Progreso - Matamoros,Abierto,N/A,2025-01-27 15:20:57,Definida,26.035224763997583,-97.95441687405045
+82,Concesionado,Nuevo Progreso,Matamoros - Reynosa,N/D,Abierto,N/A,2025-01-28 11:17:32,Definida,26.036328312388747,-97.9544243300889
+83,Concesionado,Nuevo Progreso,Reynosa - Matamoros,N/D,Abierto,N/A,2025-01-27 15:31:16,Definida,26.03623323671631,-97.95439755393673
+84,CAPUFE,Las Flores,Puente Internacional Las Flores,N/D,Abierto,N/A,2024-09-05 00:00:00,Definida,26.060548735000054,-97.95037891499999
+85,Concesionado,Libre Comercio,Puente Internacional Lucio Blanco - Los Indios,N/D,Abierto,N/A,2024-02-02 10:50:14,Definida,26.021661995001597,-97.73883367916676
+86,Concesionado,Libre Comercio,Puente Internacional Lucio Blanco - Los Indios,N/D,Abierto,N/A,2024-02-02 10:50:26,Definida,26.021653589999683,-97.73870681088438
+87,CAPUFE,Matamoros,Puente Internacional Matamoros,N/D,Abierto,N/A,2025-08-12 21:17:54,Definida,25.896982066000078,-97.49800490799998
+88,Concesionado,Ignacio Zaragoza,Puente Internacional Matamoros III Los Tomates,N/D,Abierto,N/A,2025-08-12 21:17:54,Definida,25.874223329970224,-97.47463854356698
+91,Concesionado,Río Bravo - Donna,Puente Internacional Río Bravo - Donna,N/D,Abierto,N/A,2024-07-25 15:39:32,Definida,26.05925050001955,-98.0801820420567
+92,CAPUFE,Tampico (Directa),Libramiento Poniente de Tampico,Ent. Ciudad Valles - Ent. Altamira,Abierto,N/A,2025-06-10 21:57:54,Definida,22.275288244928404,-97.8934386403705
+93,CAPUFE,Tampico (Intermedia),Libramiento Poniente de Tampico,Ent. Ciudad Valles - Boulevard Loma Real,Abierto,N/A,2025-06-10 21:57:54,Definida,22.276416752726035,-97.89327086594146
+94,CAPUFE,Tampico (Intermedia),Libramiento Poniente de Tampico,Boulevard Loma Real - Ent. Altamira,Abierto,N/A,2025-06-10 21:57:54,Definida,22.276494011642495,-97.89329615791314
+95,CAPUFE,Puente Tampico,Ramal a Puente Tampico,Puente Tampico,Abierto,N/A,2023-09-18 14:33:22,Definida,22.21834894799542,-97.82477544422272
+96,CAPUFE,Puente Tampico,Ramal a Puente Tampico,Puente Tampico,Abierto,N/A,2023-09-18 14:40:49,Definida,22.218352089996007,-97.82467962514913
+97,CAPUFE,Tijuana - Ensenada,La Misión - Rosarito,San Miguel - Rosarito,Abierto,N/A,2025-01-27 11:14:38,Definida,31.903123622709046,-116.73277168496556
+98,CAPUFE,Tijuana - Ensenada,Rosarito - La Misión,Rosarito - San Miguel,Abierto,N/A,2025-01-27 11:16:26,Definida,31.902989733259034,-116.73275132302274
+99,CAPUFE,Rosarito,Ensenada - Rosarito,Rosarito - Playas de Tijuana,Abierto,N/A,2025-01-27 10:57:29,Definida,32.311232562155304,-117.0443778546048
+100,CAPUFE,Rosarito,Ensenada - Rosarito,Rosarito - Playas de Tijuana,Abierto,N/A,2025-01-27 11:04:13,Definida,32.31119466096013,-117.0445173250969
+101,Concesionado,Mexicali - Tijuana,Intersección Esperanza,N/D,Abierto,N/A,2025-08-15 08:44:37,Definida,32.55162674610845,-116.62114759801429
+102,Concesionado,Mexicali - Tijuana,Intersección Esperanza,N/D,Abierto,N/A,2025-08-15 08:44:37,Definida,32.55074766477578,-116.62188483679971
+103,Concesionado,Mexicali - Tijuana,Libramiento Tecate,N/D,Abierto,N/A,2025-01-27 23:06:43,Definida,32.525835688326296,-116.6902819123125
+104,Concesionado,Tijuana,Tijuana - Tecate,Ent. Tijuana - Libramiento de Tecate (Ent. Esperanza),Abierto,N/A,2025-01-27 23:10:05,Definida,32.54575082783788,-116.85219506474867
+105,Concesionado,Tijuana,Tecate - Tijuana,Libramiento de Tecate (Ent. Esperanza) - Ent. Tijuana,Abierto,N/A,2025-01-27 23:11:32,Definida,32.54585860817039,-116.85238837426525
+106,CAPUFE,Playas de Tijuana,Rosarito - Tijuana,Playas de Tijuana - Tijuana,Abierto,N/A,2025-08-09 17:53:34,Definida,32.51402732888508,-117.10942646176366
+107,CAPUFE,Playas de Tijuana,Tijuana - Rosarito,Tijuana - Playas de Tijuana,Abierto,N/A,2025-08-09 17:53:34,Definida,32.51408755294875,-117.10963036083834
+108,Concesionado,Ent. San Felipe - Centinela,Libramiento Mexicali,Libramiento Mexicali,Abierto,N/A,2025-01-27 12:20:11,Definida,32.53279345205048,-115.40993036301961
+109,Concesionado,Ent. Cuernavaca - Ent. San Felipe,Libramiento Mexicali,Libramiento Mexicali,Abierto,N/A,2025-01-27 12:05:21,Definida,32.53362640700004,-115.40876984899995
+110,CAPUFE,Mexicali - Tijuana,La Rumorosa - Tecate,El Hongo - Tecate,Abierto,N/A,2025-06-27 07:19:19,Definida,32.52247740016806,-116.31986313799979
+111,CAPUFE,Mexicali - Tijuana,Tecate - La Rumorosa,Tecate - El Hongo,Abierto,N/A,2025-06-27 07:19:19,Definida,32.52111555751594,-116.32017231275456
+112,CAPUFE,Mexicali - Tijuana,Tecate - Rumorosa,Tecate - El Hongo,Abierto,N/A,2025-06-27 07:19:19,Definida,32.52117492869429,-116.32013991218035
+113,CAPUFE,Mexicali - Tijuana,La Rumorosa - Tecate,La Rumorosa - El Hongo,Abierto,N/A,2025-06-27 07:19:19,Definida,32.52195200130308,-116.31999544795012
+114,Estatal,Mexicali - Tijuana,Rumorosa - El Centinela,N/D,Abierto,N/A,2025-08-07 19:28:04,Definida,32.555870794003056,-116.03650474600089
+115,Estatal,Mexicali - Tijuana,El Centinela - Rumorosa,N/D,Abierto,N/A,2025-08-07 19:27:56,Definida,32.56262472984565,-116.04790792124886
+116,CAPUFE,Mexicali - Tijuana,Tecate - Rumorosa,Tecate - El Hongo,Abierto,N/A,2025-06-27 07:19:19,Definida,32.52179867911283,-116.32002631298002
+117,CAPUFE,Mexicali - Tijuana,Rumorosa - Tecate,Rumorosa - El Hongo,Abierto,N/A,2025-06-27 07:19:19,Definida,32.52188072987163,-116.32000646202246
+118,Concesionado,Ent. Cuernavaca - Ent. Centinela,Libramiento Mexicali,Libramiento Mexicali,Abierto,N/A,2025-01-27 12:01:23,Definida,32.533549202610594,-115.42077294899856
+119,Concesionado,Ent. Cuernavaca - Ent. Centinela,Libramiento Mexicali,Libramiento Mexicali,Abierto,N/A,2025-01-27 12:03:25,Definida,32.5334832986292,-115.42078511099722
+122,CAPUFE,Puente Sinaloa,Culiacán - Los Mochis,Guamúchil - Guasave,Abierto,N/A,2024-02-08 15:32:48,Definida,25.513032464810596,-108.34758723608219
+123,CAPUFE,Puente Sinaloa,Culiacán - Los Mochis,Guasave - Guamúchil,Abierto,N/A,2024-02-08 15:33:59,Definida,25.512908243010134,-108.34764852399557
+124,Concesionado,Las Brisas,Culiacán - Las Brisas,Zapotillo - Las Brisas,Abierto,N/A,2025-03-11 17:56:04,Definida,25.394978061643034,-108.12982487432403
+125,Concesionado,Las Brisas,Culiacán - Las Brisas,Las Brisas - Zapotillo,Abierto,N/A,2025-03-11 17:56:04,Definida,25.394893473898403,-108.12992955409223
+126,Concesionado,Puente San Miguel,Los Mochis - Ciudad Obregón,Los Mochis - San Miguel,Abierto,N/A,2025-05-19 18:09:56,Definida,25.97627809594502,-109.0334628339235
+127,Concesionado,Puente San Miguel,Los Mochis - Ciudad Obregón,San Miguel - Los Mochis,Abierto,N/A,2025-05-19 18:09:56,Definida,25.976390126053737,-109.0336684780771
+128,Concesionado,Caimanero,Culiacán - Los Mochis,Caimanero - Las Brisas,Abierto,N/A,2025-01-23 12:46:30,Definida,24.95423934400004,-107.75829034799995
+129,Concesionado,San Blas,Culiacán - Los Mochis,San Blas - Las Brisas,Abierto,N/A,2025-08-04 18:26:34,Definida,24.877710077664585,-107.6555492099463
+130,Concesionado,San Blas,Culiacán - Los Mochis,Las Brisas - San Blas,Abierto,N/A,2025-08-04 18:26:34,Definida,24.877046611144326,-107.65542886184326
+131,Estatal,La Platanera,Culiacán - Los Mochis,La Platanera - Las Brisas,Abierto,N/A,2019-04-05 12:51:00,Definida,24.814944322618917,-107.5858472769532
+132,Estatal,La Curva,Culiacán - Los Mochis,San Pedro - Las Brisas,Abierto,N/A,2024-08-16 18:37:19,Definida,24.75050923901235,-107.57110178599775
+133,Estatal,La Curva,Culiacán - Los Mochis,Las Brisas - San Pedro,Abierto,N/A,2024-08-16 18:37:19,Definida,24.7502469629936,-107.571415654009
+134,Estatal,Culiacán,Culiacán - Los Mochis,Culiacán - Las Brisas,Abierto,N/A,2025-08-11 22:08:44,Definida,24.748918197285327,-107.46220147091346
+135,Estatal,Culiacán,Culiacán - Los Mochis,Las Brisas - Culiacán,Abierto,N/A,2025-08-11 22:08:44,Definida,24.748850747246504,-107.46224202692649
+138,CAPUFE,Quilá,Mazatlán - Culiacán,Quilá - Costa Rica,Abierto,N/A,2025-05-14 21:39:31,Definida,24.39767063956377,-107.26997519307547
+139,CAPUFE,Quilá,Mazatlán - Culiacán,Ent. La Cruz - Quilá,Abierto,N/A,2025-05-14 21:39:31,Definida,24.397527742569682,-107.27001400809172
+140,CAPUFE,Quilá,Mazatlán - Culiacán,Costa Rica - Quilá,Abierto,N/A,2025-05-14 21:39:31,Definida,24.396592424963927,-107.27200733770133
+141,CAPUFE,Quilá,Mazatlán - Culiacán,Quilá - Ent. La Cruz,Abierto,N/A,2025-05-14 21:39:31,Definida,24.39657272199604,-107.27180304076921
+142,CAPUFE,Puente Culiacán,Culiacán - Los Mochis,Culiacán - Pericos,Abierto,N/A,2023-09-15 12:18:30,Definida,24.94899587695684,-107.54576654909077
+145,CAPUFE,Mármol,Mazatlán - Culiacán,Mazatlán - Entronque La Cruz,Abierto,N/A,2025-01-23 14:40:31,Definida,23.471187313387773,-106.56949656965575
+146,CAPUFE,Mármol,Mazatlán - Culiacán,Entronque La Cruz - Mazatlán,Abierto,N/A,2025-01-23 14:43:29,Definida,23.47125492841986,-106.56944738562783
+148,CAPUFE,Magdalena,Libramiento Magdalena de Kino,Santa Ana - Magdalena de Kino,Abierto,N/A,2025-08-07 17:44:02,Definida,30.62943413206429,-110.94864871634985
+149,CAPUFE,Altar,Santa Ana - Sonoita,Santa Ana - Altar,Abierto,N/A,2025-01-29 14:48:07,Definida,30.59381715028144,-111.5189641631562
+150,CAPUFE,Nogales,Hermosillo - Nogales,Libramiento de Nogales,Abierto,N/A,2025-06-25 18:08:54,Definida,31.258419474921276,-110.97461734721288
+151,CAPUFE,Altar,Sonoita - Santa Ana,Altar - Santa Ana,Abierto,N/A,2025-01-29 14:55:24,Definida,30.593527329847074,-111.51900590103634
+152,CAPUFE,Magdalena,Libramiento Magdalena de Kino,Magdalena de Kino - Santa Ana,Abierto,N/A,2025-08-07 17:44:02,Definida,30.62944234402026,-110.94877537609347
+153,CAPUFE,Nogales,Nogales - Hermosillo,Libramiento de Nogales,Abierto,N/A,2025-06-25 18:08:54,Definida,31.2583670461141,-110.9748378846176
+154,CAPUFE,Hermosillo 152,Hermosillo - Magdalena de Kino,Hermosillo - Santa Ana,Abierto,N/A,2025-01-23 15:12:13,Definida,29.220837356080224,-110.93012242729044
+155,CAPUFE,Hermosillo 152,Hermosillo - Magdalena de Kino,Santa Ana - Hermosillo,Abierto,N/A,2025-01-23 15:13:21,Definida,29.220745390788405,-110.93040068975672
+156,CAPUFE,Guaymas,Obregón - Hermosillo,Libramiento de Guaymas,Abierto,N/A,2025-08-12 16:40:27,Definida,28.036722544143426,-110.9245104239737
+157,CAPUFE,Guaymas,Obregón - Hermosillo,Libramiento de Guaymas,Abierto,N/A,2025-08-12 16:40:27,Definida,28.036411026551583,-110.92456921207824
+158,CAPUFE,Esperanza,Cd. Obregón - Hermosillo,Cd. Obregón - Guaymas,Abierto,N/A,2025-09-23 00:00:00,Definida,27.60383495907999,-109.93905347992208
+159,CAPUFE,Esperanza,Hermosillo - Cd. Obregón,Guaymas - Cd. Obregón,Abierto,N/A,2025-09-23 00:00:00,Definida,27.60374450488563,-109.93921555811299
+160,CAPUFE,Fundición No. 149,Los Mochis - Cd. Obregón,Navojoa - Cd. Obregón,Abierto,N/A,2025-01-23 12:42:59,Definida,27.320597333784647,-109.71982347816382
+161,CAPUFE,Fundición No. 149,Cd. Obregón - Los Mochis,Cd. Obregón - Navojoa,Abierto,N/A,2025-01-23 12:44:04,Definida,27.320233927323617,-109.71989435776467
+162,CAPUFE,Estación Don No. 148,Los Mochis - Cd. Obregón,Estación Don - Navojoa,Abierto,N/A,2025-01-23 15:22:42,Definida,26.84982603112649,-109.37309970376666
+163,CAPUFE,Estación Don No. 148,Cd. Obregón - Los Mochis,Navojoa - Estación Don,Abierto,N/A,2025-01-23 15:23:50,Definida,26.849785410929982,-109.37337790313437
+164,CAPUFE,Ceballos,Gómez Palacio - Jiménez,Corralitos - Ceballos,Abierto,N/A,2025-01-23 10:29:36,Definida,26.58652255459083,-104.05787070025909
+165,CAPUFE,Ceballos,Gómez Palacio - Jiménez,Ceballos - Corralitos,Abierto,N/A,2025-01-23 10:33:45,Definida,26.586714249459117,-104.05756098447256
+166,CAPUFE,Bermejillo,Gómez Palacio - Jiménez,Bermejillo - Ceballos,Abierto,N/A,2025-01-23 10:22:54,Definida,25.923720087109096,-103.62209114931328
+167,CAPUFE,Bermejillo,Gómez Palacio - Jiménez,Ceballos - Bermejillo,Abierto,N/A,2025-01-23 10:24:50,Definida,25.923722633080416,-103.62228520846094
+168,CAPUFE,Cuencamé,Durango - Gómez Palacio,Yerbanís - Cuencamé,Abierto,N/A,2025-01-23 11:07:01,Definida,24.981680869935808,-103.73525179574929
+169,CAPUFE,Cuencamé,Durango - Gómez Palacio,Yerbanís - Cuencamé,Abierto,N/A,2025-01-23 11:08:34,Definida,24.981663429508842,-103.73507241823445
+170,CAPUFE,Cuencamé,Durango - Gómez Palacio,Pedriceña - Cuencamé,Abierto,N/A,2025-01-23 11:12:02,Definida,24.980985658000066,-103.73668046699999
+171,CAPUFE,Cuencamé,Durango - Gómez Palacio,Cuencamé - Pedriceña,Abierto,N/A,2025-01-23 11:17:04,Definida,24.980955777000077,-103.73661779599998
+172,CAPUFE,Cuencamé,Durango - Gómez Palacio,Pedriceña - Cuencamé,Abierto,N/A,2025-01-23 11:13:31,Definida,24.980409913041985,-103.73435111954724
+173,CAPUFE,Cuencamé,Durango - Gómez Palacio,Cuencamé - Pedriceña,Abierto,N/A,2025-01-23 11:19:41,Definida,24.980410950875935,-103.73439508570804
+174,CAPUFE,Durango,Durango - Gómez Palacio,Durango - Ent. Francisco I Madero,Abierto,N/A,2025-01-23 10:44:15,Definida,24.131733427569223,-104.53407331853592
+175,CAPUFE,Durango,Durango - Gómez Palacio,Ent. Francisco I Madero - Durango,Abierto,N/A,2025-01-23 10:46:35,Definida,24.13178050213507,-104.53416284015273
+176,CAPUFE,Yerbanís,Durango - Gómez Palacio,Ent. Francisco I Madero - Ent. Yerbanís,Abierto,N/A,2025-01-23 10:56:06,Definida,24.73069810661053,-103.86174452066822
+177,CAPUFE,Yerbanís,Durango - Gómez Palacio,Ent. Yerbanís - Ent. Francisco I Madero,Abierto,N/A,2025-01-23 10:58:12,Definida,24.730882973003858,-103.8619711920031
+178,CAPUFE,Llano Grande,Durango - Villa Unión,Ent. Otinapa - Ent. El Piloncillo,Abierto,N/A,2025-01-23 10:45:53,Definida,23.870860665340334,-105.19153817807411
+179,CAPUFE,Libramiento Durango,Durango - Villa Unión,Libramiento de Durango - Ent. Otinapa,Abierto,N/A,2025-01-23 10:42:54,Definida,24.005056251379088,-104.73451914310864
+180,CAPUFE,León Guzmán,Pedriceña - León Guzmán,Ent. Pedriceña - Ent. León Guzmán,Abierto,N/A,2025-01-23 11:44:06,Definida,25.519489689000068,-103.63941354299999
+181,CAPUFE,León Guzmán,León Guzmán - Pedriceña,Ent. León Guzmán - Ent. Pedriceña,Abierto,N/A,2025-01-23 11:47:15,Definida,25.519503249000024,-103.63971311699999
+182,CAPUFE,León Guzmán,El Vergel - León Guzmán,El Vergel - Ent. León Guzmán,Abierto,N/A,2025-01-23 11:49:50,Definida,25.520658834000074,-103.63961426499998
+183,CAPUFE,León Guzmán,León Guzmán - El Vergel,Ent. León Guzmán - El Vergel,Abierto,N/A,2025-01-23 11:52:18,Definida,25.522233265000068,-103.63910912699998
+184,CAPUFE,León Guzmán,Pedriceña - El Vergel,Ent. Pedriceña - El Vergel,Abierto,N/A,2025-01-23 12:19:41,Definida,25.52064380805736,-103.63939016741948
+185,CAPUFE,León Guzmán,El Vergel - Pedriceña,El Vergel - Ent. Pedriceña,Abierto,N/A,2025-01-23 12:21:07,Definida,25.520652441990734,-103.63955291683932
+195,Estatal,Cuauhtémoc,Chihuahua - Cuauhtémoc,Santa Isabel - Cuauhtémoc,Abierto,N/A,2025-01-27 11:44:53,Definida,28.32747652088665,-106.5503180180914
+196,Estatal,Cuauhtémoc,Chihuahua - Cuauhtémoc,Santa Isabel - Cuauhtémoc,Abierto,N/A,2025-01-24 10:53:09,Definida,28.32741551530483,-106.55041276474483
+197,Estatal,Cuauhtémoc,Chihuahua - Cuauhtémoc,Santa Isabel - Cuauhtémoc,Abierto,N/A,2025-01-24 10:55:40,Definida,28.32736316896744,-106.55050269802635
+198,Estatal,Cuauhtémoc,Chihuahua - Cuauhtémoc,Santa Isabel - Cuauhtémoc,Abierto,N/A,2025-01-24 10:57:56,Definida,28.327288236891313,-106.55061772109613
+207,Estatal,Sacramento,Chihuahua - El Sueco,Chihuahua - Sacramento,Abierto,N/A,2025-08-01 17:31:03,Definida,28.86006790146549,-106.2165173979424
+208,Estatal,Sacramento,Chihuahua - El Sueco,Chihuahua - Sacramento,Abierto,N/A,2025-08-01 17:31:03,Definida,28.860147021044494,-106.21647091998958
+209,Estatal,Sacramento,Chihuahua - El Sueco,Chihuahua - Sacramento,Abierto,N/A,2025-08-01 17:31:03,Definida,28.860389794924224,-106.21638690601633
+210,Estatal,Sacramento,Chihuahua - El Sueco,Chihuahua - Sacramento,Abierto,N/A,2025-08-01 17:31:03,Definida,28.86032096242435,-106.2164194189005
+211,Estatal,Sacramento,Chihuahua - El Sueco,Chihuahua - Sacramento,Abierto,N/A,2025-08-01 17:31:03,Definida,28.86023383018939,-106.21646985794023
+213,Estatal,Ojo Laguna,Ojo Laguna - Flores Magón,Ojo Laguna - Flores Magón,Abierto,N/A,2025-07-31 21:33:57,Definida,29.481695123808077,-106.40676460122938
+215,CAPUFE,Jiménez,Jiménez - Camargo,Jiménez - Camargo,Abierto,N/A,2025-08-05 15:21:56,Definida,27.24497054300017,-104.93333467299588
+216,CAPUFE,Jiménez,Jiménez - Camargo,Jiménez - Camargo,Abierto,N/A,2025-08-05 15:21:56,Definida,27.244972046006065,-104.93315696579721
+217,CAPUFE,Jiménez,Jiménez - Camargo,Jiménez - Camargo,Abierto,N/A,2025-08-05 15:21:56,Definida,27.24497439501835,-104.93306046280523
+218,CAPUFE,Jiménez,Jiménez - Camargo,Jiménez - Camargo,Abierto,N/A,2025-08-05 15:21:56,Definida,27.244958512000586,-104.93341367930158
+219,CAPUFE,Savalza,Gómez Palacio - Jiménez,Jiménez - Savalza,Abierto,N/A,2025-07-23 17:30:05,Definida,27.08221130510227,-104.84158276393254
+220,CAPUFE,Savalza,Gómez Palacio - Jiménez,Jiménez - Savalza,Abierto,N/A,2025-07-23 17:30:05,Definida,27.082244374045494,-104.84154303096884
+221,CAPUFE,Savalza,Gómez Palacio - Jiménez,Jiménez - Savalza,Abierto,N/A,2025-07-23 17:30:05,Definida,27.08236129404554,-104.84147364596808
+222,CAPUFE,Savalza,Gómez Palacio - Jiménez,Jiménez - Savalza,Abierto,N/A,2025-07-23 17:30:05,Definida,27.082391518423375,-104.84141872168885
+228,CAPUFE,Morfín Chávez,Libramiento de Fresnillo,N/D,Abierto,N/A,2025-08-11 20:27:30,Definida,23.178021784929,-102.82866086416702
+229,CAPUFE,Morfín Chávez,Libramiento de Fresnillo,N/D,Abierto,N/A,2025-08-11 20:27:30,Definida,23.17797628009473,-102.82887481175803
+230,Estatal,Vetagrande,Libramiento Noreste de Zacatecas,Entronque Saltillo,Abierto,N/A,2024-09-17 15:54:32,Definida,22.84672849136009,-102.56704764108052
+231,Estatal,Vetagrande,Libramiento Noreste de Zacatecas,Vetagrande,Abierto,N/A,2024-09-17 15:52:51,Definida,22.846409058000063,-102.56706150399998
+232,Estatal,Vetagrande,Libramiento Noreste de Zacatecas,Entronque Saltillo,Abierto,N/A,2024-09-17 15:51:19,Definida,22.847232105000046,-102.56339744799999
+233,Estatal,Vetagrande,Libramiento Noreste de Zacatecas,N/D,Abierto,N/A,2024-09-17 15:47:29,Definida,22.84716786200005,-102.56337922999995
+234,Estatal,Vetagrande,Libramiento Noreste de Zacatecas,Vetagrande,Abierto,N/A,2024-09-17 15:49:40,Definida,22.847040476000075,-102.56334519299998
+235,CAPUFE,Calera,Libramiento de Víctor Rosales,N/D,Abierto,N/A,2025-05-16 15:45:44,Definida,22.94186884000004,-102.69005608599997
+236,CAPUFE,Calera,Libramiento de Víctor Rosales,N/D,Abierto,N/A,2025-05-16 15:45:44,Definida,22.94189861800004,-102.68984226499998
+237,CAPUFE,Calera,Libramiento de Víctor Rosales,Acceso Corona,Abierto,N/A,2025-05-16 15:45:44,Definida,22.964872398000068,-102.71382389999997
+238,CAPUFE,Calera,Libramiento de Víctor Rosales,Acceso Santiaguillo,Abierto,N/A,2025-05-16 15:45:44,Definida,22.953670254404653,-102.69193365388989
+239,CAPUFE,Calera,Libramiento de Víctor Rosales,Acceso Calera Centro,Abierto,N/A,2025-05-16 15:45:44,Definida,22.95312753316364,-102.69256287921169
+240,CAPUFE,Zacatecas,Cuauhtémoc - Osiris,N/D,Abierto,N/A,2023-09-20 10:45:00,Definida,22.710941971980922,-102.4488071406295
+241,CAPUFE,Vista Hermosa,Maravatío - Zapotlanejo,La Barca - Vista Hermosa,Abierto,N/A,2025-08-04 16:48:31,Definida,20.26921122133591,-102.4431524960474
+242,CAPUFE,Vista Hermosa,Maravatío - Zapotlanejo,Vista Hermosa - La Barca,Abierto,N/A,2025-08-04 16:48:31,Definida,20.2698765640603,-102.43916873800299
+247,CAPUFE,Puente Nacional La Piedad,Irapuato - Guadalajara,Guadalajara - Irapuato,Abierto,N/A,2025-02-07 17:42:13,Definida,20.352782217253548,-102.02509473697916
+250,CAPUFE,Zirahuén,Pátzcuaro - Uruapan,Pátzcuaro - Uruapan,Abierto,N/A,2025-07-22 16:28:25,Definida,19.5056423264292,-101.65934611191614
+251,Concesionado,Aeropuerto,Morelia - Aeropuerto - Entronque (Maravatío - Zapotlanejo),Entronque (Maravatío - Zapotlanejo) - Morelia,Abierto,N/A,2025-07-28 21:09:35,Definida,19.885465732000057,-101.01001465199994
+252,CAPUFE,Zinapécuaro,Maravatío - Zapotlanejo,Zinapécuaro - Maravatío,Abierto,N/A,2025-07-25 20:40:09,Definida,19.900880923000045,-100.78902076299994
+254,CAPUFE,Zinapécuaro,Maravatío - Zapotlanejo,Maravatío - Zinapécuaro,Abierto,N/A,2025-07-25 20:40:09,Definida,19.90236727000007,-100.78758076499997
+255,CAPUFE,Zinapécuaro,Maravatío - Zapotlanejo,Zinapécuaro - Morelia,Abierto,N/A,2025-07-25 20:40:09,Definida,19.90238829067725,-100.7876243006358
+256,CAPUFE,Zinapécuaro,Maravatío - Zapotlanejo,Maravatío - Morelia,Abierto,N/A,2025-07-25 20:40:09,Definida,19.901828728000055,-100.78852369299995
+257,CAPUFE,Zinapécuaro,Maravatío - Zapotlanejo,Morelia - Maravatío,Abierto,N/A,2025-07-25 20:40:09,Definida,19.901707722152473,-100.7885386779796
+258,CAPUFE,Jeráhuaro,Maravatío - Zapotlanejo,Maravatío - Jeráhuaro,Abierto,N/A,2025-02-20 21:51:03,Definida,19.894525936000036,-100.64665281599997
+259,CAPUFE,Jeráhuaro,Maravatío - Zapotlanejo,Jeráhuaro - Zinapécuaro,Abierto,N/A,2025-02-20 21:51:03,Definida,19.893468902000052,-100.65126919199997
+260,CAPUFE,Contepec,Atlacomulco - Maravatío,Atlacomulco - Maravatío,Abierto,N/A,2025-07-25 17:21:59,Definida,19.875504326967963,-100.188069517001
+261,CAPUFE,Contepec,Atlacomulco - Maravatío,Maravatío - Atlacomulco,Abierto,N/A,2025-07-25 17:21:59,Definida,19.875266841544107,-100.18808210401436
+263,Estatal,Zitácuaro,Zitácuaro - Lengua de Vaca,Zitácuaro - Toluca,Abierto,N/A,2025-07-25 15:52:06,Definida,19.452452038574847,-100.28189070585422
+264,CAPUFE,Huaniqueo,Maravatío - Zapotlanejo,Morelia - Huaniqueo,Abierto,N/A,2025-01-27 12:10:55,Definida,19.884100382000042,-101.51043785299998
+265,CAPUFE,Huaniqueo,Maravatío - Zapotlanejo,Huaniqueo - Morelia,Abierto,N/A,2025-01-27 12:11:27,Definida,19.88242204000005,-101.51143779299997
+266,Concesionado,Morelia,Morelia - Aeropuerto - Entronque (Maravatío - Zapotlanejo),Morelia - Aeropuerto,Abierto,N/A,2025-03-27 15:28:34,Definida,19.741235069000027,-101.10058822099995
+269,CAPUFE,Cuitzeo A1,Copándaro - Cuitzeo,N/D,Abierto,N/A,2025-07-28 21:09:35,Definida,19.968878039727446,-101.15967950870868
+270,CAPUFE,Cuitzeo A1,Cuitzeo - Copándaro,N/D,Abierto,N/A,2025-07-28 21:09:35,Definida,19.968310245979332,-101.16205772202974
+272,CAPUFE,San Ángel Zurumucapio,Pátzcuaro - Uruapan,San Ángel Zurumucapio - Uruapan,Abierto,N/A,2025-09-22 00:00:00,Definida,19.441992791000075,-101.88378143699998
+273,CAPUFE,Taretan,Uruapan - Nueva Italia,Zirimícuaro - Cajones,Abierto,N/A,2025-01-27 15:20:05,Definida,19.35549492900003,-101.91789397799994
+274,CAPUFE,Taretan,Uruapan - Nueva Italia,Zirimícuaro - Taretan,Abierto,N/A,2025-01-27 15:20:34,Definida,19.351936975980315,-101.9173570843606
+276,CAPUFE,Santa Casilda,Uruapan - Nueva Italia,Cajones - Cuatro Caminos,Abierto,N/A,2025-01-27 15:01:39,Definida,19.156650014977732,-101.97620140119744
+277,CAPUFE,Las Cañas,Nueva Italia - Lázaro Cárdenas,Nueva Italia - Lázaro Cárdenas,Abierto,N/A,2025-01-27 14:53:52,Definida,18.554217624860403,-101.9703947483906
+278,CAPUFE,Las Cañas,Nueva Italia - Lázaro Cárdenas,Lázaro Cárdenas - Las Cañas,Abierto,N/A,2025-01-27 14:54:12,Definida,18.553670343576943,-101.97298841608212
+281,CAPUFE,Compostela,Chapalilla - Compostela,N/D,Abierto,N/A,2025-09-22 00:00:00,Definida,21.229440659967675,-104.88740619499758
+282,CAPUFE,Santa María del Oro,Guadalajara - Tepic,Jala - Tepic,Abierto,N/A,2025-08-05 18:31:00,Definida,21.328176562966433,-104.66462100205325
+283,CAPUFE,Santa María del Oro,Ixtlán del Río - Santa María del Oro,N/D,Abierto,N/A,2025-08-05 18:31:00,Definida,21.327942440346725,-104.6632112189896
+284,CAPUFE,Santa María del Oro,Ixtlán del Río - Santa María del Oro,N/D,Abierto,N/A,2025-08-05 18:31:00,Definida,21.32706679300003,-104.66480270399995
+285,CAPUFE,Trapichillo,Tepic - Mazatlán,Tepic - Ent. San Blas,Abierto,N/A,2025-01-27 11:38:12,Definida,21.571826269253126,-104.98754699081061
+286,CAPUFE,Tequepexpan,Guadalajara - Tepic,Ixtlán del Río - Tequepexpan,Abierto,N/A,2018-10-09 09:18:15,Definida,21.213767074963215,-104.59267903269334
+287,CAPUFE,Tequepexpan,Guadalajara - Tepic,Ixtlán del Río - Tequepexpan,Abierto,N/A,2018-10-09 12:52:32,Definida,21.213700628968432,-104.59422689901376
+288,CAPUFE,Acaponeta A2,Acaponeta - Villa Unión,Tecuala - Villa Unión,Abierto,N/A,2025-07-22 22:27:15,Definida,22.45397280306131,-105.41862098795983
+289,CAPUFE,Ruiz A2,Tepic - Villa Unión,Ruiz - Rosamorada,Abierto,N/A,2025-01-29 23:25:37,Definida,21.9530778545923,-105.1208943925814
+290,CAPUFE,Estación Ruiz,Tepic - Villa Unión,Crucero de San Blas - Ent. Rosamorada,Abierto,N/A,2025-01-29 23:25:37,Definida,21.951880566939725,-105.11609683707309
+291,CAPUFE,Ent. - San Blas - Estación Yago,Tepic - Villa Unión,Ent. - San Blas - Estación Yago,Abierto,N/A,2025-07-29 18:37:56,Definida,21.844670085001397,-105.08497283619738
+292,CAPUFE,Estación Yago - Ruiz,Tepic - Mazatlán,Estación Yago - Ruiz,Abierto,N/A,2025-07-29 18:37:39,Definida,21.846959342562453,-105.08520948930752
+293,CAPUFE,Estación Yago - Ent. San Blas,Tepic - Mazatlán,Estación Yago - Ent. San Blas,Abierto,N/A,2025-07-29 18:37:42,Definida,21.843754240110353,-105.08543366988305
+294,CAPUFE,Ruiz - Estación Yago,Tepic - Mazatlán,Ruiz - Estación Yago,Abierto,N/A,2025-07-29 18:37:40,Definida,21.845414795069384,-105.086496247076
+295,CAPUFE,Acaponeta,Tepic - Villa Unión,Acaponeta - Villa Unión,Abierto,N/A,2025-07-22 22:27:15,Definida,22.453936244016926,-105.42485053598634
+296,CAPUFE,El Arenal,Guadalajara - Tepic,Entronque Ameca - Magdalena,Abierto,N/A,2025-01-24 09:35:34,Definida,20.77869102000572,-103.66246044199717
+297,CAPUFE,El Arenal,Guadalajara - Tepic,Entronque Ameca - Magdalena,Abierto,N/A,2025-02-04 12:43:50,Definida,20.778837050184073,-103.66242122191012
+298,CAPUFE,Plan de Barrancas,Magdalena - Ixtlán del Río,Magdalena - Ixtlán del Río,Abierto,N/A,2025-01-24 09:38:49,Definida,21.005328699747327,-104.1440957932826
+300,CAPUFE,La Joya,Guadalajara - Zapotlanejo,N/D,Abierto,N/A,2025-07-31 17:13:53,Definida,20.60453303421095,-103.13880459608772
+301,CAPUFE,La Joya,Guadalajara - Zapotlanejo,N/D,Abierto,N/A,2025-07-31 17:13:53,Definida,20.604745233983117,-103.13891709899256
+302,CAPUFE,La Joya,Guadalajara - Zapotlanejo,N/D,Abierto,N/A,2025-07-31 17:13:51,Definida,20.605345915076157,-103.13939079207735
+303,CAPUFE,Tequila,Tequila - Magdalena,Tequila - Magdalena,Abierto,N/A,2025-08-05 16:16:42,Definida,20.854290508183556,-103.86098054837034
+308,CAPUFE,Acatic,Zapotlanejo - Acatic,Guadalajara - Acatic,Abierto,N/A,2025-01-24 10:56:07,Definida,20.73900779805253,-102.90976647392125
+309,CAPUFE,Acatic,Zapotlanejo - Acatic,Guadalajara - Acatic,Abierto,N/A,2025-01-24 10:57:16,Definida,20.7370632328707,-102.91104119829288
+310,CAPUFE,Encarnación de Díaz,Encarnación de Díaz - Aguascalientes,Encarnación de Díaz - Aguascalientes,Abierto,N/A,2025-07-22 19:04:48,Definida,21.489630911868815,-102.24327673842654
+311,CAPUFE,Encarnación de Díaz,Ent. Lagos de Moreno - Aguascalientes,Lagos de Moreno - Aguascalientes,Abierto,N/A,2025-07-22 19:04:48,Definida,21.489691690078256,-102.24323017893177
+312,CAPUFE,Tepatitlán,Zapotlanejo - Entronque Arandas,Guadalajara - Ent. Arandas,Abierto,N/A,2025-02-27 21:56:38,Definida,20.824672674799,-102.79501525668337
+313,CAPUFE,Tepatitlán,Zapotlanejo - Tepatitlán,Guadalajara - Tepatitlán,Abierto,N/A,2025-02-27 21:56:38,Definida,20.82091237567924,-102.79390882129718
+314,CAPUFE,Tepatitlán,Tepatitlán - Entronque Arandas,Guadalajara - Tepatitlán,Mixto,Salida,2025-02-27 21:56:38,Definida,20.820841101930007,-102.79399479706765
+315,CAPUFE,Zapotlán del Rey,Maravatío - Zapotlanejo,Zapotlán del Rey - Guadalajara,Abierto,N/A,2025-07-30 20:20:58,Definida,20.467632979997923,-102.90836475911394
+316,CAPUFE,Zapotlán del Rey,Maravatío - Zapotlanejo,Zapotlán del Rey - Guadalajara,Abierto,N/A,2025-07-30 20:20:58,Definida,20.46701952325436,-102.91150219886072
+317,CAPUFE,Ocotlán,Ocotlán - Guadalajara,La Barca - Guadalajara,Abierto,N/A,2025-01-27 09:32:16,Definida,20.405836504805333,-102.73894020120363
+318,CAPUFE,Ocotlán,Ocotlán - Guadalajara,La Barca - Guadalajara,Abierto,N/A,2025-01-27 09:33:24,Definida,20.405930068177657,-102.7388230688141
+320,CAPUFE,Jalostotitlán,Zapotlanejo - Lagos de Moreno,Ent. Arandas - El Desperdicio,Abierto,N/A,2025-01-24 10:58:59,Definida,21.117528489308793,-102.45804117129518
+323,CAPUFE,Ent. La Cinta,Copándaro - La Cinta,N/D,Abierto,N/A,2025-01-31 13:37:50,Definida,20.07340974999628,-101.13654779521346
+324,CAPUFE,Ent. La Cinta,La Cinta - Cerro Gordo,N/D,Cerrado,Entrada,2020-03-06 16:14:01,Definida,20.07618588025211,-101.1357655691056
+325,CAPUFE,Ent. La Cinta,La Cinta - Ent. Cerro Gordo,N/D,Cerrado,Salida,2025-01-31 13:54:29,Definida,20.077435163134908,-101.13777784674326
+326,CAPUFE,Valle de Santiago,Valle de Santiago - Copándaro,N/D,Cerrado,Entrada,2018-09-12 09:45:43,Definida,20.3731344092497,-101.14928906372533
+327,CAPUFE,Valle de Santiago,Valle de Santiago - Ent. Cerro Gordo,N/D,Cerrado,Entrada,2018-09-12 11:24:02,Definida,20.37263847010235,-101.14738106909297
+328,CAPUFE,Villagrán,Celaya - Ent. Villagrán,N/D,Abierto,N/A,2025-08-04 15:45:16,Definida,20.57942514802419,-100.99235338316191
+329,CAPUFE,Villagrán,Celaya - Ent. Villagrán,N/D,Abierto,N/A,2025-08-04 15:45:16,Definida,20.58222390601392,-100.99216084335436
+331,CAPUFE,Valtierrilla,Valtierrilla - Ent. Cerro Gordo,N/D,Abierto,N/A,2025-08-05 16:30:16,Definida,20.54671977298614,-101.13623962199003
+332,CAPUFE,Valtierrilla,Valtierrilla - Ent. Cerro Gordo,N/D,Abierto,N/A,2025-08-05 16:30:16,Definida,20.54758181690056,-101.1381411874095
+333,CAPUFE,Valtierrilla,Valtierrilla - Ent. Cerro Gordo,N/D,Abierto,N/A,2025-08-05 16:30:16,Definida,20.55304300298574,-101.13629780888198
+334,CAPUFE,Valtierrilla,Valtierrilla - Ent. Cerro Gordo,N/D,Abierto,N/A,2025-08-05 16:30:16,Definida,20.553146784082923,-101.13656004429069
+335,CAPUFE,Cerro Gordo A2,Cerro Gordo - Salamanca,N/D,Abierto,N/A,2025-01-31 12:09:07,Definida,20.591910725402382,-101.13734623274328
+337,CAPUFE,Cerro Gordo A1,Celaya - Cerro Gordo,N/D,Abierto,N/A,2025-01-31 11:54:11,Definida,20.590151834672742,-101.13617364401982
+338,CAPUFE,Yóstiro,San Cristóbal - Ent. Carretera 90,N/D,Abierto,N/A,2025-07-24 18:12:53,Definida,20.60106582491667,-101.43853379806917
+339,CAPUFE,Arandas,Ent. ITESI - San Cristóbal,N/D,Abierto,N/A,2025-07-24 00:00:00,Definida,20.73748802931867,-101.38000241235585
+340,CAPUFE,Romita,Arandas - San Cristóbal,N/D,Abierto,N/A,2025-07-24 00:00:00,Definida,20.735239385632273,-101.38320704905553
+341,CAPUFE,Arandas 2,Arandas - San Cristóbal,N/D,Abierto,N/A,2025-07-24 00:00:00,Definida,20.7334800599374,-101.38127984610306
+342,CAPUFE,Ent. La Cinta,La Cinta - Copándaro,N/D,Abierto,N/A,2025-01-31 14:00:19,Definida,20.07341108700238,-101.136817665363
+343,CAPUFE,Ent. La Cinta,Copándaro - Ent. Cerro Gordo,N/D,Cerrado,Entrada,2020-03-06 13:35:27,Definida,20.0734117810186,-101.13663326669045
+344,CAPUFE,Salamanca,Salamanca - Irapuato,N/D,Mixto,Salida,2025-08-05 16:30:16,Definida,20.598546067000065,-101.18092114699999
+345,CAPUFE,Salamanca A2,Salamanca - Irapuato,N/D,Abierto,N/A,2025-08-05 16:30:16,Definida,20.59916210700736,-101.18066404800007
+346,CAPUFE,Salamanca A2,Salamanca - Irapuato,N/D,Abierto,N/A,2025-08-05 16:30:16,Definida,20.597566766145995,-101.18104413491272
+347,CAPUFE,Salamanca A1,Celaya - Salamanca,N/D,Mixto,Salida,2025-08-05 16:30:16,Definida,20.59910860034289,-101.18066693700113
+348,CAPUFE,Salamanca A1,Salamanca - Cerro Gordo,N/D,Abierto,N/A,2025-08-05 16:30:16,Definida,20.597631115813904,-101.18101115911116
+349,CAPUFE,Arandas,Ent. ITESI - Arandas,N/D,Abierto,N/A,2025-07-24 00:00:00,Definida,20.737523775078238,-101.38004587404679
+350,CAPUFE,Valle de Santiago,Copándaro - Valle de Santiago,N/D,Cerrado,Salida,2025-01-31 14:35:00,Definida,20.37259197195195,-101.1473230089547
+351,CAPUFE,Valle de Santiago,Valle de Santiago - Ent. Cerro Gordo,N/D,Cerrado,Salida,2025-01-31 14:40:38,Definida,20.37317967833525,-101.1492286975875
+352,Concesionado,Caseta Crespo,Libramiento Sur Celaya,N/D,Abierto,N/A,2025-02-04 08:47:49,Definida,20.506675463000022,-100.87080531899994
+353,Concesionado,Caseta Crespo,Libramiento Sur Celaya,N/D,Abierto,N/A,2025-02-04 08:45:19,Definida,20.506670835000023,-100.87097616899996
+354,Concesionado,Caseta Laja,Libramiento Sur Celaya,N/D,Abierto,N/A,2025-07-29 21:57:23,Definida,20.50961535594846,-100.76514119068334
+355,Concesionado,Caseta Laja,Libramiento Sur Celaya,N/D,Abierto,N/A,2025-07-29 21:57:23,Definida,20.509625757009065,-100.76532108305402
+356,CAPUFE,León Líneas 3 y 4,León - Entronque Lagos de Moreno,N/D,Abierto,N/A,2025-08-11 17:51:53,Definida,21.10266829023201,-101.78438064183091
+358,Estatal,Guanajuato,Guanajuato - Silao,N/D,Abierto,N/A,2025-08-11 21:21:12,Definida,20.98246693425657,-101.290202772384
+359,Estatal,Guanajuato,Guanajuato - Silao,N/D,Abierto,N/A,2025-08-11 21:21:12,Definida,20.982391523040633,-101.29009705706225
+360,CAPUFE,León Línea 2,León - Entronque Lagos de Moreno,N/D,Abierto,N/A,2025-08-11 17:51:53,Definida,21.102595453258303,-101.78445971481763
+361,CAPUFE,Chichimequillas,Libramiento Noreste de Querétaro,Querétaro - México,Abierto,N/A,2025-01-29 10:25:58,Definida,20.705556717522814,-100.3437579443904
+362,CAPUFE,Chichimequillas,Libramiento Noreste de Querétaro,Querétaro - México,Abierto,N/A,2025-01-29 10:28:17,Definida,20.70561924630791,-100.343715169767
+363,CAPUFE,Querétaro,Querétaro - Celaya,N/D,Abierto,N/A,2025-08-01 15:10:15,Definida,20.572203669709413,-100.47286986896246
+364,CAPUFE,Querétaro,Celaya - Querétaro,N/D,Abierto,N/A,2025-08-01 15:10:15,Definida,20.57209532631837,-100.47285814904106
+365,CAPUFE,Libramiento Surponiente,Querétaro - Libramiento Surponiente,N/D,Abierto,N/A,2025-08-01 15:10:15,Definida,20.572347883193924,-100.4808794328575
+366,CAPUFE,Libramiento Surponiente,Libramiento Surponiente - Celaya,N/D,Abierto,N/A,2025-08-01 15:10:15,Definida,20.572138614659654,-100.48080402630694
+367,CAPUFE,Libramiento Surponiente,Celaya - Libramiento Surponiente,N/D,Abierto,N/A,2025-08-01 15:10:15,Definida,20.57002144816678,-100.48115817912287
+368,CAPUFE,Libramiento Surponiente,Libramiento Surponiente - Querétaro,N/D,Abierto,N/A,2025-08-01 15:10:15,Definida,20.57038844500113,-100.48046250700078
+369,Concesionado,San Nicolás de los Jassos,Libramiento Oriente San Luis Potosí,N/D,Abierto,N/A,2025-06-18 18:02:02,Definida,22.129806881056123,-100.82525800070323
+370,Concesionado,San Nicolás de los Jassos,Libramiento Oriente San Luis Potosí,N/D,Abierto,N/A,2025-06-18 18:02:02,Definida,22.12983160797055,-100.82504108914013
+371,Concesionado,Calderón,Ent. La Pila - Villa de Arriaga,N/D,Abierto,N/A,2021-11-04 14:36:23,Definida,21.81348876514831,-101.01280979919471
+372,Concesionado,San Felipe,Ramal San Felipe - Villa de Arriaga,N/D,Cerrado,Entrada,2025-08-12 15:58:22,Definida,21.805228992952998,-101.0143189364309
+375,Concesionado,Cerritos,Ent. San Isidro - Ent. Rioverde,N/D,Abierto,N/A,2025-07-30 14:53:49,Definida,22.428892056515657,-100.32047614336113
+376,Concesionado,Cerritos,Ent. Rioverde - Ent. San Isidro,N/D,Abierto,N/A,2025-07-30 14:53:49,Definida,22.428926185516413,-100.32044399736485
+377,Concesionado,Matehuala,Libramiento de Matehuala,N/D,Abierto,N/A,2025-09-26 15:32:52,Definida,23.664151011965725,-100.60739600124936
+378,Concesionado,Matehuala,Libramiento de Matehuala,N/D,Abierto,N/A,2025-09-26 15:33:32,Definida,23.664204002992715,-100.60720064504159
+379,Concesionado,Matehuala A1,Ent. Sur Matehuala - Ent. Este Matehuala,N/D,Abierto,N/A,2025-09-26 15:34:09,Definida,23.664160974627055,-100.60639424901552
+380,Concesionado,Matehuala A2,Ent. Este Matehuala - Ent. Norte Matehuala,N/D,Abierto,N/A,2025-09-26 15:34:39,Definida,23.663836372976156,-100.60832878598264
+381,Concesionado,La Hincada,Ent. Tula - Ent. Charco Blanco,N/D,Abierto,N/A,2025-01-29 12:01:58,Definida,22.630300908171993,-100.11341591193421
+382,Concesionado,La Hincada,Ent. Charco Blanco - Ent. Tula,N/D,Abierto,N/A,2025-01-29 12:04:06,Definida,22.630137511684183,-100.11335118573987
+387,CAPUFE,Encarnación de Díaz,Encarnación de Díaz - Aguascalientes,Encarnación de Díaz - Aguascalientes,Abierto,N/A,2025-07-22 19:04:48,Definida,21.489734924034877,-102.24316539597002
+388,CAPUFE,N/D,Lagos de Moreno - Villa de Arriaga,N/D,Abierto,N/A,2025-01-24 10:18:09,Definida,21.49019909452441,-101.7632940568274
+391,CAPUFE,Tepatitlán,Zapotlanejo - Entronque Arandas,Guadalajara - Ent. Arandas,Abierto,N/A,2025-02-27 21:56:38,Definida,20.824600192955398,-102.79492596492886
+392,CAPUFE,Tepoztlán,La Pera - Cuautla,La Pera - Oaxtepec,Cerrado,Entrada,2025-08-01 18:06:25,Definida,18.986954324950634,-99.11269875910753
+393,CAPUFE,Aeropuerto,Cuernavaca - Acapulco,Cuernavaca - Aeropuerto,Abierto,N/A,2025-02-27 17:08:45,Definida,18.80236558308806,-99.22106245498676
+394,CAPUFE,Aeropuerto,Cuernavaca - Acapulco,Cuernavaca - Aeropuerto,Abierto,N/A,2025-02-27 17:08:45,Definida,18.802652347361732,-99.21984165981
+395,CAPUFE,Aeropuerto,Cuernavaca - Acapulco,Cuernavaca - Aeropuerto,Abierto,N/A,2025-02-27 17:08:45,Definida,18.802288789000045,-99.22104837399996
+396,CAPUFE,Aeropuerto,Cuernavaca - Acapulco,Cuernavaca - Aeropuerto,Abierto,N/A,2025-02-27 17:08:45,Definida,18.80269742633196,-99.21978624068733
+397,CAPUFE,Emiliano Zapata,Cuernavaca - Acapulco,Cuernavaca - Emiliano Zapata,Abierto,N/A,2025-07-23 00:00:00,Definida,18.83745786614092,-99.2153855980045
+398,CAPUFE,Emiliano Zapata,Cuernavaca - Acapulco,Cuernavaca - Emiliano Zapata,Abierto,N/A,2025-07-23 00:00:00,Definida,18.837513837380275,-99.21539712098145
+400,CAPUFE,Alpuyeca,Cuernavaca - Acapulco,Alpuyeca - Puente de Ixtla,Abierto,N/A,2025-02-27 17:08:45,Definida,18.722414368686806,-99.25993599102819
+401,CAPUFE,Ing. Francisco Velasco Durán,Cuernavaca - Acapulco,Cuernavaca - Puente de Ixtla,Abierto,N/A,2025-01-23 12:24:12,Definida,18.698423582847326,-99.27820323374975
+402,CAPUFE,Ing. Francisco Velasco Durán,Cuernavaca - Acapulco,Cuernavaca - Puente de Ixtla,Abierto,N/A,2025-01-23 12:26:23,Definida,18.69835962885477,-99.27801987577122
+403,CAPUFE,Xochitepec,Cuernavaca - Acapulco,Cuernavaca - Xochitepec,Abierto,N/A,2025-02-27 17:08:45,Definida,18.77505929795587,-99.22526201685297
+404,CAPUFE,Oaxtepec,La Pera - Cuautla,Oaxtepec - Cuautla,Cerrado,Salida,2025-07-30 21:10:12,Definida,18.905475554855553,-98.98748356714061
+405,CAPUFE,Oaxtepec,La Pera - Cuautla,Oaxtepec - Cuautla,Cerrado,Entrada,2025-07-30 21:10:12,Definida,18.903657212568696,-98.98531327239046
+406,CAPUFE,Zacapalco,Zacapalco - Taxco,Zacapalco - Rancho Viejo,Abierto,N/A,2025-07-31 15:56:14,Definida,18.538001350873767,-99.44733884799035
+407,CAPUFE,Tres Marías (1A),México - Cuernavaca,Tres Marías - Cuernavaca,Abierto,N/A,2025-04-01 18:28:02,Definida,19.05637132595432,-99.24112159602065
+408,CAPUFE,Feliciano,Nueva Italia - Lázaro Cárdenas,Ent. Las Cañas - Lázaro Cárdenas,Abierto,N/A,2025-07-28 18:58:56,Definida,18.006491355775992,-101.96177212956938
+409,CAPUFE,Feliciano,Nueva Italia - Lázaro Cárdenas,Ent. Las Cañas - Ent. Feliciano,Abierto,N/A,2025-07-28 18:58:56,Definida,18.006556329779414,-101.96190527355365
+410,CAPUFE,Feliciano,Nueva Italia - Lázaro Cárdenas,Ent. Feliciano - Ent. Las Cañas,Abierto,N/A,2025-07-28 18:58:56,Definida,18.006457286934673,-101.96165802587038
+411,CAPUFE,Libramiento de Técpan,Libramiento de Técpan,Libramiento de Técpan,Abierto,N/A,2025-08-01 22:43:16,Definida,17.19699121715425,-100.62675812594895
+412,CAPUFE,La Venta,Cuernavaca - Acapulco,Tierra Colorada - Acapulco,Abierto,N/A,2025-01-23 11:05:11,Definida,16.928346611009005,-99.80192575100362
+413,CAPUFE,La Venta,Cuernavaca - Acapulco,Tierra Colorada - Acapulco,Abierto,N/A,2025-01-23 11:00:08,Definida,16.92823623174194,-99.80187519289908
+414,Estatal,Metlapil,La Venta - Punta Diamante,La Venta - Metlapil,Abierto,N/A,2025-05-22 17:22:25,Definida,16.85588423808364,-99.75397807227304
+415,Estatal,Metlapil,Punta Diamante - La Venta,Punta Diamante - Metlapil,Abierto,N/A,2025-05-22 17:22:25,Definida,16.855731547963583,-99.7539323738858
+416,Concesionado,Las Cruces (Maxitúnel),Cuernavaca - Acapulco,Las Cruces - Acapulco,Abierto,N/A,2025-08-06 18:18:53,Definida,16.886027326261523,-99.83943539412843
+417,Concesionado,Las Cruces (Maxitúnel),Cuernavaca - Acapulco,Las Cruces - Acapulco,Abierto,N/A,2025-08-06 18:18:53,Definida,16.88596903298994,-99.8392306179962
+418,CAPUFE,Feliciano,Nueva Italia - Lázaro Cárdenas,Ent. Feliciano - Lázaro Cárdenas,Abierto,N/A,2025-07-28 18:58:56,Definida,18.00470037088949,-101.96387807792803
+419,CAPUFE,Feliciano,Nueva Italia - Lázaro Cárdenas,Lázaro Cárdenas - Ent. Feliciano,Abierto,N/A,2025-07-28 18:58:56,Definida,18.00407664090647,-101.96195225323164
+420,Estatal,Pinotepa,Viaducto Punta Diamante,Costa Chica - Punta Diamante,Abierto,N/A,2025-09-22 00:00:00,Definida,16.83020084301347,-99.75919186201268
+421,CAPUFE,Palo Blanco,Cuernavaca - Acapulco,Chilpancingo - Tierra Colorada,Abierto,N/A,2025-01-23 11:49:09,Definida,17.42401193757463,-99.46689592333551
+422,CAPUFE,Palo Blanco,Cuernavaca - Acapulco,Chilpancingo - Tierra Colorada,Abierto,N/A,2025-01-23 11:51:02,Definida,17.42389933345286,-99.46700760661814
+423,CAPUFE,Paso Morelos,Cuernavaca - Acapulco,Puente de Ixtla - Chilpancingo,Abierto,N/A,2025-01-23 12:02:20,Definida,18.23145378894741,-99.2154194897653
+424,CAPUFE,Paso Morelos,Cuernavaca - Acapulco,Puente de Ixtla - Chilpancingo,Abierto,N/A,2025-01-23 12:03:42,Definida,18.23146668296446,-99.2154837718579
+425,CAPUFE,Iguala,Puente de Ixtla - Iguala,Puente de Ixtla - Iguala,Abierto,N/A,2025-07-31 22:03:10,Definida,18.336231167005305,-99.50826536298784
+426,CAPUFE,Iguala,Puente de Ixtla - Iguala,Puente de Ixtla - Iguala,Abierto,N/A,2025-07-31 22:03:10,Definida,18.33618558797596,-99.5083735710558
+427,CAPUFE,Rancho Viejo,Zacapalco - Taxco,Rancho Viejo - Taxco,Abierto,N/A,2025-07-29 22:07:39,Definida,18.588636058639892,-99.55996464988891
+428,Concesionado,Tula II,N/D,N/D,Cerrado,Entrada,2021-09-27 13:16:52,Definida,20.07189491801671,-99.36764763402174
+429,Concesionado,Tula II,N/D,N/D,Cerrado,Salida,2025-01-27 14:41:22,Definida,20.070357516946736,-99.36823370131108
+430,Concesionado,Tula II,N/D,N/D,Cerrado,Entrada,2021-09-27 16:16:28,Definida,20.072673358409524,-99.36984602179986
+431,Concesionado,Tula II,N/D,N/D,Cerrado,Salida,2025-01-27 15:43:15,Definida,20.072696769064258,-99.36881015897674
+434,Concesionado,Atitalaquia,N/D,N/D,Cerrado,Salida,2025-05-21 19:30:36,Definida,20.065037394729714,-99.21866791197532
+435,Concesionado,Atitalaquia,N/D,N/D,Cerrado,Entrada,2025-05-21 19:30:36,Definida,20.06497408089204,-99.21866490299381
+436,Concesionado,Atitalaquia,N/D,N/D,Cerrado,Salida,2025-05-21 19:30:36,Definida,20.067338036776793,-99.21850083714108
+437,Concesionado,Atitalaquia,N/D,N/D,Cerrado,Entrada,2025-05-21 19:30:36,Definida,20.067266084794134,-99.21855521212154
+438,Concesionado,Tula I,N/D,N/D,Cerrado,Entrada,2025-08-08 15:36:39,Definida,20.1001134362146,-99.28349610502879
+439,Concesionado,Tula I,N/D,N/D,Cerrado,Salida,2025-08-08 15:36:39,Definida,20.100028088270925,-99.2834676370345
+440,Concesionado,Tula I,N/D,N/D,Cerrado,Salida,2025-08-08 15:36:39,Definida,20.09973207499821,-99.28055381701334
+441,Concesionado,Tula I,N/D,N/D,Cerrado,Entrada,2025-08-08 15:36:39,Definida,20.09971327499361,-99.2806937928522
+442,Concesionado,Tula I,N/D,N/D,Cerrado,Entrada,2025-08-08 15:36:39,Definida,20.098065650927534,-99.28315182898679
+443,Concesionado,Tula I,N/D,N/D,Cerrado,Salida,2025-08-08 15:36:39,Definida,20.098146275338287,-99.28318040108476
+444,Concesionado,Tula I,N/D,N/D,Cerrado,Salida,2025-08-08 15:36:39,Definida,20.098106679106717,-99.28616302778312
+445,Concesionado,Tula I,N/D,N/D,Cerrado,Entrada,2025-08-08 15:36:39,Definida,20.098232731977483,-99.28608151223162
+451,Concesionado,Cuapiaxtla,Ent. Ixtenco - Ent. Oriental,N/D,Abierto,N/A,2025-09-30 00:00:00,Definida,19.310302792582256,-97.79756623169399
+452,Concesionado,Cuapiaxtla A1,Ent. Ixtenco - Ent. Cuapiaxtla,N/D,Abierto,N/A,2025-09-30 00:00:00,Definida,19.304056566078902,-97.80551834606908
+453,Concesionado,Cuapiaxtla A1,Ent. Ixtenco - Ent. Cuapiaxtla,N/D,Abierto,N/A,2025-08-01 15:26:01,Definida,19.30429760600153,-97.80576270200137
+454,Concesionado,Cuapiaxtla A2,Ent. Cuapiaxtla - Ent. Oriental,N/D,Abierto,N/A,2025-09-30 00:00:00,Definida,19.310173838039653,-97.79747361203032
+455,Concesionado,Cuapiaxtla A2,Ent. Cuapiaxtla - Ent. Oriental,N/D,Abierto,N/A,2025-09-30 00:00:00,Definida,19.310440755516012,-97.79768326765635
+456,Concesionado,Calpulalpan,N/D,N/D,Cerrado,Entrada,2025-03-27 16:37:51,Definida,19.6215310799431,-98.54808620201021
+457,Concesionado,Calpulalpan,N/D,N/D,Cerrado,Salida,2025-03-27 16:37:51,Definida,19.621433877561195,-98.5481075830829
+458,Concesionado,Calpulalpan,N/D,N/D,Cerrado,Salida,2025-03-27 16:37:51,Definida,19.620123885998733,-98.54695830338763
+459,Concesionado,Calpulalpan,N/D,N/D,Cerrado,Entrada,2025-03-27 16:37:51,Definida,19.620128250991467,-98.54706112253884
+461,Concesionado,Sanctorum,N/D,N/D,Cerrado,Entrada,2025-02-25 19:52:29,Definida,19.515890639159135,-98.46954736274257
+462,Concesionado,Sanctorum,N/D,N/D,Cerrado,Salida,2025-02-25 19:52:29,Definida,19.515569969000758,-98.46899168695263
+463,Concesionado,Sanctorum,N/D,N/D,Cerrado,Entrada,2025-02-25 19:52:29,Definida,19.5165125656844,-98.46930845316766
+464,Concesionado,Sanctorum,N/D,N/D,Cerrado,Salida,2025-02-25 19:52:29,Definida,19.51384885109508,-98.46987847088076
+465,Concesionado,Sanctorum,N/D,N/D,Cerrado,Entrada,2025-02-25 19:52:29,Definida,19.512686262348822,-98.46881309669514
+466,Concesionado,Sanctorum,N/D,N/D,Cerrado,Entrada,2025-02-25 19:52:29,Definida,19.512758236320902,-98.46698888533088
+467,Concesionado,Sanctorum,N/D,N/D,Cerrado,Salida,2025-02-25 19:52:29,Definida,19.512678282880998,-98.4668842308693
+468,Concesionado,Calpulalpan,N/D,N/D,Cerrado,Salida,2025-03-27 16:37:51,Definida,19.61940113071962,-98.54965298673363
+469,Concesionado,Calpulalpan,N/D,N/D,Cerrado,Entrada,2025-03-27 16:37:51,Definida,19.61917240926506,-98.54942461116906
+470,CAPUFE,San Martín,San Martín Texmelucan - Puebla,N/D,Abierto,N/A,2025-05-23 20:50:03,Definida,19.241176763887676,-98.38581631311789
+471,CAPUFE,San Martín,San Martín Texmelucan - Puebla,N/D,Abierto,N/A,2025-05-23 20:50:03,Definida,19.24107898299405,-98.38593516400633
+472,Concesionado,Siglo XXI,Puebla - Morelos,N/D,Abierto,N/A,2025-06-18 20:45:14,Definida,18.91639493699547,-98.48471566698932
+473,CAPUFE,Esperanza,Acatzingo - Esperanza,N/D,Abierto,N/A,2025-01-27 11:53:07,Definida,18.871353533000047,-97.38568183999996
+474,CAPUFE,Esperanza,Esperanza - Ciudad Mendoza,N/D,Abierto,N/A,2025-01-27 11:56:48,Definida,18.871405249099194,-97.3856548829539
+475,CAPUFE,Esperanza,Acatzingo - Esperanza,N/D,Abierto,N/A,2025-01-27 11:54:56,Definida,18.870352807642274,-97.38613416016145
+476,CAPUFE,Esperanza,Esperanza - Ciudad Mendoza,N/D,Abierto,N/A,2025-01-27 11:58:15,Definida,18.87031042610232,-97.38615796195138
+477,CAPUFE,Esperanza,Acatzingo - Ciudad Mendoza,N/D,Abierto,N/A,2025-01-27 11:49:54,Definida,18.870830573527748,-97.3858611337553
+478,CAPUFE,Esperanza,Acatzingo - Ciudad Mendoza,N/D,Abierto,N/A,2025-01-27 11:51:23,Definida,18.87069901527322,-97.38593976087049
+479,CAPUFE,Tehuacán,Cuacnopalan - Tehuacán,N/D,Abierto,N/A,2025-01-27 10:22:54,Definida,18.487590048538927,-97.45688680127152
+480,CAPUFE,Tehuacán,Cuacnopalan - Tehuacán,N/D,Abierto,N/A,2025-01-27 10:24:40,Definida,18.486705715000028,-97.45535250999995
+481,CAPUFE,Tehuacán,Cuacnopalan - Tehuacán,N/D,Abierto,N/A,2025-01-27 10:28:16,Definida,18.487158583000053,-97.45620617599997
+482,CAPUFE,Miahuatlán,Tehuacán - Miahuatlán,N/D,Abierto,N/A,2025-01-27 09:35:39,Definida,18.265129383402638,-97.31478262756632
+483,CAPUFE,Miahuatlán,Tehuacán - Miahuatlán,N/D,Abierto,N/A,2025-01-27 09:36:56,Definida,18.263992935993567,-97.31622979399543
+484,CAPUFE,Miahuatlán,Tehuacán - Miahuatlán,N/D,Abierto,N/A,2025-01-27 09:38:47,Definida,18.26466610239561,-97.31553175862575
+485,Concesionado,Cantona A1,Ent. Oriental - Ent. Cantona,N/D,Abierto,N/A,2025-08-14 22:13:27,Definida,19.508999158012234,-97.49726537098331
+486,Concesionado,Cantona A1,Ent. Oriental - Ent. Cantona,N/D,Abierto,N/A,2025-08-14 22:13:27,Definida,19.50644070088024,-97.49537779213153
+487,Concesionado,Payuca,Virreyes - Teziutlán,N/D,Abierto,N/A,2025-03-06 15:26:41,Definida,19.5217878590038,-97.63809180998663
+488,Concesionado,Cantona,Ent. Oriental - Ent. Perote II,N/D,Abierto,N/A,2025-08-14 22:13:27,Definida,19.507617467000046,-97.49773263499998
+489,Concesionado,Cantona,Ent. Oriental - Ent. Perote II,N/D,Abierto,N/A,2025-08-14 22:13:27,Definida,19.507473710000056,-97.49771286199996
+499,Concesionado,Michac,Apizaco - Huauchinango,N/D,Abierto,N/A,2025-01-24 13:35:23,Definida,19.861448648001087,-98.06070043393652
+501,Concesionado,Michac,Apizaco - Chignahuapan,N/D,Abierto,N/A,2025-01-24 13:37:14,Definida,19.863247473646542,-98.0562495151377
+502,Concesionado,Amozoc II,Amozoc - Ent. Ixtenco,N/D,Abierto,N/A,2025-01-23 14:34:51,Definida,19.063530843159267,-98.06906403622705
+503,CAPUFE,Amozoc A,Puebla - Amozoc,N/D,Abierto,N/A,2025-08-04 15:58:49,Definida,19.049430750839146,-98.03188804004552
+504,CAPUFE,Amozoc,Puebla - Acatzingo,N/D,Abierto,N/A,2025-08-04 15:58:49,Definida,19.04819565087983,-98.03128172923401
+505,CAPUFE,Amozoc,Puebla - Acatzingo,N/D,Abierto,N/A,2025-08-04 15:58:49,Definida,19.049223085321024,-98.02909079957453
+506,CAPUFE,Amozoc A,Puebla - Amozoc,N/D,Abierto,N/A,2025-08-04 15:58:49,Definida,19.05016061148127,-98.0327254550182
+507,CAPUFE,Amozoc,Puebla - Acatzingo,N/D,Abierto,N/A,2025-08-04 15:58:49,Definida,19.04993341200003,-98.03228381199995
+508,CAPUFE,Amozoc,Puebla - Acatzingo,N/D,Abierto,N/A,2025-08-04 15:58:49,Definida,19.049727382803354,-98.03232794305175
+509,Concesionado,Vía Atlixcáyotl,Atlixco - Puebla,N/D,Abierto,N/A,2025-07-24 17:59:57,Definida,19.003892877137734,-98.27261102907701
+510,Concesionado,Aucal,San Martín Texmelucan - Tlaxcala,N/D,Abierto,N/A,2025-08-07 18:05:01,Definida,19.301531025918294,-98.40404670893442
+511,Concesionado,Aucal,Tlaxcala - San Martín Texmelucan,N/D,Abierto,N/A,2025-08-07 18:05:01,Definida,19.301602277033094,-98.40411096702586
+512,Concesionado,San Martín Texmelucan,N/D,N/D,Cerrado,Entrada,2025-08-07 18:05:01,Definida,19.301786712011282,-98.4094938680754
+513,Concesionado,San Martín Texmelucan,N/D,N/D,Cerrado,Salida,2025-08-07 18:05:01,Definida,19.301796251026282,-98.40960756219728
+515,CAPUFE,Puente Pánuco,Alazán - Canoas,N/D,Abierto,N/A,2023-09-18 14:02:58,Definida,22.14875942230797,-98.14494768459714
+516,Estatal,Puente José López Portillo,Tihuatlán - Potrero del Llano,N/D,Abierto,N/A,2021-04-14 13:14:08,Definida,20.93002414897797,-97.68072066277921
+520,CAPUFE,Totomoxtle,Totomoxtle - Ent. El Pital,N/D,Abierto,N/A,2025-01-23 12:31:18,Definida,20.46103382399077,-97.24776310036053
+521,CAPUFE,Totomoxtle,Totomoxtle - Ent. El Pital,N/D,Abierto,N/A,2025-01-23 12:48:34,Definida,20.462022605220934,-97.24600218992484
+522,CAPUFE,Puente Tecolutla,Poza Rica - Veracruz,Puente Tecolutla,Abierto,N/A,2025-07-30 17:51:14,Definida,20.437776918835787,-97.08653250115206
+525,Concesionado,Tihuatlán,Ent. Tihuatlán - Ent. Tihuatlán II,N/D,Abierto,N/A,2025-01-23 11:24:28,Definida,20.688686840960838,-97.4944141819208
+526,CAPUFE,Puente Nautla,Poza Rica - Veracruz,Puente Nautla,Abierto,N/A,2023-09-18 14:10:38,Definida,20.210282364141527,-96.77875710689811
+528,Concesionado,Perote,San Antonio Limón (Totalco) - Perote,Libramiento de Perote,Abierto,N/A,2025-01-23 09:54:07,Definida,19.55172120486643,-97.28962684075996
+529,Concesionado,Perote,San Antonio Limón (Totalco) - Perote,Libramiento de Perote,Abierto,N/A,2025-01-23 09:56:49,Definida,19.551643890032153,-97.28944478305749
+530,Concesionado,Plan del Río,Xalapa - Veracruz,Libramiento Plan del Río,Abierto,N/A,2025-01-24 09:35:03,Definida,19.397128083163455,-96.62154615293207
+531,Concesionado,Plan del Río,Xalapa - Veracruz,Libramiento Plan del Río,Abierto,N/A,2025-01-24 09:50:15,Definida,19.397047554219757,-96.62158110190869
+532,Estatal,La Antigua,Cardel - Veracruz,N/D,Abierto,N/A,2025-01-24 11:41:31,Definida,19.32042486903655,-96.31071877892633
+535,Estatal,La Antigua,Cardel - Veracruz,N/D,Abierto,N/A,2025-01-24 11:43:22,Definida,19.320375824826492,-96.31083610732702
+536,Concesionado,Las Vigas,Perote - Banderilla,N/D,Abierto,N/A,2025-01-23 11:50:52,Definida,19.630375193465355,-97.1279613360163
+537,Concesionado,Las Vigas,Perote - Banderilla,N/D,Abierto,N/A,2025-01-23 11:54:21,Definida,19.630545961465153,-97.12797074601728
+546,CAPUFE,Cuitláhuac A2,Cuitláhuac - La Tinaja,N/D,Abierto,N/A,2025-01-23 14:17:46,Definida,18.838639111991142,-96.73948125798817
+547,CAPUFE,Cuitláhuac A1,Córdoba - Cuitláhuac,N/D,Abierto,N/A,2025-01-23 14:03:44,Definida,18.83929597595842,-96.7469579550066
+548,CAPUFE,Cuitláhuac A1,Córdoba - Cuitláhuac,N/D,Abierto,N/A,2025-01-23 14:13:43,Definida,18.839604204020134,-96.74689587799652
+549,CAPUFE,Cuitláhuac,Córdoba - La Tinaja,N/D,Abierto,N/A,2025-01-23 13:23:12,Definida,18.839384241202428,-96.74694855096921
+550,CAPUFE,Cuitláhuac,Córdoba - La Tinaja,N/D,Abierto,N/A,2025-01-23 13:29:58,Definida,18.83950427490978,-96.74691830401622
+551,CAPUFE,Paso del Toro,Paso del Toro - Veracruz,N/D,Abierto,N/A,2025-08-14 20:22:57,Definida,19.084111554030276,-96.19613961863023
+552,CAPUFE,Paso del Toro,Paso del Toro - Veracruz,N/D,Abierto,N/A,2025-08-14 20:22:57,Definida,19.084674249953284,-96.19681267548488
+553,CAPUFE,Paso del Toro,La Tinaja - Paso del Toro,N/D,Abierto,N/A,2025-08-14 20:22:57,Definida,19.081640016268494,-96.19833631237917
+554,CAPUFE,Paso del Toro,La Tinaja - Paso del Toro,N/D,Abierto,N/A,2025-08-14 20:22:57,Definida,19.081806109355302,-96.19858919249222
+555,CAPUFE,Paso del Toro,La Tinaja - Veracruz,N/D,Abierto,N/A,2025-08-14 20:22:57,Definida,19.08174834306017,-96.19850480608629
+556,CAPUFE,Paso del Toro,La Tinaja - Veracruz,N/D,Abierto,N/A,2025-08-14 20:22:57,Definida,19.081695521446708,-96.19841532517997
+557,CAPUFE,Puente Alvarado,Puente Alvarado,N/D,Abierto,N/A,2023-09-18 14:06:35,Definida,18.76983555845259,-95.74464943609793
+558,Estatal,San Julián,San Julián - Veracruz,N/D,Abierto,N/A,2025-01-24 12:23:07,Definida,19.239253683036313,-96.25781296256898
+559,Estatal,San Julián,San Julián - Veracruz,N/D,Abierto,N/A,2025-01-24 12:26:28,Definida,19.23923644200456,-96.2579882778942
+561,CAPUFE,Puente Caracol,Puente Caracol,Puente Caracol,Abierto,N/A,2023-09-20 10:52:37,Definida,18.133079586072814,-96.13669518744642
+562,CAPUFE,Puente Tlacotalpan,Puente Tlacotalpan,Puente Tlacotalpan,Abierto,N/A,2023-09-18 14:43:27,Definida,18.704615079947175,-95.64137241409631
+566,CAPUFE,Cosamaloapan,La Tinaja - Isla,N/D,Abierto,N/A,2025-01-23 15:34:31,Definida,18.33503625126361,-95.8223742248597
+567,CAPUFE,Cosamaloapan,La Tinaja - Isla,N/D,Abierto,N/A,2025-01-23 15:35:55,Definida,18.3351588923394,-95.82229739181686
+568,CAPUFE,Puente Papaloapan,Puente Papaloapan,Puente Papaloapan,Abierto,N/A,2025-04-07 19:52:41,Definida,18.159594782236677,-96.09666924472744
+570,CAPUFE,Acayucan,Isla - Cosoleacaque,N/D,Abierto,N/A,2025-01-23 15:14:16,Definida,17.910138663897666,-94.93727412299832
+571,CAPUFE,Acayucan,Isla - Cosoleacaque,N/D,Abierto,N/A,2025-01-23 15:18:10,Definida,17.909980598032252,-94.93727234500199
+572,CAPUFE,Acayucan,Isla - Acayucan,N/D,Abierto,N/A,2025-01-23 15:21:50,Definida,17.909607544921332,-94.93782879924035
+573,CAPUFE,Acayucan,Isla - Acayucan,N/D,Abierto,N/A,2025-01-23 15:23:23,Definida,17.910234055917684,-94.93727120499497
+574,CAPUFE,Acayucan,Acayucan - Cosoleacaque,N/D,Abierto,N/A,2025-01-23 15:27:02,Definida,17.909809091319218,-94.937264433093
+575,CAPUFE,Acayucan,Acayucan - Cosoleacaque,N/D,Abierto,N/A,2025-01-23 15:29:17,Definida,17.910877515794017,-94.93674957006334
+577,CAPUFE,Las Choapas,Ent. Las Choapas - Ent. Nuevo Sacrificio,N/D,Abierto,N/A,2025-01-23 13:06:32,Definida,17.94479032801836,-94.17232431496514
+578,CAPUFE,Las Chopas A1,Ent. Las Choapas - Ent. Las Choapas II,N/D,Abierto,N/A,2025-01-23 13:09:24,Definida,17.94270150188997,-94.17220794879894
+579,CAPUFE,Acceso Al Puente Ing. Antonio Dovalí Jaime,Nuevo Teapa - Cosoleacaque,Nuevo Teapa - Cosoleacaque,Abierto,N/A,2024-07-19 20:58:32,Definida,18.014076726187202,-94.44337705896484
+582,CAPUFE,Puente Ing. Antonio Dovalí Jaime,Nuevo Teapa - Cosoleacaque,Nuevo Teapa - Cosoleacaque,Abierto,N/A,2023-09-18 14:56:20,Definida,18.013343255706534,-94.39674239387097
+585,CAPUFE,Puente Ing. Antonio Dovalí Jaime,Nuevo Teapa - Cosoleacaque,Nuevo Teapa - Cosoleacaque,Abierto,N/A,2023-09-18 14:58:35,Definida,18.01341027798591,-94.39678605599406
+591,CAPUFE,Nopala,Chamapa - Lechería,N/D,Cerrado,Salida,2025-10-01 14:53:15,Definida,19.48733403416215,-99.30985483148739
+592,CAPUFE,Nopala,Chamapa - Lechería,N/D,Cerrado,Entrada,2022-09-06 00:00:00,Definida,19.48707579707634,-99.31011085011728
+593,CAPUFE,Nopala,Chamapa - Lechería,N/D,Cerrado,Salida,2025-10-01 15:24:20,Definida,19.488185840123855,-99.31102608807623
+594,CAPUFE,Nopala,Chamapa - Lechería,N/D,Cerrado,Entrada,2022-09-06 00:00:00,Definida,19.48742539500006,-99.31100306799999
+595,CAPUFE,Nopala,Chamapa - Lechería,N/D,Cerrado,Entrada,2022-09-06 00:00:00,Definida,19.48621086400576,-99.31147978381937
+596,CAPUFE,Chamapa CAPUFE,Chamapa - Lechería,N/D,Cerrado,Entrada,2021-05-28 11:14:50,Definida,19.44027227626028,-99.29697474486343
+597,CAPUFE,Chamapa CAPUFE,Chamapa - Lechería,N/D,Cerrado,Salida,2025-09-29 09:38:35,Definida,19.440165051056805,-99.2976812981123
+598,CAPUFE,Lomas Verdes,Chapama - Lechería,N/D,Cerrado,Entrada,2023-08-04 21:49:40,Definida,19.519278779397908,-99.2863436809505
+599,CAPUFE,Lomas Verdes,Chamapa - Lechería,N/D,Cerrado,Salida,2025-10-02 09:14:02,Definida,19.5190420710237,-99.28638070599703
+600,CAPUFE,Peñón,Peñón - Texcoco,Peñón - Texcoco,Abierto,N/A,2025-01-28 11:04:57,Definida,19.458397414313705,-99.03361777811443
+601,CAPUFE,Entronque Peñón,Peñón - Texcoco,Ent. Circuito Exterior Mexiquense - Texcoco,Abierto,N/A,2025-06-05 15:08:09,Definida,19.468851995061744,-99.00441655303482
+602,CAPUFE,Cipreses,Chamapa - Lechería,N/D,Cerrado,Salida,2025-01-24 11:58:25,Definida,19.4688315992454,-99.31139852725167
+603,CAPUFE,Madin,Chamapa - Lechería,N/D,Cerrado,Salida,2025-10-01 11:52:39,Definida,19.54479663980571,-99.27687210988721
+604,CAPUFE,Madin,Chamapa - Lechería,N/D,Cerrado,Salida,2025-10-01 12:14:09,Definida,19.547654364181426,-99.27797550421717
+605,CAPUFE,Madin,Chamapa - Lechería,N/D,Cerrado,Entrada,2025-07-31 20:41:32,Definida,19.548213299002423,-99.27695937397641
+606,CAPUFE,Madin,Chamapa - Lechería,N/D,Cerrado,Entrada,2025-07-31 20:41:32,Definida,19.54521061197463,-99.27752467487075
+607,CAPUFE,Peñón,Entronque Aeropuerto,Ramal Periférico,Abierto,N/A,2025-09-26 14:21:59,Definida,19.48567293399966,-99.0151607109987
+608,CAPUFE,Periférico,Ent. Aeropuerto,Ramal Periférico,Abierto,N/A,2025-09-26 14:26:23,Definida,19.487242275067644,-99.01639310186471
+609,CAPUFE,La Venta,México - La Marquesa,México - La Marquesa,Abierto,N/A,2025-09-19 00:00:00,Definida,19.33275185584365,-99.31410127875367
+610,CAPUFE,La Venta,México - La Marquesa,México - La Marquesa,Abierto,N/A,2025-09-19 00:00:00,Definida,19.332847016907007,-99.31421070086039
+611,CAPUFE,La Venta,México - La Marquesa,La Venta - La Marquesa,Abierto,N/A,2025-09-19 00:00:00,Definida,19.33178566602285,-99.31511407403116
+612,CAPUFE,La Venta,México - La Marquesa,México - La Venta,Abierto,N/A,2025-09-19 00:00:00,Definida,19.333668980137798,-99.31371670517119
+614,CAPUFE,Chamapa INBURSA,La Venta - Chamapa,N/D,Cerrado,Entrada,2021-06-11 16:10:53,Definida,19.43169569884796,-99.29684384138177
+615,CAPUFE,La Venta,La Venta - Chamapa,N/D,Cerrado,Entrada,2025-09-19 00:00:00,Definida,19.348969072965282,-99.30651182382704
+617,CAPUFE,Interlomas,La Venta - Chamapa,N/D,Cerrado,Salida,2025-09-30 10:18:43,Definida,19.395473236215192,-99.29435698515555
+618,CAPUFE,Interlomas,La Venta - Chamapa,N/D,Cerrado,Entrada,2025-08-14 16:52:16,Definida,19.395628148265594,-99.29446716819845
+619,CAPUFE,La Venta 2,La Venta - Chamapa,N/D,Cerrado,Entrada,2025-09-19 00:00:00,Definida,19.352222720788525,-99.30572778451365
+620,CAPUFE,La Venta,México - La Marquesa,La Marquesa - La Venta,Abierto,N/A,2025-09-19 00:00:00,Definida,19.330758903000067,-99.31516457399997
+621,CAPUFE,La Venta,México - La Marquesa,La Venta - La Marquesa,Abierto,N/A,2025-09-19 00:00:00,Definida,19.331182713145466,-99.31551390226417
+622,CAPUFE,La Venta,México - La Marquesa,México - La Venta,Abierto,N/A,2025-09-19 00:00:00,Definida,19.332672572910166,-99.31394685787286
+623,CAPUFE,Contadero,México - Contadero,México - Contadero,Abierto,N/A,2025-09-19 00:00:00,Definida,19.33581194024412,-99.31102292333892
+624,CAPUFE,Santa Fe,México - La Marquesa,México - Santa Fe,Abierto,N/A,2025-08-14 16:52:16,Definida,19.359134333899437,-99.2736073639272
+625,CAPUFE,Santa Fe,México - La Marquesa,México - Santa Fe,Abierto,N/A,2025-08-14 16:52:16,Definida,19.35974397788568,-99.27263024091819
+626,CAPUFE,Huixquilucan,La Venta - Chamapa,N/D,Cerrado,Entrada,2021-06-11 11:24:01,Definida,19.414416000793725,-99.29965945107425
+627,CAPUFE,Huixquilucan,La Venta - Chamapa,N/D,Cerrado,Salida,2025-09-29 13:46:35,Definida,19.414361192532063,-99.29969559916964
+629,CAPUFE,Tlalpan,México - Cuernavaca,N/D,Abierto,N/A,2025-07-25 21:42:19,Definida,19.242553626818854,-99.14856559535049
+630,CAPUFE,Tlalpan,México - Cuernavaca,N/D,Abierto,N/A,2025-07-25 21:42:19,Definida,19.242471965045908,-99.14873434390684
+631,Concesionado,Tenango,Tenango - Ixtapan de la Sal,Tenango,Abierto,N/A,2025-09-29 16:41:47,Definida,19.122452685286,-99.6021431150194
+632,Concesionado,El Dorado,Toluca - Atlacomulco,N/D,Abierto,N/A,2024-02-09 09:51:00,Definida,19.408216848120563,-99.7160539517192
+633,Concesionado,La Hortaliza,Toluca - Zitácuaro,N/D,Abierto,N/A,2025-09-30 11:40:29,Definida,19.381428989959147,-99.80468974699426
+634,Concesionado,Chapultepec,Lerma - Tenango,N/D,Abierto,N/A,2025-09-30 14:39:13,Definida,19.196739589018605,-99.52527045869462
+635,Concesionado,Rayón,Lerma - Tenango,N/D,Abierto,N/A,2025-09-30 14:45:23,Definida,19.151198017765637,-99.54375259900758
+636,Concesionado,Xonacatlán,Lerma - San Cayetano,N/D,Abierto,N/A,2025-10-01 16:40:36,Definida,19.375857045429743,-99.54940231861505
+637,Concesionado,La Hortaliza,Toluca - Zitácuaro,San Cayetano - La Hortaliza,Abierto,N/A,2025-09-30 11:44:53,Definida,19.381983096961232,-99.8069455480285
+638,Concesionado,La Hortaliza,Toluca - Zitácuaro,La Hortaliza - Zitácuaro,Abierto,N/A,2025-09-30 11:46:34,Definida,19.381912043997847,-99.80700502300091
+639,Concesionado,La Hortaliza,Zitácuaro - Toluca,Zitácuaro - La Hortaliza,Abierto,N/A,2025-09-30 11:49:27,Definida,19.38042406577901,-99.80715440073864
+640,Concesionado,La Hortaliza,Zitácuaro - Toluca,La Hortaliza - San Cayetano,Abierto,N/A,2025-09-30 11:52:25,Definida,19.380356149576198,-99.8071213626887
+641,Concesionado,La Hortaliza,Zitácuaro - Toluca,La Hortaliza - San Cayetano,Abierto,N/A,2025-09-30 11:53:52,Definida,19.38032062645544,-99.8087032076654
+642,Concesionado,La Hortaliza,Zitácuaro - Toluca,Zitácuaro - La Hortaliza,Abierto,N/A,2025-09-30 11:57:52,Definida,19.38024021336934,-99.80877474574827
+643,Concesionado,La Hortaliza,Toluca - Zitácuaro,La Hortaliza - Zitácuaro,Abierto,N/A,2025-09-30 12:44:08,Definida,19.381732362862103,-99.80889949583643
+644,Concesionado,La Hortaliza,Toluca - Zitácuaro,San Cayetano - La Hortaliza,Abierto,N/A,2025-09-30 12:45:39,Definida,19.381669843852414,-99.80880918566646
+645,Concesionado,Xonacatlán,Lerma - San Cayetano,Lerma - Xonacatlán,Abierto,N/A,2025-10-01 16:44:55,Definida,19.375930470524974,-99.54932239346638
+646,Concesionado,Xonacatlán,San Cayetano - Xonacatlán,Xonacatlán - Lerma,Abierto,N/A,2025-10-01 16:48:56,Definida,19.375674451961448,-99.5496677860326
+647,Concesionado,Auxiliar Xonacatlán,San Cayetano - Xonacatlán,San Cayetano - Xonacatlán,Abierto,N/A,2025-10-01 16:01:20,Definida,19.380690896944387,-99.55539169204911
+648,Concesionado,Xonacatlán,Xonacatlán - San Cayetano,Xonacatlán - San Cayetano,Abierto,N/A,2025-10-01 16:58:13,Definida,19.38121254167824,-99.55552533225747
+649,CAPUFE,Palmillas (5),Palmillas - Tepeji,N/D,Abierto,N/A,2025-08-05 14:59:19,Definida,20.295931182011454,-99.92917501399329
+650,Concesionado,Toluca - Atlacomulco,El Dorado - Atlacomulco,N/D,Abierto,N/A,2024-02-09 09:52:37,Definida,19.762570283216853,-99.85548468150014
+651,Concesionado,Toluca - Atlacomulco,El Dorado - Atlacomulco,N/D,Abierto,N/A,2024-02-09 09:54:27,Definida,19.762454870822484,-99.85575220537889
+652,CAPUFE,Atlacomulco,Atlacomulco - Maravatío,Atlacomulco - Venta de Bravo,Abierto,N/A,2025-01-24 15:06:59,Definida,19.83785813684115,-99.94547380303273
+653,CAPUFE,Atlacomulco,Atlacomulco - Maravatío,Atlacomulco - Venta de Bravo,Abierto,N/A,2025-01-24 15:09:43,Definida,19.837671276095662,-99.94549056197957
+654,Concesionado,Acambay,N/D,N/D,Cerrado,Entrada,2025-08-04 17:48:11,Definida,19.923509441930534,-99.84426874800292
+655,CAPUFE,No. 70 Polotitlán,Tepeji - Polotitlán,Polotiltán,Abierto,N/A,2025-05-23 19:32:36,Definida,20.22650207711038,-99.81072079489468
+656,CAPUFE,Palmillas (5),Tepeji - Palmillas,N/D,Abierto,N/A,2025-08-05 14:59:19,Definida,20.296235719165637,-99.92898648489938
+657,CAPUFE,No. 70 Polotitlán,Tepeji - Polotitlán,Polotitlán,Abierto,N/A,2025-05-23 19:32:36,Definida,20.22527611170543,-99.81066407200977
+658,Concesionado,Ixtapan de la Sal - Tenango,Ixtapan de la Sal - Tenango,N/D,Cerrado,Entrada,2023-09-07 00:00:00,Definida,18.852862998788996,-99.66752926487908
+659,CAPUFE,Tenango - Ixtapan de la Sal,La Finca,N/D,Cerrado,Salida,2023-09-07 00:00:00,Definida,18.852835238685362,-99.67013288897355
+660,CAPUFE,Tenango - Ixtapan de la Sal,Tenango - Ixtapan de la Sal,N/D,Cerrado,Salida,2023-09-07 00:00:00,Definida,18.85401435209834,-99.66678080404547
+661,Estatal,Laguna Seca,San Cayetano - El Monumento,Monumento - Laguna Seca,Abierto,N/A,2025-09-30 12:47:26,Definida,19.354115184117312,-99.98297933394612
+662,Estatal,Laguna Seca,San Cayetano - El Monumento,Laguna Seca - Monumento,Abierto,N/A,2025-09-30 12:57:54,Definida,19.354789959266608,-99.98320613218507
+663,Concesionado,Ajoloapan,N/D,N/D,Cerrado,Salida,2025-07-29 14:48:20,Definida,19.956105411534196,-99.0533413591443
+664,Concesionado,Ajoloapan,N/D,N/D,Cerrado,Entrada,2025-07-29 14:48:20,Definida,19.956415379956823,-99.05547948299984
+665,Concesionado,Ajoloapan,N/D,N/D,Cerrado,Salida,2025-07-29 14:48:20,Definida,19.955872617702642,-99.05544942810046
+666,Concesionado,Ajoloapan,N/D,N/D,Cerrado,Entrada,2025-07-29 14:48:20,Definida,19.955449714200753,-99.05279238498831
+668,Estatal,Nabor Carrillo,T3 Nabor Carrillo,Tultepec - Lago de Guadalupe,Abierto,N/A,2025-09-26 11:06:08,Definida,19.43582686700008,-98.99853169999949
+669,Estatal,Nabor Carrillo,Circuito Exterior Mexiquense Bicentenario,N/D,Abierto,N/A,2025-09-25 16:39:14,Definida,19.42568545414728,-98.99873338133546
+670,Estatal,Nabor Carrillo,Circuito Exterior Mexiquense Bicentenario,N/D,Abierto,N/A,2025-09-26 12:30:48,Definida,19.425612578920376,-98.99855217281876
+671,CAPUFE,Chalco,Chalco - México,N/D,Abierto,N/A,2025-07-28 16:52:11,Definida,19.293294105875077,-98.8828537219751
+672,CAPUFE,Chalco,Chalco - México,N/D,Abierto,N/A,2025-07-28 16:52:11,Definida,19.29320637950043,-98.88354353591488
+673,CAPUFE,Chalco,Chalco - México,N/D,Abierto,N/A,2025-07-28 16:52:11,Definida,19.29313522040135,-98.88410602308062
+675,CAPUFE,San Marcos,San Marcos - México - Circuito Exterior Mexiquense,N/D,Abierto,N/A,2025-07-28 16:52:11,Definida,19.296576840000057,-98.87077734299999
+676,CAPUFE,San Marcos - San Martín Texmelucan,San Marcos - San Martín Texmelucan,N/D,Abierto,N/A,2025-07-28 16:52:11,Definida,19.29631501619671,-98.87068806703395
+677,Concesionado,Tulancingo,N/D,N/D,Cerrado,Entrada,2025-05-27 16:06:15,Definida,19.83492519171245,-98.70014713999487
+678,Concesionado,Tulancingo,N/D,N/D,Cerrado,Salida,2025-05-27 16:06:15,Definida,19.834798950106336,-98.7001600409988
+679,Concesionado,Tulancingo,N/D,N/D,Cerrado,Salida,2025-05-27 16:06:15,Definida,19.83364855700213,-98.7016225126481
+680,Concesionado,Tulancingo,N/D,N/D,Cerrado,Entrada,2025-05-27 16:06:15,Definida,19.833639444992045,-98.70145812152626
+681,Concesionado,Tulancingo,N/D,N/D,Cerrado,Entrada,2025-05-27 16:06:15,Definida,19.833670656000038,-98.69889646299998
+682,Concesionado,Tulancingo,N/D,N/D,Cerrado,Salida,2025-05-27 16:06:15,Definida,19.833698526003882,-98.6986940140917
+683,Concesionado,Tulancingo,N/D,N/D,Cerrado,Salida,2025-05-27 16:06:15,Definida,19.83251754300005,-98.70013458199998
+684,Concesionado,Tulancingo,N/D,N/D,Cerrado,Entrada,2025-05-27 16:06:15,Definida,19.8323713371458,-98.70012705600176
+685,Concesionado,Ciudad Sahagún,Acambay - San Martín Texmelucan,N/D,Cerrado,Salida,2025-01-27 11:23:55,Definida,19.75604986385425,-98.63051509789962
+686,Concesionado,Ciudad Sahagún,N/D,N/D,Cerrado,Entrada,2023-08-02 19:34:12,Definida,19.756669868807673,-98.62831599699287
+687,Concesionado,Ciudad Sahagún,N/D,N/D,Cerrado,Entrada,2023-08-02 19:34:12,Definida,19.75541078007341,-98.62950685795936
+688,Concesionado,Ciudad Sahagún,San Martín Texmelucan - Acambay,N/D,Cerrado,Salida,2025-01-24 10:49:23,Definida,19.755943571904353,-98.62807964787429
+689,Estatal,Nabor Carrillo,T3 Nabor Carrillo,Tultepec - Lago de Guadalupe,Abierto,N/A,2025-09-26 12:34:47,Definida,19.435818677997336,-98.9983334641578
+690,Concesionado,Querétaro,N/D,N/D,Cerrado,Salida,2025-01-24 12:03:52,Definida,20.000534759963514,-99.490010630992
+691,Concesionado,Querétaro,N/D,N/D,Cerrado,Salida,2025-08-04 20:06:57,Definida,19.996190670457874,-99.48949755307845
+692,Concesionado,Querétaro,N/D,N/D,Cerrado,Salida,2025-08-04 20:06:57,Definida,19.998662083000724,-99.48778552303595
+693,Concesionado,Querétaro,N/D,N/D,Cerrado,Salida,2025-08-04 20:06:57,Definida,19.997886607962343,-99.49187322409912
+694,Concesionado,Querétaro,N/D,N/D,Cerrado,Entrada,2025-08-04 20:06:57,Definida,19.99795605196227,-99.49205545740266
+695,Concesionado,Querétaro,N/D,N/D,Cerrado,Entrada,2017-10-23 10:23:55,Definida,20.000413945806685,-99.49001362595882
+696,Concesionado,Querétaro,N/D,Querétaro - Texmelucan,Cerrado,Entrada,2025-08-04 20:06:57,Definida,19.99869976796417,-99.4875466572525
+697,Concesionado,Querétaro,N/D,N/D,Cerrado,Entrada,2025-08-04 20:06:57,Definida,19.99623554081855,-99.49013553398284
+698,Concesionado,Jilotepec,N/D,N/D,Cerrado,Entrada,2025-07-31 18:04:24,Definida,19.976643171070894,-99.5314595279734
+699,Concesionado,Jilotepec,N/D,N/D,Cerrado,Salida,2025-07-31 18:04:24,Definida,19.97654175520359,-99.53150596191958
+700,CAPUFE,Tultepec,T1 Tultepec,Tultepec - Lago de Guadalupe,Abierto,N/A,2025-09-29 10:59:12,Definida,19.69376780411812,-99.08074073478535
+701,Concesionado,Tultepec,T1 Tultepec,Tultepec - Lago de Guadalupe,Abierto,N/A,2025-09-29 11:02:59,Definida,19.693962517031867,-99.08028659293515
+702,CAPUFE,Tepotzotlán,Querétaro - México,Tepeji del Río - Tepotzotlán,Abierto,N/A,2025-01-23 11:38:35,Definida,19.715329309916743,-99.20769358442702
+703,CAPUFE,Tepotzotlán,México - Querétaro,Tepotzotlán - Tepeji del Río,Abierto,N/A,2025-01-23 11:40:49,Definida,19.715386786015937,-99.20735183493443
+704,Concesionado,Tultepec,T1 Tultepec,Tultepec - Lago de Guadalupe,Abierto,N/A,2025-09-29 11:18:53,Definida,19.704206437754824,-99.0874667699679
+705,Concesionado,Tultepec,T1 Tultepec,N/D,Abierto,N/A,2025-09-29 15:07:24,Definida,19.702291241024454,-99.08521937896116
+706,Concesionado,CONMEX,Hank González T - 2 Conmex,Tultepec - Lago de Guadalupe,Abierto,N/A,2025-08-01 00:00:00,Definida,19.57560845821283,-99.02045114074404
+707,Concesionado,CONMEX,Hank González T - 2 Conmex,Tultepec - Lago de Guadalupe,Abierto,N/A,2025-08-01 00:00:00,Definida,19.575454874354133,-99.02066014156708
+708,Concesionado,Cuautitlán Izcalli,Cuautitlán - Vialidad Mexiquense,Cuautitlán - Tultitlán,Abierto,N/A,2025-09-25 15:43:02,Definida,19.63531561801019,-99.20507917800137
+709,Concesionado,Cuautitlán Izcalli,San Miguel - Chamapa,N/D,Abierto,N/A,2025-09-25 15:48:15,Definida,19.635102365000787,-99.20506531100007
+710,CAPUFE,Lechería - Cuautitlán,Chamapa - Lechería,N/D,Cerrado,Entrada,2025-06-17 19:50:33,Definida,19.6049093721699,-99.20582897589185
+711,CAPUFE,Lechería - Cuautitlán,Chamapa - Lechería,N/D,Cerrado,Salida,2025-10-01 10:30:33,Definida,19.604777969060336,-99.2059042569599
+712,CAPUFE,Revolución,México - Pachuca,Huehuetoca - Pachuca (Enlace CEM),Abierto,N/A,2025-08-01 17:24:18,Definida,19.603032636003576,-99.03851933600691
+713,Concesionado,Pachuca,México - Pachuca,N/D,Abierto,N/A,2025-09-26 13:24:02,Definida,19.60344790505448,-99.03723886933474
+714,CAPUFE,México - Pachuca,México - Pachuca,N/D,Abierto,N/A,2025-08-01 17:24:18,Definida,19.602232433511645,-99.03744720581795
+715,CAPUFE,"No. 21 ""Ojo de Agua""",México - Pachuca,N/D,Abierto,N/A,2025-08-01 17:24:18,Definida,19.61891285385619,-99.02963754474692
+716,CAPUFE,"No. 21 ""Ojo de Agua""",México - Pachuca,N/D,Abierto,N/A,2025-08-01 17:24:18,Definida,19.618727307989417,-99.02925543398017
+717,CAPUFE,Ecatepec - Pirámides,Ecatepec - Pirámides,N/D,Abierto,N/A,2025-08-01 17:24:18,Definida,19.611831831822588,-99.02573619896474
+718,CAPUFE,Ecatepec - Pirámides,Ecatepec - Pirámides,N/D,Abierto,N/A,2025-08-01 17:24:18,Definida,19.611655499021378,-99.02570193900483
+719,CAPUFE,Ecatepec - Pirámides,Ent. Tepexpan,N/D,Abierto,N/A,2025-08-01 17:24:18,Definida,19.61622384514697,-98.94830110672311
+720,CAPUFE,Ecatepec - Pirámides,Ent. Tepexpan,N/D,Abierto,N/A,2025-08-01 17:24:18,Definida,19.616174428877688,-98.94838873022547
+721,Concesionado,Hank González,Hank González,N/D,Abierto,N/A,2025-09-25 16:07:53,Definida,19.58488678785545,-99.02804235712911
+722,Concesionado,Vialidad Mexiquense,Cuautitlán - Tultepec,Vialidad Mexiquense - Tultepec,Abierto,N/A,2025-09-29 15:20:20,Definida,19.637367218972962,-99.15574731783133
+723,Concesionado,Vialidad Mexiquense,Cuautitlán - Tultepec,Vialidad Mexiquense - Tultepec,Abierto,N/A,2025-09-29 15:21:50,Definida,19.638339182920184,-99.15628875295995
+724,Concesionado,Vialidad Mexiquense,Cuautitlán - Tultepec,Vialidad Mexiquense - Cuautitlán,Abierto,N/A,2025-09-29 15:23:16,Definida,19.638300909863855,-99.15925111493439
+725,Concesionado,Tultitlan,Cuautitlán - Tultepec,Tultitlán - Cuautitlán,Abierto,N/A,2025-09-29 15:16:51,Definida,19.637879461404868,-99.16445715305284
+726,Concesionado,Tultitlan,Cuautitlán - Tultepec,Tultitlán - Tultepec,Abierto,N/A,2025-09-29 15:18:50,Definida,19.637623664143383,-99.1644243710217
+727,Concesionado,Los Reyes,Lechería,N/D,Abierto,N/A,2025-09-25 16:30:17,Definida,19.610810459003122,-99.03856048099465
+728,Concesionado,Jorobas,Jorobas - Tepeji,Tultepec - Lago de Guadalupe,Abierto,N/A,2025-09-25 16:21:25,Definida,19.82006144640254,-99.23989321024048
+729,Concesionado,Jorobas,Jorobas - Tepeji,Tultepec - Lago de Guadalupe,Abierto,N/A,2025-09-25 16:25:54,Definida,19.819865964605377,-99.23974891477454
+730,CAPUFE,Atizapán,Chamapa - Lechería,N/D,Cerrado,Salida,2025-09-30 16:22:53,Definida,19.582578873760394,-99.27109699512127
+731,CAPUFE,Atizapán,Chamapa - Lechería,N/D,Cerrado,Entrada,2025-08-07 18:08:34,Definida,19.582501970135255,-99.2711374149339
+732,CAPUFE,Huehuetoca,Peñón - Texcoco,N/D,Abierto,N/A,2025-09-25 16:14:22,Definida,19.823272058936013,-99.23552957491579
+733,CAPUFE,Huehuetoca,Peñón - Texcoco,N/D,Abierto,N/A,2025-09-25 16:16:28,Definida,19.822133680871953,-99.23622268887365
+734,Concesionado,Xonacatlán,Lerma - San Cayetano,N/D,Abierto,N/A,2025-10-01 17:05:22,Definida,19.37576449692452,-99.54952252606677
+735,CAPUFE,Alpuyeca,Cuernavaca - Acapulco,Cuernavaca - Alpuyeca,Abierto,N/A,2025-02-27 17:08:45,Definida,18.723852357261162,-99.26025101313726
+736,CAPUFE,Huitzo (79),Tehuacán - Oaxaca,Huitzo - Nochixtlán,Abierto,N/A,2025-01-27 14:29:06,Definida,17.278765130168086,-96.91463202516444
+737,CAPUFE,Huitzo (79),Tehuacán - Oaxaca,Huitzo - Oaxaca,Abierto,N/A,2025-01-27 14:35:48,Definida,17.27874577800003,-96.91459592299998
+738,CAPUFE,Huitzo (79),Tehuacán - Oaxaca,Nochixtlán - Oaxaca,Abierto,N/A,2025-01-27 12:25:39,Definida,17.27507787517953,-96.91521900785119
+739,CAPUFE,Huitzo (79),Tehuacán - Oaxaca,Huitzo - Oaxaca,Abierto,N/A,2025-01-27 12:19:10,Definida,17.27509054893078,-96.91515827106137
+740,CAPUFE,Huitzo (79),Tehuacán - Oaxaca,Nochixtlán - Huitzo,Abierto,N/A,2025-01-27 12:12:24,Definida,17.27495895510979,-96.91534610190848
+741,CAPUFE,Suchixtlahuaca 78,Tehuacán - Oaxaca,Miahuatlán - Coixtlahuaca,Abierto,N/A,2025-01-27 14:44:50,Definida,17.72604648186167,-97.35375345493556
+742,CAPUFE,Suchixtlahuaca,Tehuacán - Oaxaca,Miahuatlán - Nochixtlán,Abierto,N/A,2025-01-27 14:53:21,Definida,17.72587900989746,-97.35296596265474
+743,CAPUFE,Suchixtlahuaca,Tehuacán - Oaxaca,Miahuatlán - Coixtlahuaca,Abierto,N/A,2025-01-27 14:59:09,Definida,17.726299776382515,-97.35195044720237
+744,CAPUFE,Tehuantepec,Salina Cruz - La Ventosa,Salina Cruz - Tehuantepec,Abierto,N/A,2025-01-27 15:07:18,Definida,16.162256079246795,-95.28929407036222
+745,CAPUFE,Ixtepec (90),Tehuantepec - La Ventosa,Tehuantepec - La Ventosa,Abierto,N/A,2025-01-27 15:11:28,Definida,16.56116847099992,-95.13557350999983
+746,CAPUFE,Ixtepec (90),Tehuantepec - La Ventosa,Tehuantepec - Ixtepec,Abierto,N/A,2025-01-27 15:16:51,Definida,16.56174915898092,-95.13612028306608
+747,CAPUFE,Ixtepec (90),Tehuantepec - La Ventosa,Ixtepec - La Ventosa,Abierto,N/A,2025-01-27 15:21:46,Definida,16.561821932055494,-95.13601535495178
+748,CAPUFE,Ixtepec (90),Tehuantepec - La Ventosa,Tehuantepec - Ixtepec,Abierto,N/A,2025-01-27 15:27:51,Definida,16.56107993320844,-95.13490774310071
+749,CAPUFE,Ixtepec (90),Tehuantepec - La Ventosa,Ixtepec - La Ventosa,Abierto,N/A,2025-01-27 15:33:55,Definida,16.56150857114935,-95.13423641704067
+751,Concesionado,Chiapa de Corzo,Tuxtla Gutiérrez - San Cristóbal de las Casas,N/D,Abierto,N/A,2025-07-30 19:40:50,Definida,16.7306505859227,-93.00951777006146
+752,CAPUFE,Malpasito,Ent. Nuevo Sacrificio - Ent. Raudales,Ent. Nuevo Sacrificio - Ent. Raudales,Abierto,N/A,2025-01-24 11:44:39,Definida,17.34903172703912,-93.58635238291524
+753,CAPUFE,Malpasito,Ent. Malpasito - Ent. Raudales,Ent. Malpasito - Ent. Raudales,Abierto,N/A,2025-01-24 11:55:43,Definida,17.348217202001194,-93.5869230732446
+754,CAPUFE,Malpasito,Ent. Nuevo Sacrificio - Ent. Malpasito,Ent. Nuevo Sacrificio - Ent. Malpasito,Abierto,N/A,2025-01-24 12:04:45,Definida,17.349130213722077,-93.58552117309216
+756,CAPUFE,Puente Usumacinta,Villahermosa - Francisco Escárcega,Villahermosa - Francisco Escárcega,Abierto,N/A,2024-02-08 22:18:13,Definida,17.859838597000078,-91.78360723099996
+757,CAPUFE,Puente Grijalva,Villahermosa - Francisco Escárcega,Villahermosa - Francisco Escárcega,Abierto,N/A,2024-01-30 15:14:25,Definida,17.94761363300006,-92.78529067099998
+758,CAPUFE,Puente Grijalva I,Villahermosa - Francisco Escárcega,Villahermosa - Francisco Escárcega,Abierto,N/A,2024-01-30 15:18:19,Definida,17.947677961000068,-92.78516737399997
+759,CAPUFE,Sánchez Magallanes,Agua Dulce - Ent. Magallanes,Agua Dulce - Ent. Magallanes,Abierto,N/A,2025-01-24 10:09:52,Definida,18.031635726000047,-93.81368651799994
+760,CAPUFE,Sánchez Magallanes,Agua Dulce - Cárdenas,Agua Dulce - Cárdenas,Abierto,N/A,2025-01-23 16:17:54,Definida,18.030702631000057,-93.81296941499994
+761,CAPUFE,Sánchez Magallanes,Agua Dulce - Cárdenas,Agua Dulce - Cárdenas,Abierto,N/A,2025-01-24 09:07:19,Definida,18.030443787000024,-93.81302077199996
+762,CAPUFE,Sánchez Magallanes,Agua Dulce - Ent. Magallanes,Agua Dulce - Ent. Magallanes,Abierto,N/A,2025-01-24 09:27:28,Definida,18.031596215000036,-93.81371530299998
+763,CAPUFE,Sánchez Magallanes,Ent. Magallanes - Cárdenas,Ent. Magallanes - Cárdenas,Abierto,N/A,2025-01-24 10:21:37,Definida,18.02995097200005,-93.81312705199997
+764,CAPUFE,Sánchez Magallanes,Ent. Magallanes - Cárdenas,Ent. Magallanes - Cárdenas,Abierto,N/A,2025-01-24 10:28:10,Definida,18.02989648200003,-93.81305043399999
+765,CAPUFE,Mérida - Cancún,Kantunil - Valladolid,Pisté - Valladolid,Mixto,Salida,2025-08-08 20:09:47,Definida,20.729019762242338,-88.5831968999456
+766,CAPUFE,Mérida - Cancún,Kantunil - Valladolid,Kantunil - Pisté,Mixto,Salida,2025-08-08 20:09:47,Definida,20.729062310380492,-88.58318939592198
+769,CAPUFE,Seybaplaya 132,Champotón - Campeche,Villamadero - Seybaplaya,Abierto,N/A,2025-08-06 21:34:23,Definida,19.63696393313664,-90.67239708976875
+770,CAPUFE,Seybaplaya 132,Champotón - Campeche,Seybaplaya - Campeche,Abierto,N/A,2025-08-06 21:54:32,Definida,19.63621629100004,-90.67149739099995
+771,CAPUFE,Seybaplaya 132,Champotón - Campeche,Champotón - Campeche,Abierto,N/A,2025-08-06 22:07:49,Definida,19.636248012943618,-90.67154318481441
+772,CAPUFE,Seybaplaya 132,Champotón - Campeche,Champotón - Campeche,Abierto,N/A,2025-08-06 21:34:23,Definida,19.63632983807168,-90.67164544318857
+773,CAPUFE,Seybaplaya 132,Champotón - Campeche,Seybaplaya - Campeche,Abierto,N/A,2025-08-06 21:55:25,Definida,19.637554900322897,-90.67278819790613
+774,CAPUFE,La Unidad,Isla del Carmen - Isla Aguada,N/D,Abierto,N/A,2025-09-23 11:49:43,Definida,18.785523171027975,-91.49489699139212
+775,CAPUFE,Puente Zacatal,Villahermosa - Cd. Del Carmen,N/D,Abierto,N/A,2025-01-28 14:34:50,Definida,18.612916066013774,-91.86080053299632
+776,CAPUFE,Ecatepec - Pirámides,Ent. Tepexpan,N/D,Abierto,N/A,2025-08-01 17:24:18,Definida,19.61619720882574,-98.9483449013261
+777,CAPUFE,Ecatepec - Pirámides,Ent. Tepexpan,N/D,Abierto,N/A,2025-08-01 17:24:18,Definida,19.61627349585692,-98.94820234525653
+779,Concesionado,Miradores,Libramiento de Xalapa,N/D,Abierto,N/A,2025-01-23 11:53:50,Definida,19.47442923555275,-96.77525060630772
+780,Concesionado,Miradores,Libramiento de Xalapa,N/D,Abierto,N/A,2025-01-23 12:04:33,Definida,19.474277718181852,-96.77538803287136
+781,Estatal,Chihuahua - Ojinaga,(Chihuahua - Ojinaga) - La Mula,N/D,Abierto,N/A,2025-01-27 11:13:02,Definida,29.055155977263308,-105.10458630563114
+782,Estatal,Chihuahua - Ojinaga,(Chihuahua - Ojinaga) - La Mula,N/D,Abierto,N/A,2025-01-27 11:16:37,Definida,29.055083616266245,-105.10465835742652
+783,Estatal,Chihuahua - Ojinaga,(Chihuahua - Ojinaga) - La Mula,N/D,Abierto,N/A,2025-01-27 11:26:04,Definida,29.054894304642072,-105.10473903458157
+784,Estatal,Chihuahua - Ojinaga,(Chihuahua - Ojinaga) - La Mula,N/D,Abierto,N/A,2025-01-27 11:30:07,Definida,29.05482855221124,-105.10482630594353
+787,Concesionado,Atempan Secundaria 4,Gómez - Teziutlán,N/D,Abierto,N/A,2025-01-27 09:26:00,Definida,19.797990950135194,-97.4555041660553
+789,Concesionado,Atempan Secundaria 2,Teziutlán - Atempan,N/D,Abierto,N/A,2025-01-27 09:14:36,Definida,19.799234635038577,-97.45672403996862
+790,Concesionado,Atempan Secundaria 1,Atempan - Virreyes,N/D,Abierto,N/A,2025-01-27 09:10:34,Definida,19.79918726314933,-97.45676568688289
+792,Concesionado,Atempan,Virreyes - Teziutlán,N/D,Abierto,N/A,2025-01-27 09:04:50,Definida,19.798283711887606,-97.45576626100015
+795,CAPUFE,Plaza de Cobro Ojo Caliente 1,Libramiento Norponiente de Saltillo,Monclova - Ojo Caliente 1,Abierto,N/A,2025-09-22 00:00:00,Definida,25.616408933666364,-100.90808728086328
+797,CAPUFE,Plaza de Cobro Ojo Caliente 1,Libramiento Norponiente de Saltillo,Monclova - Ojo Caliente 1,Abierto,N/A,2025-09-22 00:00:00,Definida,25.615650964795513,-100.90849236285733
+798,CAPUFE,Plaza de Cobro Ojo Caliente 1,Libramiento Norponiente de Saltillo,Ojo Caliente 1 - Ojo Caliente 2,Abierto,N/A,2025-09-22 00:00:00,Definida,25.61236380380468,-100.91354403885421
+799,CAPUFE,Plaza de Cobro Ojo Caliente 1,Libramiento Norponiente de Saltillo,Monclova - Ojo Caliente 2,Abierto,N/A,2025-09-22 00:00:00,Definida,25.612291391337127,-100.9134704412452
+800,CAPUFE,Plaza de Cobro Ojo Caliente 1,Libramiento Norponiente de Saltillo,Monclova - Ojo Caliente 2,Abierto,N/A,2025-09-22 00:00:00,Definida,25.612217954771808,-100.91339790182575
+801,CAPUFE,Plaza de Cobro Ojo Caliente 1,Libramiento Norponiente de Saltillo,Ojo Caliente 1 - Ojo Caliente 2,Abierto,N/A,2025-09-22 00:00:00,Definida,25.61209255468294,-100.91329678578663
+802,Concesionado,Nuevo Progreso,Matamoros - Reynosa,Nuevo Progreso - Reynosa,Abierto,N/A,2025-01-27 15:25:46,Definida,26.037137755028795,-97.95460103973937
+803,Concesionado,Nuevo Progreso,Matamoros - Reynosa,Reynosa - Nuevo Progreso,Abierto,N/A,2025-01-27 15:26:55,Definida,26.03522039995008,-97.95448418133644
+804,Concesionado,Zaragoza,Virreyes - Zaragoza,N/D,Abierto,N/A,2025-05-20 16:33:42,Definida,19.759976179962152,-97.54825174571268
+805,CAPUFE,Plaza de Cobro Torreón,Saltillo - Monterrey,Torreón - Monclova,Abierto,N/A,2025-01-23 14:37:22,Definida,25.45698620535404,-101.06379158036404
+806,CAPUFE,San Marcos BIS - México - Circuito Exterior Mexiquense,San Marcos BIS - México - Circuito Exterior Mexiquense,N/D,Abierto,N/A,2025-07-28 16:52:11,Definida,19.296151432000173,-98.87581852099976
+807,CAPUFE,San Marcos BIS - México - Circuito Exterior Mexiquense,San Marcos BIS - México - Circuito Exterior Mexiquense,N/D,Abierto,N/A,2025-07-28 16:52:11,Definida,19.29362834588999,-98.87485284854446
+808,CAPUFE,San Marcos BIS - México - Circuito Exterior Mexiquense,San Marcos BIS - México - Circuito Exterior Mexiquense,N/D,Abierto,N/A,2025-07-28 16:52:11,Definida,19.293427742193337,-98.87602261780582
+809,CAPUFE,San Marcos BIS - México - Circuito Exterior Mexiquense,San Marcos BIS - México - Circuito Exterior Mexiquense,N/D,Abierto,N/A,2025-07-28 16:52:11,Definida,19.295016991019324,-98.87743730401733
+810,CAPUFE,Plaza de Cobro Torreón,Saltillo - Monterrey,Zacatecas - Torreón,Abierto,N/A,2025-01-23 14:40:45,Definida,25.44844347197682,-101.06719010989522
+811,CAPUFE,Plaza de Cobro Torreón,Saltillo - Monterrey,Zacatecas - Torreón,Abierto,N/A,2025-01-23 14:44:24,Definida,25.44839131888711,-101.06685065850971
+813,CAPUFE,Cosamaloapan,La Tinaja - Cosoleacaque,La Tinaja - Cosamaloapan,Mixto,Entrada,2024-07-22 19:36:29,Definida,18.334734257073922,-95.82132736200035
+814,CAPUFE,Cosamaloapan,La Tinaja - Cosoleacaque,Cosamaloapan - Isla,Mixto,Entrada,2024-07-22 19:36:29,Definida,18.335565431679242,-95.82350612412253
+815,CAPUFE,Ocotlán,Guadalajara - Ocotlán,Ocotlán - Guadalajara,Abierto,N/A,2025-01-27 09:39:57,Definida,20.404898715035063,-102.73938669333056
+816,CAPUFE,Ocotlán,Ocotlán - Guadalajara,Ocotlán - Guadalajara,Abierto,N/A,2025-01-27 09:40:54,Definida,20.406948752980163,-102.73896360685562
+817,CAPUFE,Jalostotitlán,San Juan de los Lagos - Jalostotitlán,Jalostotitlán - El Desperdicio,Abierto,N/A,2025-01-24 11:07:29,Definida,21.120421415737024,-102.4553180238087
+818,CAPUFE,Jalostotitlán,Ent. Jalostotitlán - San Juan de los Lagos,Jalostotitlán - El Desperdicio,Abierto,N/A,2025-01-24 11:08:28,Definida,21.11911606097026,-102.45579190084815
+819,CAPUFE,San Juan,El Desperdicio - San Juan de los Lagos,Jalostotitlán - El Desperdicio,Abierto,N/A,2025-01-24 12:09:15,Definida,21.225671220638194,-102.31367450815227
+820,CAPUFE,San Juan,San Juan de los Lados - Desperdicio,Entronque San Juan - El Desperdicio,Abierto,N/A,2025-01-24 12:21:13,Definida,21.224668897883706,-102.31311886719199
+821,CAPUFE,Unión de San Antonio,Unión de San Antonio - Ent. Lagos de Moreno,Lagos de Moreno,Abierto,N/A,2025-07-22 15:19:30,Definida,21.25133685819534,-101.95086498047466
+822,CAPUFE,Unión de San Antonio,Unión de San Antonio - Ent. Lagos de Moreno,Unión de San Antonio - Lagos de Moreno,Abierto,N/A,2025-07-22 15:19:30,Definida,21.255146610047245,-101.94948915808484
+823,CAPUFE,Cuerámaro Línea 8,León - Ent. Central de Abastos,N/D,Abierto,N/A,2025-01-31 15:21:43,Definida,21.069673101021525,-101.67915275897928
+824,CAPUFE,Cuerámaro Línea 7,León - Ent. Central de Abastos,N/D,Abierto,N/A,2025-01-31 15:19:05,Definida,21.069072644892703,-101.67979991601436
+825,CAPUFE,San Francisco Línea 7,León - San Francisco del Rincón,N/D,Abierto,N/A,2025-08-14 20:51:20,Definida,21.081365273222403,-101.74601332607035
+826,CAPUFE,San Francisco Línea 6,León - San Francisco del Rincón,N/D,Abierto,N/A,2025-08-14 20:51:20,Definida,21.082329720225665,-101.74556571455254
+829,CAPUFE,Libramiento San Pedro,San Pedro - Costa Rica,Villa Juárez - San Pedro,Abierto,N/A,2025-05-14 22:07:40,Definida,24.74867580287015,-107.5680401270721
+830,CAPUFE,Libramiento San Pedro,San Pedro - Costa Rica,San Pedro - Villa Juárez,Abierto,N/A,2025-05-14 22:07:40,Definida,24.748612322806363,-107.56810017810764
+831,CAPUFE,San Pedro,Costa Rica - Libramiento San Pedro,Costa Rica - Villa Juárez,Abierto,N/A,2025-05-14 22:07:40,Definida,24.690371371244535,-107.52305827467087
+832,CAPUFE,San Pedro,Costa Rica - Libramiento San Pedro,Villa Juárez - Costa Rica,Abierto,N/A,2025-05-14 22:07:40,Definida,24.6902141602033,-107.52340987572661
+833,CAPUFE,Ecuandureo,Maravatío - Zapotlanejo,Chirintzio-Ecuandureo,Mixto,Salida,2025-01-27 11:26:55,Definida,20.175137129053052,-102.19131427799853
+836,CAPUFE,Paso Morelos,Cuernavaca - Acapulco,Paso Morelos - Chilpancingo,Abierto,N/A,2025-01-23 11:55:14,Definida,18.231485568919965,-99.21558681658306
+837,CAPUFE,Paso Morelos,Cuernavaca - Acapulco,Puente de Ixtla - Paso Morelos,Abierto,N/A,2025-01-23 12:15:20,Definida,18.231432500999023,-99.21532583199539
+838,CAPUFE,Costa Rica,Mazatlán - Culiacán,Ent. La Cruz - Costa Rica,Abierto,N/A,2025-01-23 14:31:14,Definida,24.57037898982848,-107.43008111421493
+839,CAPUFE,Costa Rica,Mazatlán - Culiacán,Costa Rica - Ent. La Cruz,Abierto,N/A,2025-01-23 14:33:27,Definida,24.57023553794613,-107.43032858206766
+843,CAPUFE,Taretan,Uruapan - Nueva Italia,Cajones - Taretan,Abierto,N/A,2025-01-27 15:21:27,Definida,19.355533107000042,-101.91783817299995
+844,CAPUFE,Ocozocoautla,Las Choapas - Ocozocoautla,Ent. Raudales - Ent. Ocozocoautla,Abierto,N/A,2025-07-29 20:49:27,Definida,16.86316733092237,-93.40685890903586
+845,CAPUFE,Santa Fe,México - Santa Fe,México - Santa Fe,Abierto,N/A,2025-08-14 16:52:16,Definida,19.363380151409622,-99.26734393432957
+846,CAPUFE,Lago de Guadalupe,Chamapa - Lechería,N/D,Cerrado,Entrada,2025-08-07 18:08:34,Definida,19.609696600076482,-99.23608402046386
+847,CAPUFE,Lago de Guadalupe,Chamapa - Lechería,N/D,Cerrado,Salida,2025-09-30 15:32:33,Definida,19.609963625873725,-99.23644657488725
+848,CAPUFE,Lago de Guadalupe,Chamapa - Lechería,N/D,Cerrado,Entrada,2025-08-07 18:08:34,Definida,19.607853747887305,-99.23876964189394
+849,CAPUFE,Lago de Guadalupe,Chamapa - Lechería,N/D,Cerrado,Salida,2025-10-01 14:59:29,Definida,19.608867491073376,-99.23702225505878
+850,CAPUFE,Chamapa INBURSA,La Venta - Chamapa,N/D,Cerrado,Salida,2025-09-29 10:09:56,Definida,19.439008401948175,-99.29648807392076
+851,Concesionado,Puente el Prieto,Pueblo Viejo - T.C. (Ciudad Valles - Tampico),Puente el Prieto,Abierto,N/A,2022-03-16 20:18:41,Definida,22.203337542335493,-97.93737992709953
+853,Concesionado,Ocozocoautla,Arriaga - Ocozocoautla,Montes Azules - Ocozocoautla,Abierto,N/A,2025-01-23 10:45:48,Definida,16.738514987304175,-93.40035800709053
+854,Estatal,Ojo Laguna,Ojo Laguna - Flores Magón,Ojo Laguna - Flores Magón,Abierto,N/A,2025-07-31 21:33:57,Definida,29.48166108425829,-106.40681418970317
+856,CAPUFE,Ecuandureo,Maravatío - Zapotlanejo,La Barca - Ecuandureo,Mixto,Salida,2025-01-27 11:29:33,Definida,20.174915243000044,-102.19129808499997
+857,CAPUFE,Cipreses,Chamapa - Lechería,N/D,Cerrado,Entrada,2022-09-06 00:00:00,Definida,19.468786805203546,-99.31134909226078
+858,CAPUFE,Saucillo,Camargo - Delicias,Conchos - Delicias,Abierto,N/A,2025-06-05 17:24:53,Definida,28.046411916072575,-105.3292686388239
+859,CAPUFE,Panindícuaro,Maravatío - Zapotlanejo,Morelia - Panindícuaro,Mixto,Salida,2025-01-27 14:05:37,Definida,19.97230278651585,-101.75703219887494
+860,CAPUFE,Panindícuaro,Maravatío - Zapotlanejo,Panindícuaro - Morelia,Mixto,Salida,2025-01-27 14:15:06,Definida,19.971500719411893,-101.75695482301207
+861,CAPUFE,Zinapécuaro,Maravatío - Zapotlanejo,Morelia - Zinapécuaro,Abierto,N/A,2025-07-25 20:40:09,Definida,19.900925479000023,-100.78906913099996
+862,Concesionado,Atlacomulco,N/D,N/D,Cerrado,Entrada,2025-08-04 17:40:58,Definida,19.911854585044864,-99.85233838215052
+863,Estatal,Tixtla,Chilpancingo Norte - Montaña Baja,Chilpancingo - Tixtla,Abierto,N/A,2025-08-11 22:14:41,Definida,17.60808238241142,-99.50960526863588
+864,Concesionado,Atempan Secundaria 3,Virreyes - Atempan y Gómez,N/D,Abierto,N/A,2025-01-27 09:18:52,Definida,19.798070179366935,-97.45656859698708
+865,Concesionado,Arriaga,Arriaga - Ocozocoautla,Arriaga - Tierra y Libertad,Abierto,N/A,2025-07-29 15:16:55,Definida,16.257342210806502,-93.87551390379393
+868,Concesionado,Tihuatlán,Ent. Tihuatlán - Ent. Tihuatlán II,N/D,Abierto,N/A,2025-01-23 11:27:06,Definida,20.688145236109044,-97.494853263268
+869,CAPUFE,Reynosa,Puente Internacional Reynosa,N/D,Abierto,N/A,2025-09-22 00:00:00,Definida,26.093315581566902,-98.2709284173084
+873,Concesionado,Ignacio Zaragoza,Puente Internacional Matamoros III Los Tomates,N/D,Abierto,N/A,2025-08-12 21:17:54,Definida,25.874223830003807,-97.4747508780558
+875,CAPUFE,Ecuandureo,La Barca - Morelia,Churintzio - Ecuandureo,Mixto,Entrada,2024-05-07 14:50:02,Definida,20.17439797300005,-102.19164763699996
+879,CAPUFE,Panindícuaro,Maravatío - Zapotlanejo,Churintzio - Panindícuaro,Abierto,N/A,2025-01-27 14:16:01,Definida,19.971440604000065,-101.75695190399995
+880,CAPUFE,Agualeguas,Monterrey - Nuevo Laredo,Monterrey - Agualeguas,Abierto,N/A,2025-01-23 13:38:17,Definida,26.340286746632795,-100.0704797818074
+881,CAPUFE,Coscomate,Durango - Villa Unión,Ent. El Piloncillo - Santa Lucía,Abierto,N/A,2025-01-23 10:49:09,Definida,23.706304071246684,-105.57118752812619
+882,CAPUFE,Las Chopas A2,Ent. Las Choapas II - Ent. Nuevo Sacrificio,N/D,Abierto,N/A,2025-01-23 13:14:48,Definida,17.94267604407772,-94.17215865814434
+883,Concesionado,Valle de Bravo,Ramal Valle de Bravo,N/D,Abierto,N/A,2025-09-30 13:03:38,Definida,19.348304307852658,-99.98953119469654
+884,CAPUFE,Valle de Bravo,Ramal Valle de Bravo,N/D,Abierto,N/A,2025-09-30 13:04:30,Definida,19.348154391301478,-99.98927877434006
+885,CAPUFE,Villa Ahumada,El Sueco - Ciudad Juárez,El Sueco - Villa Ahumada,Abierto,N/A,2025-01-24 12:25:04,Definida,30.437057048038348,-106.5215959595271
+886,CAPUFE,Rosario,Tepic - Mazatlán,Escuinapa - Villa Unión,Abierto,N/A,2025-08-06 21:59:58,Definida,22.984755540918176,-105.87807457906604
+887,CAPUFE,Mesillas,Mazatlán - Durango,Santa Lucía - Villa Unión,Abierto,N/A,2025-01-23 14:18:11,Definida,23.25519699582373,-106.0536407468196
+888,CAPUFE,Mesillas,Mesillas - Mazatlán,Ent. Concordia - Villa Unión,Abierto,N/A,2025-01-23 14:19:25,Definida,23.25522875075088,-106.05369199473579
+889,CAPUFE,Mesillas,Mazatlán - Mesillas,Villa Unión - Ent. Concordia,Abierto,N/A,2025-01-23 14:21:00,Definida,23.25517733800861,-106.05360207500905
+890,CAPUFE,Mesillas,Concordia - Durango,Concordia - Santa Lucía,Abierto,N/A,2025-01-23 14:22:29,Definida,23.25812917701265,-106.05076033201642
+891,CAPUFE,Mesillas,Durango - Concordia,Santa Lucía - Concordia,Abierto,N/A,2025-01-23 14:23:31,Definida,23.258424416042615,-106.05126738495657
+892,Estatal,Jerónimo,Samalayuca - San Jerónimo,Samalayuca - San Jerónimo,Abierto,N/A,2025-07-22 21:17:55,Definida,31.576840319094845,-106.66683079793225
+893,CAPUFE,La Unidad,Puente,Isla del Carmen - Isla Aguada,Abierto,N/A,2025-09-23 11:56:16,Definida,18.785517195014876,-91.49482120320772
+895,Concesionado,Tejocotal,Asunción - Nuevo Necaxa,N/D,Abierto,N/A,2025-01-24 14:38:30,Definida,20.14908514396925,-98.28657732894298
+897,Concesionado,Tejocotal,Lib. de Tulancingo - Nuevo Necaxa,N/D,Abierto,N/A,2025-01-24 14:27:05,Definida,20.14752102888765,-98.28576245801881
+898,Concesionado,Tejocotal,Libramiento de Tulancingo,N/D,Abierto,N/A,2025-01-27 10:57:29,Definida,20.146451482286082,-98.28752709908424
+899,Concesionado,Tejocotal,Asunción - Nuevo Necaxa,N/D,Abierto,N/A,2025-01-27 10:59:34,Definida,20.146446336522125,-98.28694999087202
+900,Concesionado,Tejocotal,Asunción - Nuevo Necaxa,N/D,Abierto,N/A,2025-01-27 11:03:30,Definida,20.149272852996003,-98.28791735699754
+901,Concesionado,Tejocotal,Libramiento de Tulancingo,N/D,Abierto,N/A,2025-01-24 14:33:59,Definida,20.149388666219597,-98.28798362112221
+903,CAPUFE,Mérida - Cancún,Kantunil - Pisté,N/D,Abierto,N/A,2025-08-08 20:09:47,Definida,20.728929259507932,-88.58321912910715
+904,CAPUFE,Mérida - Cancún,Pisté - Valladolid,N/D,Abierto,N/A,2025-08-08 20:09:47,Definida,20.729125833987144,-88.58317196700287
+905,CAPUFE,Periférico,Saltillo - Monterrey,Ojo Caliente 2 - Periférico,Abierto,N/A,2025-07-28 20:54:41,Definida,25.69603203127181,-100.57730363499208
+907,CAPUFE,Mérida - Cancún,Pisté - Valladolid,N/D,Mixto,Entrada,2025-08-08 20:09:47,Definida,20.729165813718847,-88.58471596806885
+908,CAPUFE,Mérida - Cancún,Kantunil - Pisté,N/D,Mixto,Entrada,2025-08-08 20:09:47,Definida,20.729019740363857,-88.58254122697969
+909,CAPUFE,Tequila,Tequila - Magdalena,Tequila - Magdalena,Abierto,N/A,2025-08-05 16:16:42,Definida,20.85416588000004,-103.86120895899995
+910,Estatal,Galeana,Ricardo Flores Magón - Galeana,Ricardo Flores Magón - Galeana,Abierto,N/A,2025-01-27 13:54:13,Definida,30.004231585484014,-107.24250399091747
+911,CAPUFE,Tres Marías (1B),México - Cuernavaca,Tres Marías - Cuernavaca,Abierto,N/A,2025-04-01 18:28:02,Definida,19.050837124000054,-99.24135812199995
+912,Concesionado,Rayón,Rayón - Vicente Guerrero,N/D,Abierto,N/A,2025-01-31 13:18:36,Definida,21.863567441634114,-99.6233971529428
+913,Concesionado,Jiquipilas,Arriaga - Ocozocoautla,Tierra y Libertad - Montes Azules,Abierto,N/A,2025-01-23 09:41:52,Definida,16.620571334125504,-93.60202798316341
+917,Concesionado,Jiquipilas,Arriaga - Ocozocoautla,Jiquipilas - Montes Azules,Abierto,N/A,2025-01-23 09:46:36,Definida,16.62062896707572,-93.60051227005586
+918,Concesionado,Jiquipilas,Arriaga - Ocozocoautla,Jiquipilas - Montes Azules,Abierto,N/A,2025-01-23 10:23:52,Definida,16.622249566988952,-93.60242263597203
+919,CAPUFE,Tehuacán,Cuacnopalan - Tehuacán,N/D,Abierto,N/A,2025-01-27 10:30:18,Definida,18.487550726754222,-97.45692922814519
+920,CAPUFE,Tehuacán,Cuacnopalan - Tehuacán,N/D,Abierto,N/A,2025-01-27 10:32:22,Definida,18.486667861893064,-97.45539830306222
+921,CAPUFE,Alpuyeca,Cuernavaca - Acapulco,Cuernavaca - Alpuyeca,Abierto,N/A,2025-02-27 17:08:45,Definida,18.72249225673775,-99.25992917703455
+922,CAPUFE,Santa María del Oro,Guadalajara - Tepic,Jala - Tepic,Abierto,N/A,2025-08-05 18:31:00,Definida,21.328205783817843,-104.66454942128846
+927,Concesionado,Atlacomulco,N/D,N/D,Cerrado,Salida,2025-08-04 17:40:58,Definida,19.91191109001975,-99.85261287205772
+928,Concesionado,Acambay,N/D,N/D,Cerrado,Salida,2025-08-04 17:40:58,Definida,19.923402932365203,-99.8442229159933
+929,Concesionado,Pachuca,N/D,N/D,Cerrado,Salida,2025-01-27 13:48:28,Definida,19.92754119442511,-98.89152089807888
+930,Concesionado,Pachuca,N/D,N/D,Cerrado,Entrada,2020-08-26 10:49:23,Definida,19.927337791419088,-98.89148685007302
+932,Estatal,San Julián,San Julián - Veracruz,N/D,Abierto,N/A,2025-01-24 13:45:21,Definida,19.23924640100185,-96.25789348698173
+933,Estatal,San Julián,San Julián - Veracruz,N/D,Abierto,N/A,2025-01-24 13:45:40,Definida,19.239228771052318,-96.25806380056373
+939,CAPUFE,Ent. Uriangato,Copándaro - Ent. Cerro Gordo,N/D,Cerrado,Entrada,2021-06-24 12:14:23,Definida,20.18298648703916,-101.15728920200878
+940,CAPUFE,Ent. Uriangato,Copándaro - Ent. Cerro Gordo,N/D,Cerrado,Salida,2025-01-31 14:26:39,Definida,20.18287297896011,-101.15728878699097
+941,CAPUFE,Valtierrilla,Copándaro - Ent. Cerro Gordo,N/D,Cerrado,Salida,2025-08-05 16:30:16,Definida,20.5426461559876,-101.13768916791575
+942,CAPUFE,Valtierrilla,Copándaro - Ent. Cerro Gordo,N/D,Cerrado,Entrada,2025-08-05 16:30:16,Definida,20.542653904051107,-101.13781289936341
+943,CAPUFE,Ent. La Cinta,Copándaro - Ent. Cerro Gordo,N/D,Cerrado,Salida,2025-01-31 14:12:52,Definida,20.07341192400761,-101.13673725226413
+948,CAPUFE,Villa Ahumada,El Sueco - Ciudad Juárez,El Sueco - Villa Ahumada,Abierto,N/A,2025-01-24 12:27:17,Definida,30.43703635099952,-106.52197156417438
+949,CAPUFE,Villa Ahumada,El Sueco - Ciudad Juárez,El Sueco - Villa Ahumada,Abierto,N/A,2025-01-24 12:31:58,Definida,30.437051445011495,-106.52166362059431
+950,CAPUFE,Villa Ahumada,El Sueco - Ciudad Juárez,El Sueco - Villa Ahumada,Abierto,N/A,2025-01-24 13:37:25,Definida,30.437048948996924,-106.52175094349708
+954,Estatal,Ojo Laguna,Ojo Laguna - Flores Magón,Ojo Laguna - Flores Magón,Abierto,N/A,2025-07-31 21:33:57,Definida,29.48172251105306,-106.40671155993314
+955,Estatal,Ojo Laguna,Ojo Laguna - Flores Magón,Ojo Laguna - Flores Magón,Abierto,N/A,2025-07-31 21:33:57,Definida,29.481633283139775,-106.40687343384627
+956,CAPUFE,Saucillo,Camargo - Delicias,Conchos - Delicias,Abierto,N/A,2025-06-05 17:24:53,Definida,28.046363850956684,-105.32945410310181
+957,Estatal,Galeana,Ricardo Flores Magón - Galeana,Ricardo Flores Magón - Galeana,Abierto,N/A,2025-01-27 13:58:20,Definida,30.004274753555197,-107.24249563013798
+958,CAPUFE,Tepoztlán,La Pera - Cuautla,La Pera - Oaxtepec,Cerrado,Salida,2025-08-01 18:06:25,Definida,18.987054965171502,-99.11245012068554
+960,Estatal,Jerónimo,Samalayuca - San Jerónimo,Samalayuca - San Jerónimo,Abierto,N/A,2025-07-22 21:17:55,Definida,31.577006571931165,-106.66668743204828
+961,CAPUFE,Las Flores,Puente Internacional Las Flores,N/D,Abierto,N/A,2024-09-05 00:00:00,Definida,26.060734429885482,-97.94921360109606
+963,Concesionado,Cuyutlán,Armería - Manzanillo,Caseta Cuyutlán Km. 61+350,Abierto,N/A,2025-01-29 11:47:02,Definida,18.92782866976824,-104.08141459911901
+964,Concesionado,Cuyutlán,Armería - Manzanillo,Caseta Cuyutlán Km. 61+350,Abierto,N/A,2025-01-29 11:48:02,Definida,18.927730306959326,-104.08146848402015
+965,CAPUFE,La Venta,La Venta - Chamapa,N/D,Cerrado,Salida,2025-09-30 11:54:10,Definida,19.348980108995207,-99.30669201097437
+966,CAPUFE,Ozumba,Amecameca - Cuautla,Amecameca - Cuautla,Abierto,N/A,2025-05-23 16:43:47,Definida,19.046105143209154,-98.82823912229767
+967,CAPUFE,Ozumba,Amecameca - Cuautla,Amecameca - Cuautla,Abierto,N/A,2025-05-23 16:43:47,Definida,19.04614123702083,-98.82836331602947
+968,Estatal,Texcoco,Circuito Exterior Mexiquense Bicentenario,N/D,Abierto,N/A,2025-09-29 10:11:10,Definida,19.450738532624147,-98.91101283402493
+969,Estatal,Texcoco,Circuito Exterior Mexiquense Bicentenario,N/D,Abierto,N/A,2025-09-29 10:13:39,Definida,19.450647081381646,-98.91102278296965
+1019,Concesionado,San Miguel,La Laja - Plancarte,N/D,Abierto,N/A,2025-09-29 08:44:37,Definida,20.58109348691434,-100.79532026705117
+1023,CAPUFE,La Calera,Laguna Larga - Patti II,N/D,Abierto,N/A,2025-08-07 21:38:07,Definida,20.395637840747156,-101.99337040207017
+1024,CAPUFE,La Calera,Patti II - Laguna Larga,N/D,Abierto,N/A,2025-08-07 21:38:07,Definida,20.395588796806024,-101.99350844105449
+1025,CAPUFE,La Calera A1,La Calera - Laguna Larga,N/D,Abierto,N/A,2025-08-07 21:38:07,Definida,20.395394425480873,-101.99804455778738
+1026,CAPUFE,La Calera A1,Laguna Larga - La Calera,N/D,Abierto,N/A,2025-08-07 21:38:07,Definida,20.39547972008904,-101.9980900990365
+1027,CAPUFE,La Calera A2,La Calera - Patti II,N/D,Abierto,N/A,2025-08-07 21:38:07,Definida,20.395428879747996,-101.99806312589361
+1028,CAPUFE,La Calera A2,Patti II - La Calera,N/D,Abierto,N/A,2025-08-07 21:38:07,Definida,20.395517570564465,-101.99810918380574
+1030,CAPUFE,San Pedro Torreón,Matamoros Vergel,Libramiento Norte de la Laguna,Abierto,N/A,2025-01-29 11:12:41,Definida,25.650599898564117,-103.36919777408109
+1031,CAPUFE,San Pedro Torreón,Vergel Matamoros,Libramiento Norte de la Laguna,Abierto,N/A,2025-01-29 11:15:13,Definida,25.65047896529193,-103.36922434194716
+1032,CAPUFE,San Pedro Torreón,San Pedro Vergel,El Vergel - San Pedro,Abierto,N/A,2025-01-29 11:19:25,Definida,25.6506699164079,-103.36917982592432
+1033,CAPUFE,San Pedro Torreón,Vergel San Pedro,El Vergel - San Pedro,Abierto,N/A,2025-01-29 11:21:46,Definida,25.65039343492088,-103.36924123601466
+1034,CAPUFE,San Pedro Torreón,Matamoros San Pedro,San Pedro - Matamoros,Abierto,N/A,2025-01-29 11:24:22,Definida,25.64926119286789,-103.3614233710241
+1035,CAPUFE,San Pedro Torreón,San Pedro Matamoros,San Pedro - Matamoros,Abierto,N/A,2025-01-29 11:28:07,Definida,25.648998932716108,-103.36148307304686
+1037,CAPUFE,El Vainillo,Mazatlán - Villa Unión,Poblado el Vainillo - Mazatlán,Abierto,N/A,2025-05-14 20:08:04,Definida,23.216249403055713,-106.2603431699663
+1038,CAPUFE,El Vainillo,Mazatlán - Villa Unión,Mazatlán - Poblado el Vainillo,Abierto,N/A,2025-05-14 20:08:04,Definida,23.216073185983486,-106.26044533201
+1039,CAPUFE,Cuitláhuac A2,Cuitláhuac - La Tinaja,N/D,Abierto,N/A,2025-01-23 14:21:25,Definida,18.83752849478111,-96.73740668039672
+1046,CAPUFE,Cosamaloapan,La Tinaja - Cosamaloapan,N/D,Mixto,Salida,2025-01-23 16:15:52,Definida,18.335217666859872,-95.82227256607628
+1047,CAPUFE,Cosamaloapan,La Tinaja - Cosamaloapan,N/D,Mixto,Salida,2025-01-27 15:09:35,Definida,18.334974616775586,-95.82241654712799
+1049,CAPUFE,Morfín Chávez,Libramiento de Fresnillo,Ent. La Providencia - Morfín Chávez,Abierto,N/A,2025-08-11 20:27:30,Definida,23.17796092492217,-102.82891405119436
+1050,CAPUFE,Morfín Chávez,Libramiento de Fresnillo,Morfín Chávez - Ent. San Isidro,Abierto,N/A,2025-08-11 20:27:30,Definida,23.17803856207779,-102.82862142081554
+1051,Concesionado,Zacatelco,Puebla - Zacatelco,N/D,Abierto,N/A,2025-06-11 20:14:26,Definida,19.2114668656831,-98.26315304719864
+1052,Concesionado,Zacatelco,Puebla - Tlaxcala,N/D,Abierto,N/A,2025-06-11 20:14:26,Definida,19.21157256516516,-98.2649233407494
+1057,Concesionado,Mitla - Tehuantepec,Mitla - Tehuantepec,Mitla - Tepuxtepec,Abierto,N/A,2025-03-04 09:27:51,Definida,16.90835406574793,-96.36124125201707
+1058,Concesionado,Libramiento Norte San Luis Potosí,Libramiento Norte de San Luis Potosí,N/D,Abierto,N/A,2025-01-31 13:21:46,Definida,22.299846764991788,-100.97135911199923
+1062,CAPUFE,Ixtapaluca,Chalco - México,N/D,Abierto,N/A,2025-07-28 16:52:11,Definida,19.28996210387415,-98.88030524038287
+1063,CAPUFE,Chalco,México - Chalco,N/D,Abierto,N/A,2025-07-28 16:52:11,Definida,19.29204651514109,-98.88171608975848
+1065,CAPUFE,San Luis Río Colorado - Estación El Doctor,San Luis Río Colorado - Golfo de Santa Clara,N/D,Abierto,N/A,2024-06-27 22:01:50,Definida,32.37518774200463,-114.76064176358544
+1071,CAPUFE,Arandas,Arandas - Ent. ITESI,N/D,Abierto,N/A,2025-07-24 00:00:00,Definida,20.737446571111363,-101.37995820025958
+1072,CAPUFE,León,León - (Autopista Salamanca - León),N/D,Abierto,N/A,2025-07-29 21:09:57,Definida,21.04628993067923,-101.62851203926601
+1073,CAPUFE,Cerro Gordo A1,Celaya - Cerro Gordo,N/D,Abierto,N/A,2025-01-31 11:57:34,Definida,20.591997401809873,-101.13727463713421
+1074,CAPUFE,Cerro Gordo A1,Celaya - Cerro Gordo,N/D,Abierto,N/A,2025-08-05 16:30:16,Definida,20.592211405291234,-101.14128969022414
+1075,CAPUFE,Cerro Gordo A2,Cerro Gordo - Salamanca,N/D,Abierto,N/A,2025-08-05 16:30:16,Definida,20.592312782920025,-101.14138138093892
+1076,CAPUFE,Revolución,México - Pachuca,N/D,Abierto,N/A,2025-08-01 17:24:18,Definida,19.602705068862296,-99.03791316871983
+1077,CAPUFE,"Carril 20 de la PC-91 ""Revolución""",México - Pachuca,N/D,Abierto,N/A,2025-08-01 17:24:18,Definida,19.60890218224905,-99.0340906742329
+1087,CAPUFE,Puerto Interior,Timoteo Lozano - La Garrida,N/D,Abierto,N/A,2025-01-31 14:53:29,Definida,20.98382313424963,-101.5422150068167
+1088,CAPUFE,Puerto Interior,La Garrida - T. Lozano,N/D,Mixto,Salida,2025-01-31 13:47:44,Definida,20.983984507060864,-101.54210063395509
+1089,CAPUFE,Mendoza,ITESI - Salamanca,N/D,Abierto,N/A,2025-01-31 13:16:27,Definida,20.67290523916585,-101.21368263787335
+1090,CAPUFE,Mendoza,Salamanca - ITESI,N/D,Abierto,N/A,2025-01-31 13:30:31,Definida,20.673023086418457,-101.21357497968168
+1091,CAPUFE,San Cristóbal,México - Pachuca,Indios Verdes - San Cristóbal,Abierto,N/A,2025-07-31 17:13:09,Definida,19.587801862094125,-99.041860397379
+1094,CAPUFE,San Cristóbal,Pachuca - México,San Cristóbal - Indios Verdes,Abierto,N/A,2025-07-31 17:13:09,Definida,19.587843457898725,-99.04213593862778
+1095,Concesionado,VB Oriente,Autopista Urbana Norte,N/D,Cerrado,Entrada,2025-07-31 20:19:44,Virtual,19.45235257801941,-99.21986949238975
+1097,Concesionado,Gustavo Baz,Toreo - Tepalcapa,N/D,Cerrado,Entrada,2025-07-31 20:19:44,Definida,19.479442045086785,-99.23237412832269
+1098,Concesionado,Lomas Verdes,Toreo - Tepalcapa,N/D,Cerrado,Entrada,2025-07-31 20:19:44,Definida,19.487813025225996,-99.23912332688249
+1100,CAPUFE,Jiménez,Libramiento Oriente de Chihuahua,Aldama - Jiménez,Abierto,N/A,2025-04-25 17:04:47,Definida,28.603458822924566,-105.95138825226412
+1101,Concesionado,Santa Mónica,Toreo - Tepalcapa,N/D,Cerrado,Entrada,2025-07-31 14:44:24,Definida,19.53224508271626,-99.22513663852963
+1102,CAPUFE,Jiménez,Libramiento Oriente de Chihuahua,Aldama - Jiménez,Abierto,N/A,2025-04-25 17:04:47,Definida,28.603471685120084,-105.95133643659055
+1104,CAPUFE,Sacramento,Libramiento Oriente de Chihuahua,Sacramento - Aldama,Abierto,N/A,2025-08-01 17:31:03,Definida,28.790494890581208,-106.13925579418027
+1105,CAPUFE,Sacramento,Libramiento Oriente de Chihuahua,Sacramento - Aldama,Abierto,N/A,2025-08-01 17:31:03,Definida,28.79054648766319,-106.13923916615158
+1107,Concesionado,Lago de Guadalupe,Toreo - Tepalcapa,N/D,Cerrado,Entrada,2025-06-17 19:50:33,Definida,19.576801399049867,-99.20820716375081
+1108,Concesionado,Lechería,Toreo - Tepalcapa,N/D,Cerrado,Entrada,2025-06-17 19:50:33,Definida,19.597414844033068,-99.20177959821707
+1109,Concesionado,Vía José López Portillo,Torero - Tepalcapa,N/D,Cerrado,Entrada,2025-07-30 17:16:55,Definida,19.601081367037796,-99.18986397408594
+1111,Concesionado,Tepalcapa,Toreo - Tepalcapa,N/D,Cerrado,Entrada,2025-07-30 17:16:55,Definida,19.62211687307286,-99.19222992854777
+1112,Concesionado,Valle Dorado,Toreo - Tepalcapa,N/D,Cerrado,Entrada,2023-05-22 18:22:50,Definida,19.55170119694634,-99.20766445703022
+1113,Concesionado,Tepalcapa,Toreo - Tepalcapa,N/D,Cerrado,Salida,2025-10-01 11:33:25,Definida,19.620629716930477,-99.19165439945964
+1114,Concesionado,Circunvalación,Toreo - Tepalcapa,N/D,Cerrado,Entrada,2025-09-22 00:00:00,Definida,19.51847115203127,-99.23059448104213
+1115,Concesionado,Parque Naucalli,Toreo - Tepalcapa,N/D,Cerrado,Entrada,2025-07-31 20:19:44,Definida,19.490835366983582,-99.23715120039438
+1116,Concesionado,Lomas Verdes,Toreo - Tepalcapa,N/D,Cerrado,Salida,2025-09-30 17:25:23,Definida,19.48786109051387,-99.23909128122685
+1117,Concesionado,Circunvalación,Toreo - Tepalcapa,N/D,Cerrado,Salida,2025-09-30 15:14:44,Definida,19.51742546716877,-99.23199592263693
+1118,Concesionado,Santa Mónica,Toreo - Tepalcapa,N/D,Cerrado,Salida,2025-10-01 11:24:06,Definida,19.53225850995734,-99.22509989308523
+1119,Concesionado,Valle Dorado,Toreo - Tepalcapa,N/D,Cerrado,Salida,2025-10-01 11:42:03,Definida,19.55172605733859,-99.2076461438182
+1120,Concesionado,Lago de Guadalupe,Toreo - Tepalcapa,N/D,Cerrado,Salida,2025-09-30 17:03:45,Definida,19.577229488992668,-99.20651932499364
+1121,Concesionado,Lechería,Toreo - Tepalcapa,N/D,Cerrado,Salida,2025-09-30 17:19:22,Definida,19.597669598108435,-99.1998758930795
+1122,Concesionado,Vía José López Portillo,Toreo - Tepalcapa,N/D,Cerrado,Salida,2025-10-01 12:21:08,Definida,19.601065549048624,-99.18982713409969
+1123,Concesionado,1o. de Mayo,Toreo - Tepalcapa,N/D,Cerrado,Salida,2025-09-30 15:08:18,Definida,19.465465244684534,-99.22755194196995
+1124,Concesionado,Gustavo Baz,Toreo - Tepalcapa,N/D,Cerrado,Salida,2025-09-30 16:18:02,Definida,19.48282593094068,-99.23072391582055
+1128,CAPUFE,Jiménez,Libramiento Oriente de Chihuahua,Aldama - Jiménez,Abierto,N/A,2025-04-25 17:04:47,Definida,28.603486406991333,-105.95128790102896
+1131,CAPUFE,Sacramento,Libramiento Oriente de Chihuahua,Sacramento - Aldama,Abierto,N/A,2025-08-01 17:31:03,Definida,28.790588925863247,-106.13920096905856
+1135,Concesionado,San Antonio Oriente,Autopista Urbana Norte,N/D,Cerrado,Entrada,2025-06-06 21:29:50,Definida,19.382458204996734,-99.19170202466996
+1137,Concesionado,Sóstenes Rocha Oriente,Autopista Urbana Norte,N/D,Cerrado,Entrada,2025-06-06 21:29:50,Definida,19.405351015016432,-99.19174485992907
+1138,Concesionado,Constituyentes Oriente,Autopista Urbana Norte,N/D,Cerrado,Entrada,2023-09-07 00:00:00,Definida,19.409554614494013,-99.19617708920269
+1139,Concesionado,Alencastre Poniente,Autopista Urbana Norte,N/D,Cerrado,Entrada,2023-09-07 00:00:00,Definida,19.41730270696997,-99.19502246705443
+1146,CAPUFE,Tintal,Valladolid - Cancún,N/D,Abierto,N/A,2025-08-07 23:38:46,Definida,20.900016040469854,-87.43523662716754
+1147,CAPUFE,Tintal,Valladolid - Cancún,N/D,Abierto,N/A,2025-08-07 23:38:46,Definida,20.89974175097767,-87.43514538299225
+1148,Concesionado,Alencastre Oriente,N/D,Sur - Norte,Cerrado,Salida,2025-10-01 12:03:00,Definida,19.417602946110478,-99.19486680379354
+1149,Concesionado,Reforma Centro Oriente (Chapultepec),N/D,Sur - Norte,Cerrado,Salida,2025-02-04 17:34:40,Definida,19.422763563643247,-99.19788642906505
+1151,Concesionado,Ejército Nacional Poniente,Autopista Urbana Norte,N/D,Cerrado,Entrada,2025-07-31 20:19:44,Definida,19.437911904783405,-99.21391245639467
+1152,Concesionado,Palmas Poniente,Autopista Urbana Norte,Norte - Sur,Cerrado,Salida,2025-02-04 17:18:22,Definida,19.432946283794656,-99.20962218421856
+1155,Concesionado,Parque Pelvoux Poniente,N/D,Norte - Sur,Cerrado,Salida,2025-02-04 17:23:08,Definida,19.42674033496253,-99.20219856104976
+1156,Concesionado,Palmas Poniente,Autopista Urbana Norte,N/D,Cerrado,Entrada,2023-09-07 00:00:00,Definida,19.43102271072391,-99.20892023480877
+1157,Concesionado,Reforma Centro Poniente,N/D,Norte - Sur,Cerrado,Salida,2025-02-04 17:20:28,Definida,19.427537056000062,-99.20339877899994
+1159,Concesionado,Rosario Castellanos Poniente,Autopista Urbana Norte,N/D,Cerrado,Entrada,2023-09-07 00:00:00,Definida,19.424242368176966,-99.20068660779941
+1160,Concesionado,Constituyentes Poniente,N/D,Norte - Sur,Cerrado,Salida,2025-06-06 21:29:50,Definida,19.41123520099222,-99.19405693294267
+1161,Concesionado,Minería Poniente,N/D,Norte - Sur,Cerrado,Salida,2025-06-06 21:29:50,Definida,19.40313588903032,-99.19243972344586
+1162,Concesionado,San Antonio Poniente,N/D,Norte - Sur,Cerrado,Salida,2025-06-06 21:29:50,Definida,19.38027301200311,-99.19186190694457
+1170,CAPUFE,El Mangle,N/D,N/D,Cerrado,Entrada,2025-06-24 17:49:20,Definida,22.95394567191973,-109.97379932995479
+1172,CAPUFE,Cabo San Lucas,N/D,N/D,Cerrado,Entrada,2025-06-24 17:49:20,Definida,22.924267233035426,-109.91722532779589
+1174,CAPUFE,San José del Cabo,N/D,N/D,Cerrado,Entrada,2025-06-26 17:49:13,Definida,23.049997988180213,-109.7195952079663
+1176,CAPUFE,Aeropuerto - Los Cabos,N/D,N/D,Cerrado,Entrada,2025-08-08 15:38:24,Definida,23.15049263999026,-109.74065587756705
+1177,CAPUFE,Aeropuerto - Los Cabos,N/D,N/D,Cerrado,Salida,2025-08-08 15:38:24,Definida,23.150499021999007,-109.74054777690691
+1178,CAPUFE,El Mangle,N/D,N/D,Cerrado,Salida,2025-06-24 17:49:20,Definida,22.95406941514349,-109.97394728508029
+1179,CAPUFE,Cabo San Lucas,N/D,N/D,Cerrado,Salida,2025-06-24 17:49:20,Definida,22.924243629039097,-109.91735883771558
+1180,CAPUFE,San José del Cabo,N/D,N/D,Cerrado,Salida,2025-06-26 17:49:13,Definida,23.049897579249347,-109.71960301996435
+1185,CAPUFE,Cedral - Playa del Carmen,N/D,N/D,Cerrado,Entrada,2025-08-07 23:38:46,Definida,20.895644562027652,-87.44086113578747
+1186,CAPUFE,Cancún - Cedral,N/D,N/D,Cerrado,Entrada,2025-08-07 23:38:46,Definida,20.895568099990676,-87.43876780805057
+1187,CAPUFE,Cancún - Playa del Carmen,N/D,N/D,Cerrado,Entrada,2025-08-07 23:38:46,Definida,20.895570344979316,-87.43867720813392
+1192,CAPUFE,Playa del Carmen,N/D,N/D,Cerrado,Entrada,2021-09-14 09:15:38,Definida,20.70086584881049,-87.14724360112378
+1197,CAPUFE,Zona 3 a Playa del Carmen,N/D,A Playa del Carmen,Cerrado,Salida,2025-01-23 15:25:57,Definida,20.70080632408581,-87.14734184694552
+1198,CAPUFE,Zona 1 a Valladolid,N/D,A Valladolid,Cerrado,Salida,2025-08-07 23:38:46,Definida,20.89557662393266,-87.43859643847888
+1199,CAPUFE,Zona 2 a Cedral,N/D,A Cedral,Cerrado,Salida,2025-08-07 23:38:46,Definida,20.89565383103097,-87.44077737376357
+1200,CAPUFE,Zona 4 a Cancún,N/D,A Cancún,Cerrado,Salida,2025-08-07 23:38:46,Definida,20.899683773134175,-87.43512503304343
+1201,CAPUFE,León,León - (Autopista Salamanca - León),N/D,Abierto,N/A,2025-07-29 21:09:57,Definida,21.04580863922316,-101.62856422388805
+1206,CAPUFE,Jiménez,Libramiento Oriente de Chihuahua,Aldama - Jiménez,Abierto,N/A,2025-04-25 17:04:47,Definida,28.603442814964932,-105.9514422011213
+1207,CAPUFE,Sacramento,Libramiento Oriente de Chihuahua,Sacramento - Aldama,Abierto,N/A,2025-08-01 17:31:03,Definida,28.79046244366628,-106.13928025014592
+1208,CAPUFE,Agualeguas,Monterrey - Nuevo Laredo,Agualeguas - Parás,Abierto,N/A,2025-01-23 13:39:33,Definida,26.340372571912315,-100.0705176689839
+1209,CAPUFE,Sabinas - Parás,Monterrey - Nuevo Laredo,Sabinas - La Gloria,Abierto,N/A,2025-01-23 13:54:10,Definida,26.51209463812664,-100.00699722827893
+1212,CAPUFE,Los Herrera,Cadereyta - Reynosa,Cadereyta - Los Herrera,Abierto,N/A,2025-01-23 12:56:58,Definida,25.757273613069266,-99.37392066313835
+1213,CAPUFE,Los Herrera,Cadereyta - Reynosa,Cadereyta - Los Herrera,Abierto,N/A,2025-01-23 12:58:17,Definida,25.759379311848836,-99.37419985814459
+1214,CAPUFE,Los Herrera,Cadereyta - Reynosa,Los Herrera - General Bravo,Abierto,N/A,2025-01-23 12:59:33,Definida,25.757248451999512,-99.37387296799898
+1215,CAPUFE,Los Herrera,Cadereyta - Reynosa,Los Herrera - General Bravo,Mixto,Salida,2025-01-23 13:03:34,Definida,25.75941448399802,-99.374153036002
+1216,Concesionado,San Martín Texmelucan,San Martín - Arco Norte,N/D,Abierto,N/A,2025-08-07 18:05:01,Definida,19.29519802494828,-98.41092358002645
+1217,Concesionado,San Martín Texmelucan,Arco Norte - San Martín,N/D,Abierto,N/A,2025-08-07 18:05:01,Definida,19.296328815117413,-98.41141276039964
+1219,Concesionado,San Martín Texmelucan,Arco Norte - San Martín,N/D,Abierto,N/A,2025-08-07 18:05:01,Definida,19.29793777105562,-98.40918434029699
+1220,Concesionado,San Martín Texmelucan,San Martín - Arco Norte,N/D,Abierto,N/A,2025-08-07 18:05:01,Definida,19.297264369562487,-98.40941424307815
+1222,CAPUFE,Texcoco,Texcoco - Peñón,Texcoco - Peñón,Abierto,N/A,2025-07-25 20:19:23,Definida,19.502860542000064,-98.91270714299998
+1223,CAPUFE,Santa María del Oro,Santa María del Oro - Tepic,N/D,Abierto,N/A,2025-08-05 18:31:00,Definida,21.32708161597206,-104.66485477980243
+1224,CAPUFE,Santa María del Oro,Santa María del Oro - Tepic,N/D,Abierto,N/A,2025-08-05 18:31:00,Definida,21.327962459774675,-104.66320788708562
+1226,Concesionado,Chapultepec,Entronque Capula - Entronque Pátzcuaro,Entronque Capula - Entronque Las Trojes,Abierto,N/A,2025-07-23 19:28:18,Definida,19.545525503878636,-101.53585692496313
+1229,Concesionado,Vallejo,Vallejo - Puente de Vigas,N/D,Mixto,Entrada,2024-03-13 22:04:02,Definida,19.513659207336705,-99.1649770000288
+1230,Concesionado,Vallejo,Vallejo - México - Pachuca,N/D,Mixto,Entrada,2024-03-13 22:04:02,Definida,19.512575618717165,-99.16140807789864
+1231,Concesionado,Ceylan,Ceylan - México Pachuca,N/D,Mixto,Entrada,2024-03-13 22:04:02,Definida,19.513898227894988,-99.1748452769218
+1234,Concesionado,Cien Metros,Cien Metros - Puente de Vigas,N/D,Cerrado,Entrada,2024-03-13 22:04:02,Definida,19.51379234411983,-99.15880082004057
+1235,Concesionado,Cien Metros,Cien Metros - México - Pachuca,N/D,Cerrado,Entrada,2024-03-13 22:04:02,Definida,19.51551028064062,-99.15303635686803
+1237,Concesionado,México - Pachuca,N/D,N/D,Mixto,Salida,2025-10-01 13:26:49,Definida,19.51630236482499,-99.10390782109924
+1238,Concesionado,Cuto KM 28+858,Copándaro - Pátzcuaro,Copándaro - Capula,Abierto,N/A,2025-02-18 14:46:21,Definida,19.710669155728418,-101.33725016073787
+1239,CAPUFE,Copándaro,Ent. Morelia - Copándaro,Morelia-Copándaro,Abierto,N/A,2025-07-28 21:09:35,Definida,19.882290818713784,-101.20177228100353
+1240,Concesionado,Puente de Vigas,N/D,N/D,Mixto,Salida,2025-10-01 14:06:11,Definida,19.516121526778193,-99.20788445295663
+1242,CAPUFE,Copándaro,Copándaro - Ent. Morelia,Copándaro-Morelia,Abierto,N/A,2025-07-28 21:09:35,Definida,19.880247993222085,-101.20364053311278
+1245,Concesionado,Vallejo,N/D,N/D,Mixto,Salida,2025-10-01 14:13:15,Definida,19.512171421152576,-99.1626712329945
+1246,Concesionado,Vallejo,N/D,N/D,Mixto,Salida,2025-10-01 14:30:33,Definida,19.512746206821447,-99.16349663203
+1247,Concesionado,Cien Metros,N/D,N/D,Mixto,Salida,2025-10-01 13:16:36,Definida,19.514192039182234,-99.1567716220619
+1248,Concesionado,Ceylan,N/D,N/D,Mixto,Salida,2025-10-01 13:08:25,Definida,19.51360931308528,-99.17589058206046
+1249,Concesionado,Río San Joaquín,Toreo Tepalcapa,N/D,Cerrado,Entrada,2025-07-31 20:19:44,Definida,19.45591682777753,-99.2188595072486
+1250,Concesionado,Jiquipilas,Arriaga - Ocozocoautla,Tierra y Libertad - Jiquipilas,Abierto,N/A,2025-01-23 10:36:45,Definida,16.62226625295652,-93.60247104089157
+1251,Concesionado,Jiquipilas,Arriaga - Ocozocoautla,Tierra y Libertad - Jiquipilas,Abierto,N/A,2025-01-23 10:39:42,Definida,16.620572538278275,-93.60046969521235
+1254,Concesionado,Conscripto Poniente,N/D,N/D,Cerrado,Entrada,2025-07-31 20:19:44,Definida,19.443746529693243,-99.22037725987698
+1256,Concesionado,Ejército Nacional Oriente,N/D,N/D,Cerrado,Entrada,2025-07-31 20:19:44,Definida,19.439581996232242,-99.21438660855415
+1257,Concesionado,Luis Cabrera,N/D,N/D,Cerrado,Entrada,2025-08-14 16:52:16,Definida,19.316197524067135,-99.23398327201102
+1258,Concesionado,Viaducto Elevado Luis Cabrera,N/D,N/D,Cerrado,Entrada,2025-08-14 16:52:16,Definida,19.316347211830625,-99.23271885694164
+1259,Concesionado,Periférico B,N/D,N/D,Cerrado,Entrada,2025-07-25 21:42:19,Virtual,19.321607940189015,-99.22001057611243
+1260,Concesionado,Periférico A,N/D,N/D,Cerrado,Entrada,2025-07-25 21:42:19,Virtual,19.31964790707677,-99.221261240298
+1261,Concesionado,Torres A,N/D,N/D,Cerrado,Entrada,2025-08-14 16:52:16,Definida,19.33288072181399,-99.24022905708337
+1262,Concesionado,Torres B,N/D,N/D,Cerrado,Entrada,2025-08-14 16:52:16,Definida,19.333932720999748,-99.23800382300017
+1263,Concesionado,Las Águilas A,N/D,N/D,Cerrado,Entrada,2025-08-14 16:52:16,Definida,19.344107690532738,-99.24071529782316
+1265,Concesionado,Las Águilas B,N/D,N/D,Cerrado,Entrada,2025-08-14 16:52:16,Definida,19.345155402931205,-99.23911197696991
+1266,Concesionado,Los Poetas,N/D,N/D,Cerrado,Entrada,2025-08-14 16:52:16,Definida,19.34628798670984,-99.25323940407917
+1267,Concesionado,Centenario,N/D,N/D,Cerrado,Entrada,2025-08-14 16:52:16,Definida,19.34549200129646,-99.25321948300544
+1268,Concesionado,Viaducto Elevado Luis Cabrera B,N/D,N/D,Cerrado,Salida,2025-08-14 16:52:16,Definida,19.32259922991953,-99.22441861996055
+1269,Concesionado,Viaducto Elevado Luis Cabrera A,N/D,N/D,Cerrado,Salida,2025-08-14 16:52:16,Definida,19.316395584164837,-99.23279111403394
+1270,Concesionado,Luis Cabrera,N/D,N/D,Cerrado,Salida,2025-08-14 16:52:16,Definida,19.31621618413672,-99.23508545291257
+1272,Concesionado,Los Poetas,N/D,N/D,Cerrado,Salida,2025-08-14 16:52:16,Definida,19.345669915916822,-99.24848606401419
+1273,Concesionado,Las Águilas A,N/D,N/D,Cerrado,Salida,2025-08-14 16:52:16,Definida,19.344784597161343,-99.24014589847754
+1274,Concesionado,Las Águilas B,N/D,N/D,Cerrado,Salida,2025-08-14 16:52:16,Definida,19.344186090998804,-99.23932744507545
+1276,Concesionado,Torres B,N/D,N/D,Cerrado,Salida,2025-08-14 16:52:16,Definida,19.333300884954806,-99.23755257107346
+1277,Concesionado,Torres A,N/D,N/D,Cerrado,Salida,2025-08-14 16:52:16,Definida,19.333068526867297,-99.23898278042152
+1278,Concesionado,San Jerónimo,N/D,N/D,Cerrado,Entrada,2025-07-25 21:42:19,Definida,19.330807461021553,-99.21116261957732
+1279,Concesionado,Boulevard de la Luz,N/D,N/D,Cerrado,Entrada,2025-07-25 21:42:19,Definida,19.325557086887393,-99.21433980192101
+1280,Concesionado,Cuicuilco,N/D,N/D,Cerrado,Entrada,2025-07-25 21:42:19,Definida,19.30307303993448,-99.17668322000927
+1281,Concesionado,Viaducto Tlalpan,N/D,N/D,Cerrado,Entrada,2025-06-20 21:38:58,Definida,19.286799389672623,-99.15644562982015
+1282,Concesionado,Xochimilco - Vaqueritos,N/D,N/D,Cerrado,Entrada,2025-06-20 21:38:58,Definida,19.285406846279418,-99.14729965278143
+1283,Concesionado,Estadio Azteca,N/D,N/D,Cerrado,Entrada,2025-06-20 21:38:58,Definida,19.30179563084665,-99.1651996250207
+1284,Concesionado,Cerro Zacatepetl,N/D,N/D,Cerrado,Entrada,2025-07-25 21:42:19,Definida,19.303685689319256,-99.19901655182979
+1285,Concesionado,Picacho Ajusco Pedregal,N/D,N/D,Cerrado,Entrada,2025-07-25 21:42:19,Definida,19.306767229322713,-99.21113551394419
+1286,Concesionado,Salida Supervía Poniente,N/D,N/D,Cerrado,Entrada,2025-07-25 21:42:19,Virtual,19.3205536021616,-99.2211773722241
+1290,Concesionado,Estadio Azteca,N/D,N/D,Cerrado,Salida,2025-06-20 21:38:58,Definida,19.301649137293982,-99.16624801495796
+1291,Concesionado,Picacho Ajusco Pedregal,N/D,N/D,Cerrado,Salida,2025-07-25 21:42:19,Definida,19.308588890802262,-99.21728573418486
+1292,Concesionado,Cerro Zacatepetl,N/D,N/D,Cerrado,Salida,2025-07-25 21:42:19,Definida,19.303865175129438,-99.19998443391987
+1294,Concesionado,Xochimilco - Vaqueritos,N/D,N/D,Cerrado,Salida,2025-06-20 21:38:58,Definida,19.28569750218293,-99.1481363058206
+1295,Concesionado,Cuicuilco,N/D,N/D,Cerrado,Salida,2025-07-25 21:42:19,Definida,19.303337865168107,-99.17624230997825
+1296,Concesionado,Boulevard de la Luz,N/D,N/D,Cerrado,Salida,2025-07-25 21:42:19,Definida,19.325125678880564,-99.2143661099314
+1297,Concesionado,San Jerónimo,N/D,N/D,Cerrado,Salida,2025-07-25 21:42:19,Definida,19.32993866808408,-99.21099688016054
+1300,Concesionado,San Joaquín,N/D,N/D,Cerrado,Salida,2025-10-01 11:05:35,Definida,19.456946542897125,-99.22062550015085
+1301,Concesionado,Periférico - Toreo,N/D,N/D,Cerrado,Entrada,2025-07-31 20:19:44,Definida,19.453859071991793,-99.21977100455638
+1303,Concesionado,Campo Marte Oriente,N/D,N/D,Cerrado,Entrada,2023-09-07 00:00:00,Definida,19.42534790203649,-99.20057178296334
+1304,Concesionado,Conscripto Oriente,N/D,N/D,Cerrado,Salida,2025-07-31 20:19:44,Definida,19.442101975892594,-99.22292286492618
+1306,Concesionado,Centenario,N/D,N/D,Cerrado,Salida,2025-08-14 16:52:16,Definida,19.34598030077395,-99.24963737904254
+1308,Concesionado,CDI Poniente,N/D,N/D,Cerrado,Entrada,2025-07-31 20:19:44,Definida,19.448550747993924,-99.22035317069309
+1309,Concesionado,CDI Oriente,N/D,N/D,Cerrado,Salida,2025-07-31 20:19:44,Definida,19.449215844000395,-99.22004309266417
+1310,Concesionado,Ejército Nacional Poniente,N/D,N/D,Cerrado,Salida,2025-07-31 20:19:44,Definida,19.439881309975327,-99.21485810904471
+1312,Concesionado,CDI Poniente,N/D,Norte - Sur,Cerrado,Salida,2025-07-31 20:19:44,Definida,19.449183061011198,-99.22048072831322
+1313,Concesionado,Entronque Autopista Urbana Norte,N/D,Norte - Sur,Cerrado,Salida,2025-09-30 16:05:14,Virtual,19.45235686600006,-99.22010991399988
+1314,Concesionado,VB Poniente,N/D,Norte Sur,Cerrado,Entrada,2025-07-31 20:19:44,Virtual,19.45232964099924,-99.22011004883377
+1316,CAPUFE,Acatlán,Guadalajara - Colima,Acatlán - Atoyac,Abierto,N/A,2025-07-29 20:36:32,Definida,20.373454589998754,-103.57614238618785
+1317,CAPUFE,Acatlán,Guadalajara - Colima,Acatlán - Atoyac,Abierto,N/A,2025-07-29 20:36:32,Definida,20.373433224002778,-103.57635381360573
+1321,CAPUFE,El Cortijo,Guadalajara - El Cortijo,Guadalajara - El Cortijo,Abierto,N/A,2025-07-31 17:13:53,Definida,20.619667153000368,-103.20618255299998
+1322,CAPUFE,El Vado,Guadalajara - El Vado,El Vado - Guadalajara,Abierto,N/A,2025-07-31 17:13:53,Definida,20.604751295166313,-103.15964187392836
+1323,CAPUFE,El Vado,El Vado-Guadalajara,El Vado - Guadalajara,Abierto,N/A,2025-07-31 17:26:22,Definida,20.604732562394126,-103.15863295283862
+1324,CAPUFE,El Cortijo,El Cortijo - Guadalajara,El Cortijo - Guadalajara,Abierto,N/A,2025-07-31 17:13:51,Definida,20.620143231927912,-103.20506688599689
+1325,CAPUFE,Periférico,Guadalajara - Periférico,Periférico - Guadalajara,Abierto,N/A,2025-07-31 17:13:53,Definida,20.619112092422398,-103.21542502906036
+1326,CAPUFE,Periférico,Periférico - Guadalajara,Periférico - Guadalajara,Abierto,N/A,2025-07-31 17:13:51,Definida,20.619396652452206,-103.2161278750569
+1328,CAPUFE,N/D,Sayula-Cd Guzmán,N/D,Abierto,N/A,2025-07-24 18:07:02,Definida,19.879096385412787,-103.51931591613437
+1330,CAPUFE,Valtierrilla,Valtierrilla - Copándaro,N/D,Cerrado,Entrada,2025-08-05 16:30:16,Definida,20.54267224692633,-101.13787897153136
+1331,CAPUFE,N/D,Entronque San Marcos - Colima,Ciudad Guzmán - El Trapiche,Abierto,N/A,2025-01-27 09:53:54,Definida,19.409307138100168,-103.52793041209648
+1332,CAPUFE,N/D,Entronque San Marcos - Colima,Ciudad Guzmán - El Trapiche,Abierto,N/A,2025-01-27 09:54:49,Definida,19.40913377978458,-103.52776411780523
+1334,Concesionado,Mitla - Tehuantepec,Lachixila - Tehuantepec II,Lachixila - Entronque Tehuantepec II,Abierto,N/A,2025-03-04 09:46:04,Definida,16.495885406535045,-95.40733441403157
+1335,CAPUFE,N/D,Tepatitlán - lagos de Moreno,Tepatitlán - Ent. Arandas,Cerrado,Entrada,2025-02-27 21:56:38,Definida,20.824715548233836,-102.795115609359
+1340,Concesionado,Libramiento Felipe Carrillo Puerto,Chetumal - Felipe Carrillo Puerto,Zona Secundaria Oriente,Abierto,N/A,2025-09-29 00:00:00,Definida,19.587741383206275,-88.07031648210823
+1341,Concesionado,Libramiento Felipe Carrillo Puerto,Mérida - Chetumal,Zona Secundaria Poniente,Abierto,N/A,2025-09-29 00:00:00,Definida,19.586042658972595,-88.0724509116904
+1342,Concesionado,N/D,Principal,N/D,Abierto,N/A,2025-09-29 00:00:00,Definida,19.59040056490765,-88.0711459096618
+1344,CAPUFE,La Finca,Tenango - Ixtapan de la Sal,Ixtapan - La Finca,Abierto,N/A,2025-09-29 16:20:28,Definida,18.899843549057135,-99.65316087964217
+1345,CAPUFE,Villa Guerrero,Tenango - Ixtapan de la Sal,Tenango - Ixtapan de la Sal,Abierto,N/A,2025-09-29 16:44:35,Definida,18.989264050953842,-99.65669589810985
+1347,CAPUFE,Marquesa T2,Lerma - Marquesa,N/D,Abierto,N/A,2025-01-28 12:03:10,Definida,19.290667765939997,-99.43457875697297
+1348,CAPUFE,Marquesa T2,Lerma - Marquesa,N/D,Abierto,N/A,2025-01-28 12:04:46,Definida,19.290407735311742,-99.4341760891688
+1357,Concesionado,Charco Blanco A1,Ent. Charco Blanco - Ent. Cerritos,N/D,Cerrado,Entrada,2025-07-30 14:53:49,Definida,22.44140742622035,-100.33939764174534
+1358,Concesionado,Cerritos A1,Ent. Cerritos - Ent. Rioverde,N/D,Cerrado,Entrada,2025-07-30 14:53:49,Definida,22.427682280063504,-100.31853805722787
+1359,Concesionado,Tamasopo,Tamasopo - La Pitahaya,N/D,Abierto,N/A,2025-01-31 13:18:49,Definida,21.904053323800433,-99.38465830663135
+1360,Concesionado,Tamasopo,Tamasopo - Vicente Guerrero,N/D,Abierto,N/A,2025-01-31 13:19:02,Definida,21.90561258105063,-99.3850924880074
+1361,Concesionado,V. Juárez A2,Ent. Cerritos - Ent. Villa Juárez,N/D,Cerrado,Entrada,2020-08-28 12:35:49,Definida,22.319317334220088,-100.28469532904639
+1363,Concesionado,Tambaca,Tambaca - Vicente Guerrero,N/D,Abierto,N/A,2025-01-31 13:19:38,Definida,21.939268291013793,-99.2702364348422
+1364,Concesionado,Tambaca,Tambaca - La Pitahaya,N/D,Abierto,N/A,2025-01-31 13:19:51,Definida,21.940266355000063,-99.27386104999994
+1365,Concesionado,La Pitahaya,La Pitahaya - Vicente Guerrero,N/D,Abierto,N/A,2025-01-31 13:18:18,Definida,21.967661695949644,-99.1745369669789
+1367,Concesionado,N/D,Cerritos - Rioverde,N/D,Cerrado,Entrada,2020-08-20 14:10:00,Virtual,22.00265015095888,-100.020177051046
+1369,Concesionado,Tamasopo,Vicente Guerrero - Tamasopo,N/D,Abierto,N/A,2025-01-31 13:19:13,Definida,21.904101923040166,-99.38482665008236
+1370,Concesionado,Tamasopo,La Pitahaya - Tamasopo,N/D,Mixto,Salida,2025-01-31 13:19:26,Definida,21.905796018044118,-99.38515266900818
+1371,Concesionado,Tambaca,Vicente Guerrero - Tambaca,N/D,Mixto,Salida,2025-01-31 13:20:03,Definida,21.940210326000056,-99.27400002999997
+1375,Concesionado,Tambaca,La Pitahaya - Tambaca,N/D,Mixto,Salida,2025-01-31 13:20:17,Definida,21.93933563192245,-99.27012226819583
+1379,Concesionado,N/D,N/D,N/D,Cerrado,Entrada,2024-05-31 18:59:31,Definida,22.475968601080304,-100.38639279413334
+1380,CAPUFE,La Pitahaya,Vicente Guerrero - La Pitahaya,N/D,Mixto,Salida,2025-01-29 16:19:09,Definida,21.967537104079245,-99.17449078803433
+1381,Concesionado,N/D,Cerritos - Rioverde,N/D,Cerrado,Entrada,2020-08-21 16:25:04,Virtual,22.584836079056586,-100.57820118097669
+1382,Concesionado,Charco Blanco A2,Ent. Charco Blanco - Ent. San Isidro,N/D,Cerrado,Entrada,2025-07-30 14:53:49,Definida,22.4433935334512,-100.33878360699512
+1384,Concesionado,N/D,Cerritos - Rioverde,N/D,Cerrado,Salida,2025-01-30 11:52:00,Virtual,22.002554937934597,-100.02030893907771
+1385,Concesionado,V. Juárez A2,Ent. Cerritos - Ent. Villa Juárez,N/D,Cerrado,Salida,2025-01-30 11:48:11,Definida,22.319184155800325,-100.28465723495421
+1387,Concesionado,Cerritos A1,Ent. Cerritos - Ent. Rioverde,N/D,Cerrado,Salida,2025-07-30 14:53:49,Definida,22.427637555473204,-100.31850789901748
+1389,Concesionado,Charco Blanco A1,Ent. Cerritos - Ent. Charco Blanco,N/D,Cerrado,Salida,2025-07-30 14:53:49,Definida,22.44030167497846,-100.33452090120562
+1390,Concesionado,Charco Blanco A2,Ent. San Isidro - Ent. Charco Blanco,N/D,Cerrado,Salida,2025-07-30 14:53:49,Definida,22.441883126150344,-100.33997227477332
+1391,Concesionado,N/D,N/D,N/D,Cerrado,Salida,2025-01-30 11:36:59,Definida,22.475900294052877,-100.38626319208517
+1392,Concesionado,N/D,Cerritos - Rioverde,N/D,Cerrado,Salida,2025-01-30 11:33:11,Virtual,22.58503480630082,-100.57812562687744
+1394,Concesionado,El Pisal,Culiacán - Los Mochis,Culiacán - Las Brisas,Abierto,N/A,2025-01-23 12:59:48,Definida,24.832393167881715,-107.59756575013871
+1395,Concesionado,El Pisal,Culiacán - Los Mochis,Culiacán - Las Brisas,Abierto,N/A,2025-01-23 13:01:28,Definida,24.832358687901912,-107.5976243361144
+1396,CAPUFE,Nodo Popotla,La Misión - Corredor 2000,N/D,Abierto,N/A,2025-01-27 11:43:43,Definida,32.28380877700378,-117.02965759943164
+1402,CAPUFE,Puente Colorado,Sonoita - Mexicali,Sonoita - Mexicali,Abierto,N/A,2025-09-22 00:00:00,Definida,32.49169273433099,-114.8088010359137
+1406,CAPUFE,Plan de Barrancas,Magdalena - Ixtlán del Río,Magdalena - Ixtlán del Río,Abierto,N/A,2025-01-24 09:40:14,Definida,20.947392229553675,-104.06301274390688
+1407,CAPUFE,Emiliano Zapata,Cuernavaca - Acapulco,Cuernavaca - Emiliano Zapata,Abierto,N/A,2025-07-23 00:00:00,Definida,18.8380954820231,-99.21702811831345
+1408,CAPUFE,Emiliano Zapata,Cuernavaca - Acapulco,Cuernavaca - Emiliano Zapata,Abierto,N/A,2025-07-23 00:00:00,Definida,18.8381337819843,-99.21728080583082
+1409,CAPUFE,Emiliano Zapata,Cuernavaca - Acapulco,Cuernavaca - Emiliano Zapata,Abierto,N/A,2025-07-23 00:00:00,Definida,18.838324223911197,-99.21749255876004
+1410,CAPUFE,Emiliano Zapata,Cuernavaca - Acapulco,Cuernavaca - Emiliano Zapata,Abierto,N/A,2025-07-23 00:00:00,Definida,18.838144303614776,-99.21658285635787
+1413,Concesionado,Viaducto Tlalpan,N/D,N/D,Cerrado,Salida,2025-06-20 21:38:58,Definida,19.287410403848146,-99.15593385689941
+1416,Concesionado,Caminero,N/D,N/D,Cerrado,Entrada,2025-07-25 21:42:19,Definida,19.27609440299876,-99.16567856108179
+1417,Concesionado,Caminero,N/D,N/D,Cerrado,Salida,2025-07-25 21:42:19,Definida,19.279150804948415,-99.16428900191696
+1419,Concesionado,Tlalpan (V.E.T.),N/D,N/D,Cerrado,Entrada,2025-07-25 21:42:19,Definida,19.238290721966514,-99.14647057906065
+1420,Concesionado,Tlalpan (V.E.T.),N/D,N/D,Cerrado,Salida,2025-07-25 21:42:19,Definida,19.235922248043813,-99.14529414291621
+1432,CAPUFE,San Miguel,San Miguel - Chamapa,San Miguel - Lago de Guadalupe,Cerrado,Entrada,2025-07-30 15:08:59,Virtual,19.63524658391042,-99.20557160398738
+1433,Concesionado,Vialidad Mexiquense,Cuautitlán - Tultepec,Tultepec - Vialidad Mexiquense,Abierto,N/A,2025-09-29 15:24:51,Definida,19.638279739999668,-99.15888415397285
+1436,CAPUFE,Nacajuca Troncal,Frontera - Nacajuca,Ent. Frontera - Ent. Nacajuca,Abierto,N/A,2025-01-24 12:29:38,Definida,18.076675212459623,-92.93672523691525
+1437,CAPUFE,Nacajuca Troncal,Nacajuca - Frontera,Ent. Nacajuca - Ent. Frontera,Abierto,N/A,2025-01-24 12:46:23,Definida,18.076583840000616,-92.93673465199988
+1438,CAPUFE,Nacajuca Troncal,Cárdenas - Nacajuca,Ent. Loma de Caballo - Ent. Nacajuca,Abierto,N/A,2025-01-24 12:58:15,Definida,18.07663042129367,-92.93673350294523
+1439,CAPUFE,Nacajuca Troncal,Nacajuca - Cárdenas,Nacajuca - Ent. Loma de Caballo,Abierto,N/A,2025-01-24 13:15:19,Definida,18.076532569097033,-92.9367444899825
+1440,CAPUFE,Nacajuca Remota,Frontera - Cárdenas,Ent. Frontera - Ent. Loma de Caballo,Abierto,N/A,2025-01-24 13:26:25,Definida,18.076122269313565,-92.93063882109348
+1442,CAPUFE,Nacajuca Remota,Cárdenas - Frontera,Ent. Loma de Caballo - Ent. Frontera,Abierto,N/A,2025-01-24 13:32:26,Definida,18.075972749744018,-92.93060138992278
+1445,Concesionado,VB Oriente,N/D,N/D,Cerrado,Salida,2025-07-31 20:19:44,Virtual,19.4523198900232,-99.21987111646553
+1446,Concesionado,Salida Supervía Poniente,N/D,N/D,Cerrado,Salida,2025-07-25 21:42:19,Virtual,19.321625634476437,-99.21998047327693
+1447,Concesionado,Entrada a Supervía Poniente,N/D,N/D,Cerrado,Salida,2025-07-25 21:42:19,Virtual,19.319564131985523,-99.22128052393047
+1449,Estatal,La Finca,Tenango - Ixtapan de la Sal,Tenango - Ixtapan de la Sal,Abierto,N/A,2025-09-29 16:38:27,Definida,18.906298512902826,-99.65474494723031
+1450,Estatal,La Finca,Tenango - Ixtapan de la Sal,Tenango - Ixtapan de la Sal,Abierto,N/A,2025-09-29 16:40:17,Definida,18.906346246958616,-99.65457102808917
+1452,Concesionado,Túxpam,Tihuatlán - Túxpam,N/D,Abierto,N/A,2025-04-10 17:50:47,Definida,20.7529678140055,-97.48232777215607
+1454,CAPUFE,Matanchén,Tepic - San Blas,N/D,Abierto,N/A,2025-03-28 16:32:50,Definida,21.507242843042114,-105.2010166580305
+1455,CAPUFE,La Cantera,Libramiento Tepic,N/D,Abierto,N/A,2025-07-30 22:30:57,Definida,21.498504021009584,-104.81340842118504
+1471,Concesionado,Periférico,Periférico - Cuauhtémoc,N/D,Abierto,N/A,2025-07-28 22:10:10,Definida,19.131569886634928,-98.26814804234347
+1472,Concesionado,Hermanos Serdán,Periférico - Cuauhtémoc,Hermanos Serdán - Cuauhtémoc,Abierto,N/A,2025-09-26 00:00:00,Definida,19.092165235245243,-98.22266897782822
+1473,Concesionado,Carmen Serdán,Periférico - Cuauhtémoc,Carmen Serdán - Cuauhtémoc,Abierto,N/A,2025-09-26 00:00:00,Definida,19.083148671188045,-98.18361758195957
+1474,Concesionado,Cuauhtémoc,Cuauhtémoc - Periférico,N/D,Abierto,N/A,2025-08-12 17:09:50,Definida,19.07694481277655,-98.15003894806382
+1476,Concesionado,Santa Ana,Cuauhtémoc - Periférico,Santa Ana - Periférico,Abierto,N/A,2025-09-26 00:00:00,Definida,19.08496499142226,-98.1925947469396
+1477,CAPUFE,Arroyo de Enmedio,Zapotlanejo - Tonalá,Arroyo de Enmedio - Guadalajara,Abierto,N/A,2025-01-24 10:42:42,Definida,20.615810418791728,-103.2428332520116
+1478,CAPUFE,Arroyo de Enmedio,Zapotlanejo - Tonalá,Arroyo de Enmedio - Guadalajara,Abierto,N/A,2025-01-24 10:43:42,Definida,20.615477603918364,-103.24276687001053
+1479,CAPUFE,Jalostotitlán,Ent. Arandas - Jalostotitlán,Ent. Arandas - Jalostotitlán,Mixto,Entrada,2020-09-22 11:23:57,Definida,21.117970590135112,-102.45784551918635
+1480,CAPUFE,Jalostotitlán,Zapotlanejo - Lagos de Moreno,Ent. Arandas - El Desperdicio,Mixto,Salida,2025-01-24 12:26:57,Definida,21.117596837975498,-102.45813382397596
+1481,CAPUFE,Jalostotitlán,Ent. Arandas - Jalostotitlán,Ent. Arandas - Jalostotitlán,Abierto,N/A,2025-01-24 11:03:51,Definida,21.117477211087987,-102.45800811307836
+1496,CAPUFE,Panindícuaro,Maravatío - Zapotlanejo,Panindícuaro - Churintzio,Mixto,Entrada,2024-04-01 17:40:06,Definida,19.97251088300004,-101.75623992599998
+1497,CAPUFE,Panindícuaro,Maravatío - Zapotlanejo,Panindícuaro - Churintzio,Mixto,Salida,2025-01-27 14:22:36,Definida,19.97226324227296,-101.75700868907046
+1504,CAPUFE,Panindícuaro,Maravatío - Zapotlanejo,Churintzio - Morelia,Mixto,Salida,2025-01-27 14:24:44,Definida,19.972136870000043,-101.75698200199997
+1506,Concesionado,Libramiento Poniente San Luis Potosí,Libramiento Poniente de San Luis Potosí,N/D,Abierto,N/A,2025-01-31 13:21:58,Definida,22.163604443173117,-101.07931811968446
+1507,Concesionado,La Calera,Libramiento Ciudad Valles - Tamuín,N/D,Abierto,N/A,2025-06-13 17:21:17,Definida,21.904138387049766,-98.95536905399476
+1508,CAPUFE,San Francisco de Rivas,La Barca - San Francisco de Rivas,La Barca - S. Francisco de Rivas,Abierto,N/A,2025-01-27 09:42:11,Definida,20.32251670806307,-102.56674394699819
+1509,CAPUFE,San Francisco de Rivas,La Barca - San Francisco de Rivas,San Francisco de Rivas,Abierto,N/A,2025-01-27 09:42:58,Definida,20.323908203042347,-102.56797282773508
+1510,Concesionado,Cayaco,Acapulco - Aeropuerto,Entronque Brisamar - Entronque Cayaco,Abierto,N/A,2025-08-06 21:42:57,Definida,16.817630467369828,-99.81754158571626
+1511,Concesionado,Cayaco,Aeropuerto - Acapulco,Entronque Cayaco - Entronque Brisamar,Abierto,N/A,2025-08-06 21:42:57,Definida,16.817740609753134,-99.81746316119704
+1512,Concesionado,La Calera,Ent. La Pitahaya - Ent. La Calera,N/D,Abierto,N/A,2025-06-13 17:21:17,Definida,21.902211533002856,-98.95292078399862
+1513,Concesionado,La Calera,Ent. La Calera - Ent. San Juan,N/D,Abierto,N/A,2025-06-13 17:21:17,Definida,21.90227013169301,-98.9528836521457
+1514,Concesionado,La Calera,Ent. San Juan - Ent. La Calera,N/D,Abierto,N/A,2025-06-13 17:21:17,Definida,21.9054162853802,-98.95278796308837
+1515,Concesionado,La Calera,Ent. La Calera - Ent. La Pitahaya,N/D,Abierto,N/A,2025-06-13 17:21:17,Definida,21.905466086288424,-98.95280697906462
+1527,Concesionado,Miahuapan,Venustiano Carranza - Tihuatlán,N/D,Abierto,N/A,2025-01-23 11:22:02,Definida,20.610921773947066,-97.61453067896458
+1531,CAPUFE,Cruce Internacional San Luis Río Colorado II,Sonoita - Mexicali,N/D,Abierto,N/A,2025-08-05 16:30:23,Definida,32.45704696588844,-114.70142646574561
+1532,CAPUFE,Paso Morelos,Cuernavaca - Acapulco,Puente de Ixtla - Paso Morelos,Abierto,N/A,2025-01-23 12:06:51,Definida,18.23147290601181,-99.21553121005297
+1533,CAPUFE,Paso Morelos,Cuernavaca - Acapulco,Paso Morelos - Chilpancingo,Abierto,N/A,2025-01-23 12:16:30,Definida,18.23144133191432,-99.21536870559153
+1534,CAPUFE,La Laja - Libramiento Guadalajara,Macrolibramiento Guadalajara,Ent. Zapotlanejo - Guadalajara a Chapala (La Laja),Abierto,N/A,2025-01-24 10:00:15,Definida,20.572685130962093,-103.10120848867258
+1535,CAPUFE,La Laja - Libramiento Guadalajara,Macrolibramiento Guadalajara,Ent. Zapotlanejo - Guadalajara a Chapala (La Laja),Abierto,N/A,2025-01-24 10:02:01,Definida,20.572680218993582,-103.10135084494524
+1542,CAPUFE,Tezoyuca,Ramal Ecatepec - Pirámides,Ramal Ecatepec - Pirámides,Abierto,N/A,2025-07-31 19:02:56,Definida,19.600693370964823,-98.92542171385307
+1543,CAPUFE,Tezoyuca,Ramal Ecatepec - Pirámides,Ramal Ecatepec - Pirámides,Abierto,N/A,2025-07-31 19:02:56,Definida,19.600727687977553,-98.92557410790259
+1544,CAPUFE,Palmillas Bis,Palmillas - Tepeji,N/D,Abierto,N/A,2025-08-05 14:59:19,Definida,20.290478843350147,-99.92061130589548
+1545,CAPUFE,Palmillas Bis,Tepeji - Palmillas,N/D,Abierto,N/A,2025-08-05 14:59:19,Definida,20.290952921191796,-99.91852212480529
+1548,CAPUFE,La Joya II,Zapotlanejo - Guadalajara,Zapotlanejo - Guadalajara,Abierto,N/A,2025-07-31 17:13:53,Definida,20.61577070401105,-103.08934857000122
+1549,CAPUFE,La Joya II,Guadalajara - Zapotlanejo,Zapotlanejo - Guadalajara,Abierto,N/A,2025-07-31 17:13:51,Definida,20.61557681821201,-103.08932363702158
+1550,CAPUFE,San Miguel,Chamapa - Lechería,Lago de Guadalupe - San Miguel,Cerrado,Salida,2025-10-01 16:07:59,Virtual,19.63502407270793,-99.20554691295249
+1551,CAPUFE,Jorobas,Jorobas - Tepeji,N/D,Abierto,N/A,2025-01-23 11:20:30,Definida,19.82573334850877,-99.2501437223444
+1552,CAPUFE,Jorobas,Joroba - Tepeji (CONMEX),N/D,Abierto,N/A,2025-01-23 11:26:40,Definida,19.826203871587506,-99.24992367906977
+1553,Concesionado,Vía Atlixcáyotl,Puebla - Atlixco,N/D,Abierto,N/A,2025-07-24 17:59:57,Definida,19.00536977521392,-98.27060686414941
+1554,CAPUFE,Interlomas,La Venta - Chamapa,La Venta - Interlomas,Cerrado,Entrada,2025-08-14 16:52:16,Definida,19.395703904041817,-99.29590886491792
+1555,CAPUFE,Interlomas,La Venta - Chamapa,La Venta - Interlomas,Cerrado,Entrada,2025-08-14 16:52:16,Definida,19.39485490877694,-99.29547949382702
+1556,CAPUFE,Bosque Real,La Venta - Chamapa,La Venta - Bosque Real,Cerrado,Entrada,2021-06-11 09:14:42,Definida,19.417511169785097,-99.29851909187366
+1557,CAPUFE,Bosque Real,La Venta - Chamapa,La Venta - Bosque Real,Cerrado,Salida,2025-09-26 13:33:22,Definida,19.417461663983104,-99.29846494498351
+1558,CAPUFE,Bosque Real 2 - E,San Miguel - Bosque Real,Chamapa - La Venta,Cerrado,Salida,2025-09-26 15:40:08,Definida,19.421469454158586,-99.29948671611074
+1559,CAPUFE,Bosque Real 2 - S,Chamapa - La Venta,Bosque Real - La Venta,Cerrado,Entrada,2021-06-11 11:36:39,Definida,19.41916413100334,-99.30030162909834
+1560,Concesionado,México - Pachuca,Plande Vigas - Ecatepec,N/D,Mixto,Salida,2025-10-01 13:44:10,Definida,19.515913987981286,-99.10305498800993
+1562,Concesionado,Cantona A2,Ent. Cantona - Ent. Perote II,N/D,Abierto,N/A,2025-08-14 22:13:27,Definida,19.506463711905138,-97.49533729110307
+1563,Concesionado,Cantona A2,Ent. Cantona - Ent. Perote II,N/D,Abierto,N/A,2025-08-14 22:13:27,Definida,19.50905385574081,-97.4971899983667
+1564,Concesionado,Libramiento Poniente,San Martín Texmelucan - Huejotzingo,N/D,Abierto,N/A,2025-01-28 15:33:19,Definida,19.25358503109151,-98.44223656708387
+1565,CAPUFE,Ocotlán,La Barca - Ocotlán,La Barca - Ocotlán,Abierto,N/A,2025-01-27 09:34:37,Definida,20.406946384965902,-102.7389038717001
+1567,CAPUFE,Macrolibramiento,Zapotlanejo - Guadalajara,Zapotlanejo - Guadalajara,Abierto,N/A,2025-01-24 10:31:50,Definida,20.588652151888677,-103.10173990408518
+1568,CAPUFE,Ocotlán,La Barca - Ocotlán,La Barca - Ocotlán,Abierto,N/A,2025-01-27 09:35:31,Definida,20.404901175052068,-102.73931006639472
+1569,CAPUFE,Macrolibramiento,Zapotlanejo - Guadalajara,Zapotlanejo - Guadalajara,Abierto,N/A,2025-01-24 10:32:54,Definida,20.58752372010186,-103.10162771680584
+1573,Concesionado,Lucio Blanco,Ent. San Fernando - Ent. Monterrey,Ent. Cadereyta - Reynosa - Ent. San Fernando,Abierto,N/A,2025-01-27 15:45:24,Definida,25.98773223677496,-98.43156341114117
+1575,CAPUFE,Ecuandureo,La Barca - Morelia,Ecuandureo - La Barca,Mixto,Entrada,2024-05-07 14:50:02,Definida,20.175252675335567,-102.19026845320066
+1577,CAPUFE,Ecuandureo,Maravatío - Zapotlanejo,Churintzio - La Barca,Mixto,Salida,2025-01-27 11:32:25,Definida,20.17509009066787,-102.1913227770092
+1578,CAPUFE,Ecuandureo,Maravatío - Zapotlanejo,La Barca - Churintzio,Mixto,Salida,2025-01-31 14:32:48,Definida,20.174966468606545,-102.19130618201208
+1582,CAPUFE,Santa Casilda,Uruapan - Nueva Italia,Cajones - Cuatro Caminos,Mixto,Entrada,2018-08-15 12:18:45,Definida,19.15665650400261,-101.97622203603107
+1583,CAPUFE,Santa Casilda,Uruapan - Nueva Italia,Cajones - Cuatro Caminos,Mixto,Salida,2025-01-27 15:03:35,Definida,19.15290766814572,-101.97825317211044
+1584,CAPUFE,Santa Casilda,Uruapan - Nueva Italia,Cajones - Cuatro Caminos,Mixto,Salida,2025-01-27 15:19:36,Definida,19.152848869980154,-101.97821157298495
+1585,Concesionado,Compostela,Tepic - Puerto Vallarta,Jala - Las Caleras hacia Compostela - Chapalilla,Abierto,N/A,2025-01-27 11:01:52,Definida,21.20443624301378,-104.88637815109784
+1586,CAPUFE,Amado Nervo,Jala - Las Caleras,Jala-Compostela,Abierto,N/A,2025-01-27 10:48:25,Definida,21.08901531713144,-104.7172670109576
+1587,CAPUFE,Amado Nervo,Jala - Las Caleras,Jala-Compostela,Abierto,N/A,2025-01-27 10:55:23,Definida,21.08893404880312,-104.71730044206426
+1591,Estatal,Túnel Sumergido,Coatzacoalcos - Allende,N/D,Abierto,N/A,2025-05-20 17:48:03,Definida,18.147211824536694,-94.39694840199746
+1592,Estatal,Túnel Sumergido,Coatzacoalcos - Allende,N/D,Abierto,N/A,2025-05-20 17:48:03,Definida,18.147027418327593,-94.39694593600615
+1593,CAPUFE,N/D,Atoyac - Ciudad Guzmán,Atoyac - Ciudad Guzmán,Abierto,N/A,2025-01-27 09:50:43,Definida,19.933193039948055,-103.53012935939724
+1594,CAPUFE,N/D,Atoyac - Cuidad Guzmán,Atoyac - Cuidad Guzmán,Abierto,N/A,2025-01-27 09:51:35,Definida,19.933226236942986,-103.529763206447
+1596,CAPUFE,Entronque Trapichillo,Tepic - San Blas,N/D,Abierto,N/A,2025-01-27 12:09:40,Definida,21.560635203647347,-104.97129534702688
+1597,CAPUFE,Entronque Trapichillo,Tepic - San Blas,N/D,Abierto,N/A,2025-01-27 12:11:44,Definida,21.56218586442265,-104.97061940095026
+1598,CAPUFE,Entronque Trapichillo,Libramiento Tepic,N/D,Abierto,N/A,2025-01-27 12:14:37,Definida,21.56055038607563,-104.96789793351287
+1600,CAPUFE,Chapala,Macrolibramiento Guadalajara,Chapala,Abierto,N/A,2025-01-24 10:08:33,Definida,20.390200404630747,-103.30213894701603
+1601,CAPUFE,Chapala,Macrolibramiento Guadalajara,Chapala,Abierto,N/A,2025-01-24 10:09:40,Definida,20.390071669553734,-103.30215851402117
+1602,Concesionado,Chalco,Jorobas - Chalco,Texcoco - Chalco,Abierto,N/A,2025-09-25 15:20:26,Definida,19.300144882245355,-98.87532151934377
+1603,Concesionado,Chalco,Chalco - Jorobas,Chalco - Texcoco,Abierto,N/A,2025-09-25 15:24:01,Definida,19.30007345618883,-98.87519462728966
+1604,Concesionado,San Buenaventura,Entronque Periférico Oriente,Entronque México - Puebla,Abierto,N/A,2025-09-26 14:38:26,Definida,19.30708265083662,-98.87175572978568
+1605,Concesionado,Pichardo Pagaza,Jorobas - Chalco,Polotitlán,Abierto,N/A,2025-09-26 14:30:35,Definida,19.506386580003483,-99.01494411123386
+1606,Concesionado,San Buenaventura,Chalco - Jorobas,San Marcos - San Buenaventura,Abierto,N/A,2025-09-26 14:40:15,Definida,19.29999062710139,-98.87506153314573
+1607,Concesionado,Nabor Carrillo,Jorobas - Chalco,Las Américas (CONMEX) - Nabor Carrillo,Abierto,N/A,2025-09-26 12:41:47,Definida,19.43583920899118,-98.99879104319368
+1608,Concesionado,Nabor Carrillo,Chalco - Jorobas,Nabor Carrillo - Las Américas (CONMEX),Abierto,N/A,2025-09-26 12:43:42,Definida,19.435820572006786,-98.99810057082865
+1609,Concesionado,Autopista Mexicali - Tijuana,Entronque Planta Dart Valle Redondo Tijuana,Planta Dart Valle,Cerrado,Salida,2025-01-27 22:58:19,Definida,32.542975977676754,-116.75827160692901
+1610,Concesionado,Tultepec,Chalco - Jorobas,Tultepec - Jorobas,Abierto,N/A,2025-09-29 15:13:47,Definida,19.694143303932517,-99.07998838113707
+1611,Concesionado,CE Jaltenco,Entronque México Querétaro,Entronque Periférico Oriente,Abierto,N/A,2025-09-25 15:12:52,Definida,19.693685211014234,-99.08099421396665
+1612,CAPUFE,Las Joyas,León - Entronque Las Joyas,N/D,Abierto,N/A,2025-08-11 17:51:53,Definida,21.09757221317211,-101.77707562786856
+1614,CAPUFE,La Sauceda,La Sauceda - Zapotlanejo,N/D,Abierto,N/A,2025-01-27 09:46:25,Definida,20.548073483247833,-103.03454607092428
+1615,CAPUFE,Las Joyas,León - Entronque Las Joyas,N/D,Abierto,N/A,2025-08-11 17:51:53,Definida,21.09834703472464,-101.7787675981781
+1616,Concesionado,Vialidad Mexiquense,Entronque Tultepec,Entronque Chamapa Lechería,Abierto,N/A,2025-09-29 15:28:16,Definida,19.637327780326068,-99.16437777103637
+1617,CAPUFE,San Fernando,Ent. San Fernando - Ent. Anzaldúas,N/D,Abierto,N/A,2023-03-22 15:44:32,Definida,25.944535697159143,-98.22748236406493
+1619,CAPUFE,Revolución,N/D,N/D,Abierto,N/A,2025-08-01 17:24:18,Definida,19.602890607990105,-99.03828653498105
+1620,CAPUFE,Plaza de Cobro Esperanza - Hornos,Libramiento de Ciudad Obregón,N/D,Abierto,N/A,2025-09-23 00:00:00,Definida,27.60459717176285,-109.89870943003737
+1621,CAPUFE,Plaza de Cobro Esperanza - Hornos,Libramiento de Ciudad Obregón,N/D,Abierto,N/A,2025-09-23 00:00:00,Definida,27.604431497314884,-109.89873546994806
+1622,Concesionado,Naranjos,Buenos Aires - Naranjos,N/D,Abierto,N/A,2025-07-30 19:28:59,Definida,21.324299611550707,-97.6262265864131
+1623,Concesionado,Naranjos,Buenos Aires - Naranjos,N/D,Abierto,N/A,2025-07-30 19:28:59,Definida,21.32437302909006,-97.62513419945694
+1624,Concesionado,Totomoxtle II,Nautla - Gutiérrez Zamora,N/D,Abierto,N/A,2025-01-23 10:34:27,Definida,20.459076406049544,-97.24664120298229
+1625,Concesionado,Totomoxtle II,Nautla - Gutiérrez Zamora,N/D,Abierto,N/A,2025-01-23 10:37:24,Definida,20.459443098011633,-97.24556506314573
+1626,Concesionado,Totomoxtle II,Nautla - Tihuatlán,N/D,Abierto,N/A,2025-01-23 10:40:04,Definida,20.459630217858628,-97.24641669319551
+1627,Concesionado,Audi,Ent. Ixtenco - Ent. Km 35+640,N/D,Abierto,N/A,2025-08-04 16:11:14,Definida,19.27447411099538,-97.82641382406499
+1628,Concesionado,Dr. Gustavo Baz,N/D,N/D,Abierto,N/A,2025-07-31 20:19:44,Definida,19.4795945519922,-99.23129790324771
+1631,Concesionado,1o. de Mayo,N/D,N/D,Abierto,N/A,2025-07-31 20:19:44,Definida,19.46536988163934,-99.22646068994314
+1632,Concesionado,Vallejo - Vallejo,Entronque Urbana Norte - Tepalcapa,Vallejo - Tepalcapa,Cerrado,Entrada,2025-06-17 19:50:33,Definida,19.568601493105472,-99.20802143788727
+1633,Concesionado,Vallejo - Vallejo,Entronque Urbana Norte - Tepalcapa,Vallejo - Tepalcapa,Cerrado,Salida,2025-10-01 11:59:02,Definida,19.56858412176413,-99.20804554027626
+1634,Concesionado,Vallejo - Periférico,Entronque Urbana Norte - Tepalcapa,Vallejo - Tepalcapa,Cerrado,Entrada,2025-06-17 19:50:33,Definida,19.56900747790482,-99.20845157370701
+1636,Concesionado,Circunvalación,Entronque Urbana Norte - Tepalcapa,Entronque Urbana Norte - Circunvalación,Cerrado,Salida,2025-09-30 15:19:43,Definida,19.517439355128378,-99.23202051548787
+1638,Concesionado,San Martín Texmelucan,Entronque México - Puebla,N/D,Abierto,N/A,2025-08-07 18:05:01,Definida,19.297146742708506,-98.41109105164426
+1639,Concesionado,San Martín Texmelucan,Entronque México - Puebla,N/D,Abierto,N/A,2025-08-07 18:05:01,Definida,19.296339918110657,-98.40975972804706
+1640,Concesionado,Mitla - Tehuantepec,Mitla - Tehuantepec,Entronque Mitla - Tepuxtepec,Abierto,N/A,2025-08-06 16:20:05,Definida,16.92458143406701,-96.32692216895319
+1641,Concesionado,Mitla - Tehuantepec,Mitla - Tehuantepec,Entronque Mitla - Tepuxtepec,Abierto,N/A,2025-08-06 16:20:05,Definida,16.923991846796653,-96.32557529578135
+1642,Estatal,N/D,Tramo Monumento - Lengua de Vaca,N/D,Abierto,N/A,2025-09-30 12:59:23,Definida,19.401270061726706,-100.11228183320456
+1649,Concesionado,El Piñal,Ávila Camacho - Venustiano Carranza,N/D,Abierto,N/A,2025-01-28 15:36:42,Definida,20.458925285880444,-97.85386097994109
+1653,Concesionado,Apaseo el Grande,Apaseo el Grande - Atlacomulco,N/D,Mixto,Entrada,2025-07-28 17:46:12,Definida,20.533626475799704,-100.62790582594513
+1654,Concesionado,Apaseo el Alto,Apaseo el Alto - Atlacomulco,N/D,Mixto,Entrada,2023-08-14 21:58:05,Definida,20.497519130011366,-100.5881019679978
+1655,Concesionado,Huimilpan,Huimilpan - Atlacomulco,N/D,Mixto,Entrada,2024-05-28 16:50:48,Definida,20.34830880155745,-100.27754742218174
+1656,Concesionado,Amealco I,Amealco I - Atlacomulco,N/D,Mixto,Entrada,2023-08-14 21:39:43,Definida,20.277656781027854,-100.05908528602427
+1661,Concesionado,Apaseo el Grande,Apaseo el Alto/Coroneo/Huimilpan/Amealco I/Atlacomulco - Apaseo el Grande,N/D,Mixto,Salida,2025-01-30 15:31:14,Definida,20.51124135090206,-100.59957291008567
+1662,Concesionado,Apaseo el Alto,Coroneo/Huimilpan/Amealco I/Atlacomulco - Apaseo el Alto,N/D,Mixto,Salida,2025-01-30 10:24:23,Definida,20.497632159830644,-100.58807893703504
+1663,Concesionado,Huimilpan,Amealco I/Atlacomulco - Huimilpan,N/D,Mixto,Salida,2025-01-30 10:34:47,Definida,20.348391493035642,-100.27750987498503
+1664,Concesionado,Amealco I,Atlacomulco - Amealco I,N/D,Mixto,Salida,2025-01-30 08:51:58,Definida,20.277731867875808,-100.05915811489379
+1665,Concesionado,Atlacomulco,Amealco I/Huimilpan/Coroneo/Apaseo el Alto/Apaeo el Grande/Querétaro - Atlacomulco,N/D,Mixto,Salida,2025-01-30 15:25:33,Definida,20.290140198795616,-99.94967798496384
+1668,Concesionado,Calderón,Villa de Arriaga - San Luis Potosí,N/D,Mixto,Salida,2021-11-04 14:26:43,Definida,21.813368155015674,-101.0126587450222
+1669,CAPUFE,Salamanca,Irapuato - Cerro Gordo,N/D,Abierto,N/A,2025-08-05 16:30:16,Definida,20.59837567900005,-101.18095790199999
+1673,CAPUFE,Puente Internacional Suchiate II,N/D,N/D,Abierto,N/A,2025-07-23 21:33:42,Definida,14.702149405355344,-92.15132236693941
+1674,CAPUFE,Puente Internacional Piedras Negras I,Monclova - Piedras Negras,N/D,Abierto,N/A,2025-08-05 15:25:53,Definida,28.70523182000259,-100.51299700200276
+1675,CAPUFE,Puente Internacional Piedras Negras II,Monclova - Piedras Negras,N/D,Abierto,N/A,2025-08-05 15:25:53,Definida,28.697122196995785,-100.51246067999743
+1676,CAPUFE,Puente Internacional Acuña,Morelos - Ciudad Acuña,N/D,Abierto,N/A,2025-09-22 00:00:00,Definida,29.325356860035754,-100.92890196286129
+1677,CAPUFE,Puente Internacional Ojinaga,N/D,N/D,Abierto,N/A,2025-04-04 00:00:00,Definida,29.560726460922073,-104.39645786418292
+1678,CAPUFE,Puente Internacional Rodolfo Robles,N/D,N/D,Abierto,N/A,2025-01-27 16:51:31,Definida,14.677061362340407,-92.14967796492857
+1679,Estatal,Puente Internacional Solidaridad - General Bernardo Reyes,Monterrey - Colombia,N/D,Abierto,N/A,2025-07-28 16:55:53,Definida,27.697307163052148,-99.7478072872944
+1680,CAPUFE,Acceso a Refinería Lázaro Cárdenas,N/D,N/D,Abierto,N/A,2023-09-18 14:46:22,Definida,18.015123037994385,-94.45372495195865
+1681,Concesionado,Alhuey,Culiacán - Los Mochis,Guamúchil - Culiacán,Abierto,N/A,2025-03-11 17:56:04,Definida,25.39229902903074,-108.12780441900216
+1682,Estatal,Alhuey,Culiacán - Los Mochis,Culiacán - Guamúchil,Abierto,N/A,2025-03-11 17:56:04,Definida,25.3933242898304,-108.12696724369192
+1684,CAPUFE,Jantetelco - El Higuerón,Jantetelco - El Higuerón,N/D,Abierto,N/A,2025-07-25 21:41:24,Definida,18.65277283966008,-99.00872255403002
+1685,CAPUFE,Jantetelco - El Higuerón,San Rafael - Xicatlacotla,N/D,Abierto,N/A,2025-07-25 21:41:24,Definida,18.652923838075157,-99.0087295769943
+1686,CAPUFE,Jantetelco - El Higuerón,San Rafael - Xicatlacotla,N/D,Abierto,N/A,2025-07-25 21:41:24,Definida,18.65263062388104,-99.00872594201498
+1687,CAPUFE,Jantetelco - El Higuerón,San Rafael - Jantetelco,N/D,Abierto,N/A,2025-07-25 21:41:24,Definida,18.652746026937823,-99.00167263598942
+1688,CAPUFE,Jantetelco - El Higuerón,San Rafael - Jantetelco,N/D,Abierto,N/A,2025-07-25 21:41:24,Definida,18.652372849265245,-99.00125383405701
+1694,CAPUFE,Aut. México - Guadalajara a Zapotlanejo (Remota La Laja),Zapotlanejo - Guadalajara,N/D,Abierto,N/A,2023-03-17 10:17:28,Definida,20.58602865203928,-103.1007622099411
+1695,CAPUFE,Santa Cecilia,Santa Cecilia - Magdalena,N/D,Abierto,N/A,2025-01-24 10:11:15,Definida,20.442528873979693,-103.54579345602107
+1696,CAPUFE,Santa Cecilia,Santa Cecilia - Magdalena,N/D,Abierto,N/A,2025-01-24 10:12:30,Definida,20.44240737512268,-103.54592409787396
+1697,Concesionado,Salida de Supervía Poniente,N/D,N/D,Cerrado,Salida,2025-07-25 21:42:19,Definida,19.32066474524229,-99.22109709133406
+1698,CAPUFE,Xochitepec,Cuernavaca - Acapulco,Xochitepec - Alpuyeca,Abierto,N/A,2025-02-27 17:08:45,Definida,18.77507162993731,-99.22531217379334
+1699,Estatal,Vallejo,Vallejo - Puente de Vigas,N/D,Mixto,Entrada,2024-03-13 22:04:02,Definida,19.51368033759773,-99.16551976296013
+1700,Estatal,Palmas Poniente,Autopista Urbana Norte,N/D,Cerrado,Entrada,2023-09-07 00:00:00,Definida,19.431408698774042,-99.20864063866966
+1701,Estatal,San Antonio Oriente,Autopista Urbana Norte,N/D,Cerrado,Entrada,2025-06-06 21:29:50,Definida,19.382231820999866,-99.19173758394676
+1702,Estatal,San Antonio Oriente,Autopista Urbana Norte,N/D,Cerrado,Entrada,2025-06-06 21:29:50,Definida,19.383020273899188,-99.19160056469605
+1703,Estatal,CDI Poniente,Autopista Urbana Norte,N/D,Cerrado,Entrada,2025-07-31 20:19:44,Definida,19.44789842700778,-99.22040677983215
+1706,CAPUFE,El Vainillo II,Libramiento Mazatlán - Aeropuerto,Ent. Culiacán Cuota y R. Aerop. - Ent. Vainillo,Abierto,N/A,2025-05-14 20:08:04,Definida,23.216673836909436,-106.26491204180289
+1707,CAPUFE,El Vainillo II,Aeropuerto - Libramiento Mazatlán,Ent. Vainillo - Ent. Culiacán Cuota y R. Aerop.,Abierto,N/A,2025-05-14 20:08:04,Definida,23.21660472179255,-106.264809117551
+1708,CAPUFE,El Vainillo II,Villa Unión - Aeropuerto Mazatlán,Ent. Vainillo y Ramal Aerop. - Caleritas,Abierto,N/A,2025-05-14 20:08:04,Definida,23.216631591916734,-106.26487271283293
+1709,CAPUFE,El Vainillo II,Aeropuerto - Villa Unión,Caleritas - Ent. Vainillo y Ramal Aerop.,Abierto,N/A,2025-05-14 20:08:04,Definida,23.21658319701297,-106.26477572302935
+1710,CAPUFE,La Venta,México - La Marquesa,México - La Venta,Abierto,N/A,2025-09-19 00:00:00,Definida,19.33398051903962,-99.3135001160488
+1712,Estatal,Centenario,N/D,N/D,Cerrado,Entrada,2025-08-14 16:52:16,Definida,19.34556389546524,-99.2526712250276
+1713,Estatal,Los Poetas,N/D,N/D,Cerrado,Entrada,2025-08-14 16:52:16,Definida,19.346335070688536,-99.25317309208934
+1714,Estatal,Los Poetas,N/D,N/D,Cerrado,Entrada,2025-08-14 16:52:16,Definida,19.34637677434773,-99.25308297096217
+1716,Estatal,Torres A,N/D,N/D,Cerrado,Entrada,2025-08-14 16:52:16,Definida,19.332849212264275,-99.23983927807974
+1717,Estatal,Luis Cabrera,N/D,N/D,Cerrado,Entrada,2025-08-14 16:52:16,Definida,19.316208543089555,-99.23420285601138
+1719,Estatal,Luis Cabrera,N/D,N/D,Cerrado,Entrada,2025-08-14 16:52:16,Definida,19.31638202691127,-99.23277070796945
+1721,Concesionado,Libramiento de Hermosillo,N/D,N/D,Abierto,N/A,2025-01-24 10:44:26,Definida,29.029752152007465,-110.85413437768335
+1722,Concesionado,Libramiento de Hermosillo,N/D,N/D,Abierto,N/A,2025-01-24 10:45:22,Definida,29.0297491750002,-110.8543238219884
+1723,Estatal,Caminero,N/D,N/D,Cerrado,Entrada,2025-07-25 21:42:19,Definida,19.27663853180313,-99.16550618755686
+1724,Estatal,Viaducto Tlalpan,N/D,N/D,Cerrado,Entrada,2025-06-20 21:38:58,Definida,19.286985508923856,-99.15608303195586
+1726,Estatal,Estadio Azteca,N/D,N/D,Cerrado,Entrada,2025-06-20 21:38:58,Definida,19.301936591098617,-99.16584278898728
+1727,Estatal,Cuicuilco,N/D,N/D,Cerrado,Entrada,2025-07-25 21:42:19,Definida,19.30296614195557,-99.17606214200626
+1728,Estatal,Cerro Zacatepetl,N/D,N/D,Cerrado,Entrada,2025-07-25 21:42:19,Definida,19.304005739831847,-99.19951052909119
+1729,Estatal,Picacho Ajusco Pedregal,N/D,N/D,Cerrado,Entrada,2025-07-25 21:42:19,Definida,19.306894880592655,-99.2116894530738
+1730,Estatal,Boulevard de la Luz,N/D,N/D,Cerrado,Entrada,2025-07-25 21:42:19,Definida,19.325257521905062,-99.21469571693402
+1731,Estatal,San Jerónimo,N/D,N/D,Cerrado,Entrada,2025-07-25 21:42:19,Definida,19.33074963898195,-99.21120330513924
+1732,Estatal,San Jerónimo,N/D,N/D,Cerrado,Entrada,2025-07-25 21:42:19,Definida,19.330287258026924,-99.21119131976931
+1733,Concesionado,Libramiento Sur Atlixco,Atlixco - Morelos,N/D,Abierto,N/A,2025-08-04 16:47:55,Definida,18.895074394781222,-98.48943153015027
+1735,CAPUFE,Aut. México - Guadalajara a Zapotlanejo (Remota La Laja),Zapotlanejo - Guadalajara,N/D,Abierto,N/A,2023-03-17 10:18:13,Definida,20.587783280906958,-103.09834771012616
+1736,Estatal,Xochimilco - Vaqueritos,N/D,N/D,Cerrado,Entrada,2025-06-20 21:38:58,Definida,19.285734682234708,-99.14763899580151
+1737,Concesionado,Aguas Buenas,Eje Metropolitano - DT Los Rodríguez,Ent. Carretera Estatal 77 - DT Los Rodríguez,Abierto,N/A,2025-08-11 21:21:12,Definida,20.96148192370432,-101.38481569911009
+1739,Concesionado,Aguas Buenas,Eje Metropolitano - DT Los Rodríguez,Ent. Carretera Estatal 77 - DT Los Rodríguez,Abierto,N/A,2025-08-11 21:21:12,Definida,20.961353176016814,-101.38485819099422
+1741,Estatal,Puente Internacional Paso del Norte,N/D,N/D,Abierto,N/A,2025-07-21 17:11:15,Definida,31.745879444958945,-106.48643148113727
+1742,Concesionado,Nuevo Necaxa,N/D,N/D,Abierto,N/A,2022-04-25 14:32:20,Definida,20.134901556167588,-98.12314615038196
+1743,Concesionado,Nuevo Necaxa,Tejocotal - Nuevo Necaxa,N/D,Abierto,N/A,2025-01-27 09:59:26,Definida,20.135105946857134,-98.12276253669233
+1744,Concesionado,Nuevo Necaxa,Tejocotal - Nuevo Necaxa,N/D,Abierto,N/A,2025-01-27 10:03:26,Definida,20.135508567793515,-98.1227332515682
+1745,Concesionado,Poniente Ramal Horizontes,Avenida Horizontes,N/D,Abierto,N/A,2025-01-31 13:22:22,Definida,22.15647350384373,-101.07211400992124
+1746,Concesionado,Libramiento Poniente San Luis Potosí,Libramiento Poniente de San Luis Potosí,N/D,Mixto,Salida,2025-01-31 13:22:10,Definida,22.163689684274832,-101.07917008851585
+1749,Concesionado,Poniente Ramal Horizontes,Avenida Horizontes,N/D,Mixto,Salida,2025-01-31 13:22:37,Definida,22.156412930940032,-101.07208569997218
+1750,CAPUFE,San Miguel El Alto,Ent. Arandas - San Miguel El Alto,Ent. Arandas - San Miguel El Alto,Abierto,N/A,2025-01-24 11:10:14,Definida,21.031078658098423,-102.5545642600819
+1751,CAPUFE,San Miguel El Alto,Ent. Arandas - San Miguel El Alto,Ent. Arandas - San Miguel El Alto,Abierto,N/A,2025-01-24 11:11:15,Definida,21.029970923980986,-102.55533547398531
+1752,Concesionado,Naranjos,Buenos Aires - Ozuluama,N/D,Abierto,N/A,2025-07-30 19:28:59,Aproximada,21.3271090007947,-97.62735524831352
+1753,Concesionado,Naranjos,Naranjos - Ozuluama,N/D,Abierto,N/A,2025-07-30 19:28:59,Aproximada,21.327192553382126,-97.62721172951352
+1754,Concesionado,Naranjos,Naranjos - Ozuluama,N/D,Abierto,N/A,2025-07-30 19:28:59,Aproximada,21.327022746793137,-97.62753847934168
+1755,Estatal,Cervera,Silao - Cervera,N/D,Abierto,N/A,2025-08-11 21:21:12,Definida,20.971867128111956,-101.29959115391378
+1756,Estatal,Cervera,Silao - Cervera,N/D,Abierto,N/A,2025-08-11 21:21:12,Definida,20.9719904959315,-101.29949581105441
+1757,CAPUFE,Romita,Romita - Irapuato,N/D,Abierto,N/A,2025-01-31 13:51:20,Aproximada,20.909106760613977,-101.49325315699399
+1758,CAPUFE,Romita,Irapuato - Romita,N/D,Abierto,N/A,2025-01-31 14:00:35,Aproximada,20.9092855499317,-101.49328886999285
+1759,CAPUFE,Romita,León - Romita,N/D,Mixto,Salida,2025-01-31 14:05:58,Aproximada,20.90934039785328,-101.49329551895893
+1760,CAPUFE,Romita,Romita - León,N/D,Abierto,N/A,2025-02-06 15:20:07,Aproximada,20.909165807216333,-101.49326233604071
+1762,CAPUFE,Plan de Ayala,León - Plan de Ayala,N/D,Abierto,N/A,2025-01-31 16:16:27,Aproximada,21.07677073060545,-101.71069517512899
+1763,CAPUFE,Plan de Ayala,León - Plan de Ayala,N/D,Abierto,N/A,2025-01-31 16:18:59,Aproximada,21.076880433299785,-101.70992761188843
+1765,CAPUFE,Remota Zirahuén,Pátzcuaro - Uruapan,Zirahuén - Uruapan,Abierto,N/A,2025-07-22 16:28:25,Definida,19.48237803341169,-101.73102116584212
+1766,Estatal,Puente Internacional Zaragoza,N/D,N/D,Abierto,N/A,2025-06-24 00:41:05,Aproximada,31.670784319411464,-106.34084408815839
+1767,Estatal,Puente Internacional Tornillo - Guadalupe,N/D,N/D,Abierto,N/A,2025-07-22 15:26:59,Aproximada,31.430988995262613,-106.15145694098888
+1768,Concesionado,Chamapa,Toluca - Naucalpan,Toluca - Naucalpan,Cerrado,Salida,2025-10-01 11:24:45,Aproximada,19.434529129079834,-99.30360948846663
+1769,Concesionado,Chamapa,Toluca - Naucalapan,Toluca - Naucalpan,Cerrado,Entrada,2021-06-11 11:10:27,Aproximada,19.434538728056257,-99.30376034331013
+1770,Concesionado,San Nicolás,Toluca - Naucalpan,San Nicolas - Chamapa,Cerrado,Entrada,2022-04-27 15:40:06,Aproximada,19.353854379949805,-99.48031299093508
+1771,Concesionado,San Nicolás,Toluca - Naucalpan,Chamapa - San Nicolas,Cerrado,Salida,2025-10-01 11:30:41,Aproximada,19.35572431051754,-99.48125708601395
+1772,Concesionado,Cerrillo,Toluca - Naucalpan,Cerrillo - Chamapa,Cerrado,Entrada,2025-08-12 16:44:07,Aproximada,19.32641022200005,-99.51600855599997
+1773,Concesionado,Cerrillo,Toluca - Naucalpan,Chamapa - Toluca,Cerrado,Salida,2025-10-01 11:15:54,Aproximada,19.326462160000062,-99.51605815599999
+1774,Concesionado,Ayotuxco,Toluca - Naucalpan,San Nicolas - Santa Cruz,Cerrado,Salida,2025-10-01 10:18:09,Aproximada,19.399961142590463,-99.38094281580055
+1775,Concesionado,Ayotuxco,Toluca - Naucalpan,Santa Cruz - San Nicolas,Cerrado,Entrada,2022-06-21 18:33:11,Aproximada,19.40138052527323,-99.38099996582837
+1776,Concesionado,San Nicolás,Toluca - Naucalpan,San Nicolas - Toluca,Cerrado,Salida,2025-10-01 11:33:39,Aproximada,19.353925606070234,-99.48040895509328
+1777,Concesionado,Ayotuxco,Toluca - Naucalpan,Ayotuxco - Naucalpan,Cerrado,Entrada,2022-06-21 18:33:11,Aproximada,19.399905413840223,-99.38092648192597
+1778,Concesionado,Ayotuxco,Toluca - Naucalpan,Naucalpan - Ayotuxco,Cerrado,Salida,2025-10-01 10:53:24,Aproximada,19.40142992363394,-99.38097085822271
+1779,Concesionado,San Nicolás,Toluca - Naucalpan,San Nicolas - Toluca,Cerrado,Entrada,2022-04-27 15:40:06,Aproximada,19.355638696042654,-99.48126210499557
+1780,CAPUFE,Zamora,Zamora - Ecuandureo,N/D,Mixto,Salida,2025-02-04 16:22:27,Aproximada,20.173624277135747,-102.24386968438442
+1782,Concesionado,Los Gil,Los Gil - Buenos Aires,N/D,Abierto,N/A,2025-01-23 10:23:10,Aproximada,20.886154703978963,-97.46680188308282
+1784,Concesionado,Los Reyes,Lechería,N/D,Abierto,N/A,2025-09-25 16:33:02,Definida,19.610289730129715,-99.03809347765053
+1785,Concesionado,CTM XIV,N/D,N/D,Abierto,N/A,2025-09-25 15:37:05,Definida,19.488292271302182,-99.01874653604013
+1786,Concesionado,Caseta Sahuaripa,Ent. Hermosillo Sur - Sahuaripa,Hermosillo - Sahuaripa,Abierto,N/A,2025-01-24 10:47:46,Aproximada,29.030272974246483,-110.8555248506872
+1787,Concesionado,Caseta Sahuaripa,Sahuaripa-Ent. Hermosillo Norte,Sahuaripa - Hermosillo,Abierto,N/A,2025-01-24 10:49:03,Aproximada,29.03032279901334,-110.85301098901719
+1790,CAPUFE,Entronque Ex-Garita,Monterrey - Nuevo Laredo,La Gloria - San Fernando,Abierto,N/A,2025-01-27 15:03:11,Aproximada,27.270521276677634,-99.61393270836484
+1791,CAPUFE,Entronque Ex-Garita,Monterrey - Nuevo Laredo,La Gloria - San Fernando,Abierto,N/A,2025-01-27 15:05:20,Aproximada,27.26893423174955,-99.61532005754981
+1792,CAPUFE,Cerro Gordo A1,Celaya - Salamanca,N/D,Abierto,N/A,2025-01-31 12:04:40,Aproximada,20.59040355152095,-101.13617156001739
+1793,Estatal,Río Remedios (D/E),N/D,N/D,Cerrado,Entrada,2025-07-31 17:13:09,Aproximada,19.503390061310398,-99.07556948886482
+1794,Concesionado,N/D,San Luis Potosí - Villa de Arriaga,N/D,Cerrado,Entrada,2022-09-15 00:00:00,Virtual,22.01159325897104,-100.84504905496078
+1795,Estatal,Río Remedios (TSN),N/D,N/D,Cerrado,Entrada,2025-06-05 15:08:11,Aproximada,19.49882673775324,-99.0814564376659
+1796,Estatal,Alfredo del Mazo (A),N/D,N/D,Cerrado,Salida,2025-07-31 17:13:09,Aproximada,19.51559160491838,-99.06919354793185
+1797,Concesionado,N/D,San Luis Potosí - Villa de Arriaga,N/D,Cerrado,Entrada,2021-11-04 09:52:22,Aproximada,21.98277637017201,-100.8746859921391
+1798,Concesionado,N/D,San Luis Potosí - Villa de Arriaga,N/D,Cerrado,Entrada,2021-11-04 09:14:58,Aproximada,21.985025485669432,-100.87137271971307
+1799,Estatal,Alfredo del Mazo (E),N/D,N/D,Cerrado,Entrada,2025-07-31 17:13:09,Aproximada,19.519661469930664,-99.066242966784
+1800,Estatal,Circunvalación (A),N/D,N/D,Cerrado,Salida,2025-07-31 17:13:09,Aproximada,19.5472805219676,-99.04671164195452
+1801,Estatal,Circunvalación Sur (E),N/D,N/D,Cerrado,Entrada,2025-07-31 17:13:09,Aproximada,19.550240794235005,-99.04464524432933
+1802,Concesionado,N/D,San Luis Potosí - Villa de Arriaga,N/D,Cerrado,Entrada,2021-11-04 11:50:19,Aproximada,21.946928027128905,-100.91740770110422
+1803,Concesionado,N/D,San Luis Potosí - Villa de Arriaga,N/D,Cerrado,Entrada,2021-11-04 09:40:37,Aproximada,21.948299582739416,-100.91515098777998
+1804,Estatal,Circuito Exterior M. (B),N/D,N/D,Cerrado,Salida,2025-08-01 00:00:00,Aproximada,19.577022768030986,-99.02524131303221
+1805,Concesionado,N/D,San Luis Potosí - Villa de Arriaga,N/D,Cerrado,Entrada,2025-08-12 15:58:22,Aproximada,21.80942419878635,-101.01510616855569
+1806,Estatal,Jardínes Morelos (B),N/D,N/D,Cerrado,Salida,2025-08-01 17:24:18,Aproximada,19.599318289158383,-99.01706793719077
+1807,Concesionado,Calderón,San Luis Potosí - Villa de Arriaga,N/D,Cerrado,Entrada,2025-08-12 15:58:22,Virtual,21.801570546152686,-101.02395768202712
+1808,Estatal,Venta de Carpio,N/D,N/D,Cerrado,Entrada,2025-08-01 17:24:18,Aproximada,19.605536198191846,-99.01299646728874
+1809,Estatal,Jardínes Morelos (A),N/D,N/D,Cerrado,Entrada,2025-08-01 17:24:18,Aproximada,19.602974867002604,-99.01546548304792
+1810,Estatal,Circuito Exterior M. (A),N/D,N/D,Cerrado,Entrada,2025-08-01 00:00:00,Aproximada,19.57645975010231,-99.02681853920899
+1811,Estatal,Circunvalación (C),N/D,N/D,Cerrado,Salida,2025-07-31 17:13:09,Aproximada,19.551096274251332,-99.04429450233852
+1812,Estatal,Circunvalación Sur (D),N/D,N/D,Cerrado,Entrada,2025-07-31 17:13:10,Aproximada,19.54803269502005,-99.0469002420393
+1813,Estatal,Alfredo del Mazo (C),N/D,N/D,Cerrado,Salida,2025-07-31 17:13:09,Aproximada,19.519850742932498,-99.06652563193138
+1814,Estatal,Alfredo del Mazo (D),N/D,N/D,Cerrado,Entrada,2025-07-31 17:13:09,Aproximada,19.516100527972085,-99.06928718241926
+1816,Estatal,Río Remedios (A),N/D,N/D,Cerrado,Salida,2025-07-31 17:13:09,Aproximada,19.50518357424126,-99.07816233112409
+1817,Estatal,Río Remedios (TNS),N/D,N/D,Cerrado,Salida,2025-07-31 17:13:09,Aproximada,19.505166657196533,-99.07768973637776
+1818,Concesionado,N/D,San Luis Potosí - Villa de Arriaga,N/D,Cerrado,Salida,2025-01-30 12:17:09,Virtual,22.01149296803275,-100.8449276720427
+1819,Concesionado,N/D,San Luis Potosí - Logistik,N/D,Cerrado,Salida,2025-01-30 12:12:12,Aproximada,21.98394568807901,-100.87326445006548
+1820,Concesionado,N/D,San Luis Potosí - Villa de Arriaga,N/D,Cerrado,Salida,2025-01-30 12:14:21,Aproximada,21.982514257726425,-100.87428190077097
+1821,Concesionado,N/D,San Luis Potosí - WTC II,N/D,Cerrado,Salida,2025-01-30 12:09:47,Aproximada,21.9479968183039,-100.9160872312459
+1822,Concesionado,N/D,San Luis Potosí - Villa de Arriaga,N/D,Cerrado,Salida,2025-01-30 12:11:31,Aproximada,21.94660343908157,-100.91711838406762
+1823,Concesionado,N/D,San Luis Potosí - Villa de Arriaga,N/D,Cerrado,Salida,2025-08-12 15:58:22,Aproximada,21.811533583595487,-101.01424301075484
+1824,Concesionado,San Felipe,Villa de Arriaga - San Felipe,N/D,Cerrado,Salida,2025-08-12 15:58:22,Aproximada,21.8052139099804,-101.01446902816346
+1825,Concesionado,Calderón,San Luis Potosí - Villa de Arriaga,N/D,Cerrado,Salida,2025-08-12 15:58:22,Virtual,21.801677990956,-101.02398199499268
+1840,Estatal,Ent. Pedreras,Periférico del Área Metropolitana de Monterrey,N/D,Abierto,N/A,2025-07-24 14:24:36,Aproximada,25.818241447000048,-100.39347069899998
+1841,Estatal,Ent. Pedreras,Periférico del Área Metropolitana de Monterrey,N/D,Abierto,N/A,2025-07-24 14:24:36,Aproximada,25.817692226000077,-100.39338155799999
+1842,Estatal,Ent. Monclova,Periférico del Área Metropolitana de Monterrey,N/D,Abierto,N/A,2025-07-24 14:24:36,Aproximada,25.83420125600003,-100.30574771299996
+1843,Estatal,Ent. Monclova,Periférico del Área Metropolitana de Monterrey,N/D,Abierto,N/A,2025-07-24 14:24:36,Aproximada,25.833581767000055,-100.30574364399996
+1844,CAPUFE,La Peñita,Las Varas - Vallarta,N/D,Abierto,N/A,2025-01-27 11:06:17,Aproximada,21.066449266937806,-105.21813538272978
+1845,Concesionado,Auxiliar Esperanza - Hornos,Ent. Lib. Obregón Guaymas,Libramiento Cd. Obregón,Abierto,N/A,2025-09-23 00:00:00,Definida,27.606929231184832,-109.90310625306132
+1847,Estatal,Caseta Guadalupe,Monterrey - Cadereyta,N/D,Abierto,N/A,2025-08-05 18:52:21,Aproximada,25.691328723000026,-100.15775729499995
+1848,Estatal,Caseta Guadalupe,Monterrey - Cadereyta,N/D,Abierto,N/A,2025-08-05 18:52:21,Aproximada,25.691974954000045,-100.15747716799996
+1849,CAPUFE,La Venta Bis,Entronque La Venta - Pénjamo,Entronque La Venta - Bajos del Ejido,Abierto,N/A,2025-05-29 18:32:18,Aproximada,16.93831420095979,-99.81990832703909
+1850,CAPUFE,La Venta Bis,Entronque La Venta - Pénjamo,Entronque La Venta - Bajos del Ejido,Abierto,N/A,2025-05-29 18:32:18,Aproximada,16.942133702065476,-99.82255957787866
+1851,Concesionado,N/D,Laguna Verde - Vega de Alatorre,N/D,Abierto,N/A,2025-01-23 10:08:28,Aproximada,20.039986840213373,-96.68077512101213
+1852,Concesionado,N/D,Laguna Verde - Vega de Alatorre,N/D,Abierto,N/A,2025-01-23 10:15:28,Aproximada,20.0403506962747,-96.68033567474129
+1853,Concesionado,N/D,Vega de Alatorre - Nautla,N/D,Abierto,N/A,2025-01-23 10:24:31,Aproximada,20.043952431178393,-96.68448091082959
+1854,Concesionado,N/D,Vega de Alatorre - Nautla,N/D,Abierto,N/A,2025-01-23 10:26:52,Aproximada,20.044177368714305,-96.68423710327268
+1855,Concesionado,N/D,Laguna Verde - Nautla,N/D,Abierto,N/A,2025-01-23 10:31:10,Aproximada,20.044037920906586,-96.6843738250897
+1860,Concesionado,Malinalco,Lerma - Tenango,Troncal Rayón - Malinalco,Abierto,N/A,2025-09-30 14:43:58,Aproximada,19.15130471228454,-99.54375277698647
+1861,Concesionado,Auxiliar Metepec,Lerma - Tenango,Troncal Rayón - Malinalco,Abierto,N/A,2025-09-30 14:52:18,Aproximada,19.15140995663232,-99.54827972000628
+1862,Concesionado,Auxiliar Malinalco,Lerma - Tenango,Troncal Rayón - Malinalco,Abierto,N/A,2025-09-30 13:27:26,Aproximada,19.149881726994664,-99.54997411630382
+1865,CAPUFE,Entronque Ojo de Agua,México - Pachuca,México - Pachuca,Abierto,N/A,2025-07-29 18:15:27,Aproximada,19.666294737633624,-99.00102857566309
+1866,CAPUFE,Entronque Ojo de Agua,México - Pachuca,México - Pachuca,Abierto,N/A,2025-07-29 18:15:27,Aproximada,19.665383397344623,-99.0020850643159
+1867,CAPUFE,Entronque Ojo de Agua,México - Pachuca,México - Pachuca,Abierto,N/A,2025-07-29 18:15:27,Aproximada,19.665046736872974,-99.00175933088492
+1871,CAPUFE,Nabor Carrillo,Texcoco - Pirámides,Texcoco - Tequisistlán,Abierto,N/A,2025-09-22 00:00:00,Definida,19.496086340910683,-98.9471750251864
+1872,CAPUFE,Nabor Carrillo,Texcoco - Pirámides,Peñón - Tequisistlán,Abierto,N/A,2025-09-22 00:00:00,Definida,19.496063688126615,-98.94724388672878
+1873,CAPUFE,Nabor Carrillo,Texcoco - Pirámides,Tequisistlán - Peñón,Abierto,N/A,2025-09-22 00:00:00,Definida,19.496005669019205,-98.94738859596018
+1874,Concesionado,Apaxco,N/D,N/D,Cerrado,Entrada,2023-08-08 20:44:10,Aproximada,19.997802442795912,-99.14137531192424
+1875,Concesionado,Apaxco,N/D,N/D,Cerrado,Salida,2025-01-27 09:42:25,Aproximada,19.997912199838037,-99.14141731494077
+1876,Concesionado,El Chichimeco,Libramiento Carretero Poniente de la Ciudad de Aguascalientes,N/D,Abierto,N/A,2025-09-26 15:18:16,Aproximada,22.005865846141603,-102.35780414434818
+1877,Concesionado,El Chichimeco,Libramiento Carretero Poniente de la Ciudad de Aguascalientes,N/D,Abierto,N/A,2025-09-26 15:21:03,Aproximada,22.00583070696765,-102.3577051569183
+1883,CAPUFE,Zamora,Entronque Zamora - Ecuandureo,N/D,Abierto,N/A,2025-01-27 14:29:46,Aproximada,20.173639817847786,-102.24393639355705
+1884,CAPUFE,Zamora,Entronque Zamora - Ecuandureo,N/D,Abierto,N/A,2025-01-27 14:30:04,Aproximada,20.173616353892704,-102.24382197770771
+1885,CAPUFE,Zamora,Entronque Zamora - Ecuandureo,N/D,Mixto,Entrada,2025-01-31 13:35:38,Aproximada,20.173591546088563,-102.24374589025409
+1886,Estatal,Río de los Remedios,Puente de Vigas - Siervo de la Nación,México Pachuca - Siervo de la Nación,Abierto,N/A,2025-10-01 14:53:21,Aproximada,19.507250135908954,-99.08432432403853
+1888,Estatal,Río de los Remedios,Puente de Vigas - Siervo de la Nación,México Pachuca - Siervo de la Nación,Abierto,N/A,2025-10-01 14:55:55,Aproximada,19.51354474231786,-99.09885756085464
+1889,Concesionado,N/D,San Luis Potosí/Rioverde - La Pila,N/D,Abierto,N/A,2025-06-18 18:02:02,Aproximada,22.126099936013137,-100.8250705512541
+1890,Concesionado,N/D,La Pila - San Luis Potosí/Rioverde,N/D,Abierto,N/A,2025-06-18 18:02:02,Aproximada,22.126812407755683,-100.82236834908832
+1891,CAPUFE,Oaxtepec A,La Pera - Cuautla,Tepoztlán A - Oaxtepec A,Cerrado,Salida,2025-07-30 21:10:12,Aproximada,18.903268518948845,-98.98532274504424
+1892,CAPUFE,Oacalco A,La Pera - Cuautla,Tepoztlán A - Oacalco A,Cerrado,Salida,2025-01-23 14:00:05,Definida,18.930478191429863,-99.02604690760332
+1893,CAPUFE,Oacalco B,La Pera - Cuautla,Oaxtepec B - Oacalco B,Cerrado,Salida,2025-01-23 14:19:41,Definida,18.931291690117185,-99.02506214388296
+1895,Estatal,Pinotepa,Viaducto Punta Diamante,Viaducto Punta Diamante - Costa Chica,Abierto,N/A,2025-09-22 00:00:00,Aproximada,16.830113536000056,-99.75910399099996
+1896,Concesionado,La Florida - Bucerías,La Florida - Bucerías,N/D,Abierto,N/A,2025-08-08 22:14:48,Definida,20.775182171082374,-105.3740474990818
+1897,Concesionado,La Florida - Bucerías,Las Varas - Vallarta,La Florida - Bucerías,Abierto,N/A,2025-08-08 22:14:48,Definida,20.781419657293373,-105.3700650792558
+1898,Estatal,Caseta Juárez,Periférico del Área Metropolitana de Monterrey,Apodaca - Allende,Abierto,N/A,2025-02-13 09:42:21,Aproximada,25.622220095998443,-100.07131900904062
+1899,Estatal,Caseta Juárez,Periférico del Área Metropolitana de Monterrey,Apodaca - Allende,Abierto,N/A,2025-02-13 09:51:22,Aproximada,25.62222701202203,-100.07116134950567
+1900,CAPUFE,Zirahuén,Pátzcuaro - Uruapan,Pátzcuaro - Uruapan,Abierto,N/A,2025-07-22 16:28:25,Aproximada,19.505541102683488,-101.65937643905654
+1901,Concesionado,El Capomo - La Peñita,Las Varas - Puerto Vallarta,El Capomo - La Peñita,Abierto,N/A,2025-01-27 11:15:43,Aproximada,21.07028390879395,-105.21763515857457
+1902,Concesionado,El Capomo - La Peñita,Las Varas - Puerto Vallarta,El Capomo - La Peñita,Abierto,N/A,2025-01-27 11:18:14,Aproximada,21.070121465066567,-105.21691340626727
+1903,Concesionado,La Peñita - La Florida,Las Varas - Puerto Vallarta,La Peñita - La Florida,Abierto,N/A,2025-01-27 11:24:46,Aproximada,21.066490293999454,-105.21834676899644
+1904,Concesionado,La Peñita - La Florida,Las Varas - Puerto Vallarta,La Peñita - La Florida,Abierto,N/A,2025-01-27 11:26:46,Aproximada,21.066398832063946,-105.21793384623062
+1911,Concesionado,Huimilpan,Coroneo/Apaseo el Alto/Apaseo el Grande/Querétaro - Huimilpan,N/D,Mixto,Salida,2025-01-30 10:59:48,Aproximada,20.34845028759815,-100.27748319216904
+1912,Concesionado,Amealco I,Coroneo/Huimilpan/Apaseo el Alto/Apaseo el Grande/Querétaro - Amealco I,N/D,Mixto,Salida,2025-01-30 10:08:41,Aproximada,20.27781570190503,-100.05924437591828
+1913,Concesionado,Apaseo el Alto,Apaseo el Grande/Querétaro - Apaseo el Alto,N/D,Mixto,Salida,2025-01-30 10:27:30,Aproximada,20.497805078347152,-100.58803998594139
+1915,Concesionado,El Chichimeco,León - Zacatecas,N/D,Abierto,N/A,2025-09-26 15:23:29,Aproximada,22.00580434097179,-102.35762908392691
+1917,Concesionado,Coroneo,N/D,N/D,Mixto,Entrada,2024-08-15 17:29:06,Aproximada,20.415589988976798,-100.42910588105337
+1918,Concesionado,Coroneo,Apaseo el Alto/Apaseo el Grande/Querétaro - Coroneo,N/D,Mixto,Salida,2025-01-30 15:34:16,Aproximada,20.415621961969897,-100.42901919607111
+1919,Concesionado,El Chichimeco,Zacatecas - León,N/D,Abierto,N/A,2025-09-26 15:25:38,Aproximada,22.005895055962924,-102.35790352990867
+1920,Concesionado,El Chichimeco,Aguascalientes - León,N/D,Abierto,N/A,2025-09-26 15:31:47,Aproximada,22.000713630197037,-102.36008625348887
+1922,Concesionado,El Chichimeco,León - Aguascalientes,N/D,Abierto,N/A,2025-09-26 15:35:19,Aproximada,22.000958561889764,-102.35961169975539
+1923,Concesionado,Coroneo,Huimilpan/Amealco I/Atlacomulco - Coroneo,N/D,Mixto,Salida,2025-01-30 15:37:03,Aproximada,20.415656781814153,-100.4289254514572
+1924,CAPUFE,Oacalco A,La Pera - Cuautla,Oacalco - Oaxtepec,Cerrado,Entrada,2024-07-18 15:12:01,Aproximada,18.930568180175243,-99.0259451368413
+1925,CAPUFE,Oacalco B,Cuautla - La Pera,Oacalco - Tepoztlán,Cerrado,Entrada,2024-07-18 15:12:01,Aproximada,18.931430879674934,-99.0249350302834
+1926,CAPUFE,Oaxtepec B,Cuautla B - La Pera B,Oaxtepec B - Tepoztlán B,Cerrado,Entrada,2025-07-30 21:10:12,Aproximada,18.903719459268792,-98.98526475674007
+1927,CAPUFE,Tepoztlán Bis,La Pera - Cuautla,La Pera A - Tepoztlán A,Abierto,N/A,2025-06-23 17:51:04,Aproximada,18.984745502501124,-99.11055595360605
+1928,CAPUFE,Tepoztlán B,Tepoztlán,Oaxtepec B - Tepoztlán B,Cerrado,Salida,2025-06-23 17:51:06,Aproximada,18.984713147167266,-99.1070604552821
+1931,CAPUFE,Tepoztlán A,Tepoztlán,Tepoztlán A - Oaxtepec A,Cerrado,Entrada,2025-06-23 17:51:17,Aproximada,18.98417285193824,-99.10917722923475
+1933,Concesionado,5 Sur Leyes de Reforma A,5 Sur Leyes de Reforma,N/D,Abierto,N/A,2024-09-11 00:00:00,Definida,19.378287115991892,-99.08675637582269
+1934,Concesionado,4 Oriente Río Churubusco A,4 Oriente Río Churubusco,N/D,Abierto,N/A,2024-09-09 00:00:00,Definida,19.374639899712772,-99.09730465200148
+1935,Concesionado,La Nueva Viga,6 Sur Luis Méndez,N/D,Abierto,N/A,2024-09-09 00:00:00,Definida,19.368066868054086,-99.09773507532428
+1936,Concesionado,6 Sur Luis Méndez A,6 Sur Luis Méndez,N/D,Abierto,N/A,2024-09-09 00:00:00,Definida,19.367331061077955,-99.09534551805052
+1937,Concesionado,6 Sur Luis Méndez B,6 Sur Luis Méndez,N/D,Abierto,N/A,2024-09-09 00:00:00,Definida,19.368359663686867,-99.08542038962597
+1941,Estatal,Sacramento,Chihuahua - El Sueco,Chihuahua - Sacramento,Abierto,N/A,2025-08-01 17:31:03,Aproximada,28.86026060740608,-106.21645178888443
+1944,Concesionado,Ventura - El Peyote,Ventura - El Peyote,N/D,Abierto,N/A,2025-06-23 17:34:39,Aproximada,22.520642885691217,-100.6562752697683
+1945,Concesionado,Ventura - El Peyote,El Peyote - Ventura,N/D,Abierto,N/A,2025-06-23 17:34:39,Aproximada,22.52100159984047,-100.65660906788352
+1952,Concesionado,Guadalupe,Libramiento de Ciudad Juárez,Guadalupe-Villa Ahumada,Abierto,N/A,2025-01-29 10:30:36,Aproximada,31.411864888614762,-106.19560092989823
+1953,Concesionado,Guadalupe,Libramiento de Ciudad Juárez,Guadalupe-Villa Ahumada,Abierto,N/A,2025-01-29 10:33:19,Aproximada,31.411807874271858,-106.195575739069
+1954,Concesionado,Guadalupe,Libramiento de Ciudad Juárez,Guadalupe-Villa Ahumada,Abierto,N/A,2025-01-29 10:35:20,Aproximada,31.411911242786363,-106.19562394994392
+1955,Concesionado,Guadalupe,Libramiento de Ciudad Juárez,Guadalupe - Villa Ahumada,Abierto,N/A,2025-01-29 10:37:53,Aproximada,31.41175303687072,-106.19555915596376
+1956,CAPUFE,Tepoztlán,La Pera - Cuautla,Tepoztlán - La Pera,Abierto,N/A,2025-08-01 18:06:25,Aproximada,18.98710491412727,-99.11234109772194
+1959,Concesionado,Mazapiltepec,Cuapiaxtla - Cuacnopalan,N/D,Abierto,N/A,2025-09-23 00:00:00,Aproximada,19.10881560300004,-97.67097853299998
+1960,Concesionado,Mazapiltepec,Cuapiaxtla - El Seco,N/D,Abierto,N/A,2025-09-23 00:00:00,Aproximada,19.108738326000037,-97.67114568699998
+1961,Concesionado,Mazapiltepec,El Seco - Cuacnopalan,N/D,Abierto,N/A,2025-09-23 00:00:00,Aproximada,19.099140809000062,-97.66433359399997
+1962,CAPUFE,Barranca Larga,Barranca Larga - Ventanilla,Barranca Larga - Ventanilla,Abierto,N/A,2025-07-30 17:28:49,Aproximada,16.46914340804006,-96.7448919990905
+1963,CAPUFE,Ventanilla,Barranca Larga - Ventanilla,Barranca Larga - Ventanilla,Abierto,N/A,2025-07-28 22:09:33,Aproximada,15.90744244147367,-96.9276354820338
+1966,Concesionado,N/D,Principal,N/D,Abierto,N/A,2025-09-29 00:00:00,Aproximada,19.590414646000063,-88.07120030999995
+1967,Estatal,Puerto Colombia - Laredo,Monterrey - Colombia,N/D,Abierto,N/A,2025-07-28 16:55:53,Aproximada,27.68821179544256,-99.76267165529137
+1968,CAPUFE,Madin,Chamapa - Lecheria,N/D,Cerrado,Salida,2025-07-31 20:44:53,Definida,19.549903833996993,-99.27753757908387
+1969,Concesionado,Texcoco,Texcoco - Peñón,Texcoco - Peñón,Abierto,N/A,2025-07-25 20:19:23,Definida,19.502107039862548,-98.91491994195455
+1970,Concesionado,Amanalco,Ramal Valle de Bravo,N/D,Abierto,N/A,2025-08-04 16:07:03,Definida,19.23364377277505,-100.07226485601761
+1974,CAPUFE,Mérida - Cancún,Pisté - Valladolid,N/D,Abierto,N/A,2025-08-08 20:09:47,Aproximada,20.727722259678327,-88.5781937100563
+1976,Concesionado,Vallarta,Las Varas - Puerto Vallarta,N/D,Abierto,N/A,2025-08-08 22:14:48,Definida,20.77979099915589,-105.25337751701652
+1977,Concesionado,Mazapiltepec,Cuacnopalan - El Seco,N/D,Abierto,N/A,2025-09-23 00:00:00,Aproximada,19.09913119600003,-97.66401468399994
+1978,Concesionado,Mazapiltepec,El Seco - Cuapiaxtla,N/D,Abierto,N/A,2025-09-23 00:00:00,Aproximada,19.10888599900005,-97.67082014399995

@@ -2,6 +2,7 @@ import { Company } from 'src/companies/entities/company.entity';
 import { toIsoString } from 'src/common/utils/iso-date.util';
 import { operationalCenterGeoForApi } from 'src/operational-centers/operational-center-geo-for-api';
 import { normalizeExpensePaymentMethod } from 'src/expenses/expense-payment-method.util';
+import { normalizeDestinationRateScope } from 'src/common/constants/destination-rate-scope';
 import type { OperationalCenter } from 'src/operational-centers/entities/operational-center.entity';
 
 function dbNumToApi(value?: string | null): number | undefined {
@@ -51,6 +52,9 @@ export function serializeCompanyOperationalSettings(
     paymentReminderDaysBefore: company.paymentReminderDaysBefore ?? 5,
     paymentReminderDaysChangedAt: toIsoString(company.paymentReminderDaysChangedAt),
     tripAutoPaymentsChangedAt: toIsoString(company.tripAutoPaymentsChangedAt),
+    destinationRateScope: normalizeDestinationRateScope(
+      company.destinationRateScope,
+    ),
     operationalCenterPostalCode: geo.operationalCenterPostalCode,
     operationalCenterCityMunicipality: geo.operationalCenterCityMunicipality,
     operationalCenterLocality: geo.operationalCenterLocality,

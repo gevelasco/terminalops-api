@@ -122,7 +122,8 @@ export class PaymentReminderService {
       const dueYmd = formatOperationalIncurredDateYmd(expense.incurredAt);
       const soonUntil = ymdAddDays(today, daysBefore);
       const urgency = classifyPaymentReminder(dueYmd, today, soonUntil);
-      if (!urgency) {
+      // Push/evento persistido solo el día de vencimiento o ya vencido — no “próximos”.
+      if (urgency !== 'today' && urgency !== 'overdue') {
         continue;
       }
       const inserted = await this.activityEvents.record({
@@ -138,7 +139,7 @@ export class PaymentReminderService {
           dueYmd,
           urgency,
         },
-        dedupeKey: paymentReminderDedupeKey(urgency, expense.id, dueYmd),
+        dedupeKey: paymentReminderDedupeKey(expense.id, dueYmd),
       });
       if (inserted) {
         recorded += 1;

@@ -360,6 +360,8 @@ export class UsersService {
         user.company?.paymentReminderDaysChangedAt,
       ),
       tripAutoPaymentsChangedAt: toIsoString(user.company?.tripAutoPaymentsChangedAt),
+      destinationRateScope:
+        user.company?.destinationRateScope?.trim() || 'postal_code',
       ...(() => {
         const primary = user.company?.primaryOperationalCenter;
         const geo = operationalCenterGeoForApi(primary);

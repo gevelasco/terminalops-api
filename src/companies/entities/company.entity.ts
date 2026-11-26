@@ -136,6 +136,18 @@ export class Company {
   })
   tripAutoPaymentsChangedAt?: Date;
 
+  /**
+   * Granularidad comercial de tarifas por destino:
+   * postal_code | municipality | state
+   */
+  @Column({
+    name: 'destination_rate_scope',
+    type: 'varchar',
+    length: 32,
+    default: 'postal_code',
+  })
+  destinationRateScope: string;
+
   @Column({
     name: 'diesel_reference_price_per_liter',
     type: 'numeric',

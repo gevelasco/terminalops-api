@@ -155,6 +155,7 @@ export class ClientsService {
     if (!client) {
       throw new NotFoundException(`Client ${clientId} not found`);
     }
+    await this.relinkMissingDeliveryRates(companyId, client.deliveries ?? []);
     return serializeClient(client);
   }
 
@@ -176,7 +177,6 @@ export class ClientsService {
       dto.payment ||
       dto.contacts ||
       dto.deliveries !== undefined ||
-      dto.delivery ||
       dto.documents !== undefined
     ) {
       await this.saveNested(companyId, clientId, dto);
@@ -230,7 +230,7 @@ export class ClientsService {
     clientId: number,
     dto: Pick<
       CreateClientDto,
-      'billing' | 'payment' | 'contacts' | 'delivery' | 'deliveries' | 'documents'
+      'billing' | 'payment' | 'contacts' | 'deliveries' | 'documents'
     >,
   ) {
     if (dto.billing) {
@@ -261,13 +261,8 @@ export class ClientsService {
         ),
       );
     }
-    if (dto.deliveries !== undefined || dto.delivery) {
-      const rows =
-        dto.deliveries !== undefined
-          ? dto.deliveries
-          : dto.delivery
-            ? [dto.delivery]
-            : [];
+    if (dto.deliveries !== undefined) {
+      const rows = dto.deliveries;
       await this.deliveryRepo.delete({ clientId });
       if (rows.length > 0) {
         const entities = await Promise.all(
@@ -436,6 +431,32 @@ export class ClientsService {
     return document;
   }
 
+  /** Revincula tarifas cuando el destino existe pero destinationRateId quedó vacío (p. ej. scope estado/municipio). */
+  private async relinkMissingDeliveryRates(
+    companyId: number,
+    deliveries: ClientDelivery[],
+  ): Promise<void> {
+    for (const delivery of deliveries) {
+      if (delivery.destinationRateId != null) {
+        continue;
+      }
+      const matched =
+        await this.destinationRatesService.findRateForClientDelivery(companyId, {
+          postalCode: delivery.postalCode,
+          locality: delivery.locality,
+          cityMunicipality: delivery.cityMunicipality,
+        });
+      if (!matched) {
+        continue;
+      }
+      delivery.destinationRateId = matched.id;
+      await this.deliveryRepo.update(
+        { id: delivery.id },
+        { destinationRateId: matched.id },
+      );
+    }
+  }
+
   private async createDeliveryEntity(
     companyId: number,
     clientId: number,
@@ -444,19 +465,21 @@ export class ClientsService {
   ): Promise<ClientDelivery> {
     const postalCode = row.postalCode?.trim() || undefined;
     const locality = row.locality?.trim() || undefined;
-    const matchedRate =
-      postalCode && locality
-        ? await this.destinationRatesService.findRateForClientDelivery(companyId, {
-            postalCode,
-            locality,
-          })
-        : null;
+    const cityMunicipality = row.cityMunicipality?.trim() || undefined;
+    const matchedRate = await this.destinationRatesService.findRateForClientDelivery(
+      companyId,
+      {
+        postalCode,
+        locality,
+        cityMunicipality,
+      },
+    );
 
     return this.deliveryRepo.create({
       clientId,
       sortOrder,
       postalCode,
-      cityMunicipality: row.cityMunicipality?.trim() || undefined,
+      cityMunicipality,
       locality,
       settlementConsId: normalizeSettlementConsId(
         row.settlementConsId,

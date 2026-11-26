@@ -1,5 +1,6 @@
 import {
   classifyPaymentReminder,
+  feedOccurredAtForDueYmd,
   normalizePaymentReminderDays,
   paymentReminderDedupeKey,
   paymentReminderEventKind,
@@ -34,8 +35,20 @@ describe('payment-reminder.util', () => {
     expect(paymentReminderTitle('insurance', 'soon')).toBe('Pago de seguro próximo');
     expect(paymentReminderTitle('gps', 'overdue')).toBe('Pago de GPS vencido');
     expect(paymentReminderEventKind('soon')).toBe('payment.due_soon');
-    expect(paymentReminderDedupeKey('overdue', 42, '2026-08-10')).toBe(
-      'payment-reminder:overdue:42:2026-08-10',
+    expect(paymentReminderDedupeKey(42, '2026-08-10')).toBe(
+      'payment-reminder:42:2026-08-10',
+    );
+  });
+
+  it('does not use future due dates as feed occurredAt', () => {
+    expect(feedOccurredAtForDueYmd('2026-09-01', '2026-08-27')).toBe(
+      '2026-08-27T12:00:00.000Z',
+    );
+    expect(feedOccurredAtForDueYmd('2026-08-10', '2026-08-27')).toBe(
+      '2026-08-10T12:00:00.000Z',
+    );
+    expect(feedOccurredAtForDueYmd('2026-08-27', '2026-08-27')).toBe(
+      '2026-08-27T12:00:00.000Z',
     );
   });
 });

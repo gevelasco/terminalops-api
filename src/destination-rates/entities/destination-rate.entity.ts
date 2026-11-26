@@ -60,6 +60,31 @@ export class DestinationRate {
   @Column({ type: 'text', default: '' })
   locality: string;
 
+  /**
+   * Snapshot de la política al crear/migrar:
+   * postal_code | municipality | state
+   */
+  @Column({
+    name: 'destination_scope',
+    type: 'varchar',
+    length: 32,
+    default: 'postal_code',
+  })
+  destinationScope: string;
+
+  /**
+   * Tras bajar de municipio/estado a CP (o estado→municipio): falta completar
+   * la llave comercial antes de poder matchear en maniobras.
+   */
+  @Column({ name: 'route_key_incomplete', type: 'boolean', default: false })
+  routeKeyIncomplete: boolean;
+
+  @Column({ name: 'municipality_name', type: 'text', default: '' })
+  municipalityName: string;
+
+  @Column({ name: 'state_name', type: 'text', default: '' })
+  stateName: string;
+
   @Column({
     name: 'destination_latitude',
     type: 'numeric',
@@ -116,14 +141,6 @@ export class DestinationRate {
   @Column({ type: 'text', nullable: true })
   notes?: string;
 
-  /** Claves INEGI de casetas que esta tarifa no cruza (por libre). */
-  @Column({
-    name: 'excluded_toll_plaza_keys',
-    type: 'jsonb',
-    default: () => "'[]'",
-  })
-  excludedTollPlazaKeys: string[];
-
   /** Puntos intermedios de ruta personalizada (orden de recorrido). */
   @Column({
     name: 'route_waypoints',
@@ -146,9 +163,11 @@ export class DestinationRate {
   routeTollPlazas: Array<{
     order: number;
     plazaKey: string;
-    plazaKeySource?: 'inegi' | 'fallback';
+    plazaKeySource?: 'catalog' | 'inegi' | 'fallback';
+    /** Coordenadas `"lat,lng"` (nombre histórico de campo). */
     inegiPoint?: string;
     name: string;
+    section?: string;
     costMxn: number | null;
   }>;
 

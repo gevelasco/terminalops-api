@@ -89,12 +89,12 @@ export function paymentReminderTitle(
   return `${prefix} próximo`;
 }
 
+/** Una sola notificación por gasto + fecha de vencimiento (no por urgencia). */
 export function paymentReminderDedupeKey(
-  urgency: PaymentReminderUrgency,
   expenseId: number,
   dueYmd: string,
 ): string {
-  return `payment-reminder:${urgency}:${expenseId}:${dueYmd}`;
+  return `payment-reminder:${expenseId}:${dueYmd}`;
 }
 
 export function isLedgerScheduledPaymentKind(kind: string): boolean {
@@ -112,13 +112,44 @@ export function dueYmdToIso(ymd: string): string {
   if (!match) {
     return new Date().toISOString();
   }
+  // Mediodía UTC del YMD (estable entre hosts; solo orden relativo del feed).
   return new Date(
-    Number(match[1]),
-    Number(match[2]) - 1,
-    Number(match[3]),
-    12,
-    0,
-    0,
-    0,
+    Date.UTC(
+      Number(match[1]),
+      Number(match[2]) - 1,
+      Number(match[3]),
+      12,
+      0,
+      0,
+      0,
+    ),
   ).toISOString();
+}
+
+/**
+ * `occurredAt` del feed para avisos por vencimiento.
+ * Nunca usa una fecha futura: si no, los “próximos” se clavan arriba del listado.
+ */
+export function feedOccurredAtForDueYmd(
+  dueYmd: string,
+  todayYmd: string,
+): string {
+  const due = dueYmd.trim();
+  const today = todayYmd.trim();
+  if (!due) {
+    return dueYmdToIso(today || operationalFallbackTodayYmd());
+  }
+  if (today && due > today) {
+    return dueYmdToIso(today);
+  }
+  return dueYmdToIso(due);
+}
+
+function operationalFallbackTodayYmd(): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Mexico_City',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date());
 }

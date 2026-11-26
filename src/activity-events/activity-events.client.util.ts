@@ -91,22 +91,12 @@ function deliveriesSnapshot(list: unknown): string {
 
 function deliveriesFromExisting(existing: Record<string, unknown>): unknown[] {
   const list = existing['deliveries'];
-  if (Array.isArray(list) && list.length > 0) {
-    return list;
-  }
-  const singular = existing['delivery'];
-  if (singular && typeof singular === 'object') {
-    return [singular];
-  }
-  return [];
+  return Array.isArray(list) ? list : [];
 }
 
 function deliveriesFromDto(dto: UpdateClientDto): unknown[] | undefined {
   if (dto.deliveries !== undefined) {
     return dto.deliveries;
-  }
-  if (dto.delivery) {
-    return [dto.delivery];
   }
   return undefined;
 }

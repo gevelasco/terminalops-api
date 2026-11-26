@@ -4,15 +4,6 @@ import { DestinationRate } from 'src/destination-rates/entities/destination-rate
 import { DestinationRatePrice } from 'src/destination-rates/entities/destination-rate-price.entity';
 import { toIsoString } from 'src/common/utils/iso-date.util';
 
-export function normalizeExcludedTollPlazaKeys(raw: unknown): string[] {
-  if (!Array.isArray(raw)) {
-    return [];
-  }
-  return raw
-    .map((v) => String(v ?? '').trim())
-    .filter((k) => k.length > 0);
-}
-
 export function serializeDestinationRatePrice(
   price: DestinationRatePrice,
 ): Record<string, unknown> {
@@ -66,6 +57,10 @@ export function serializeDestinationRateSummary(
     postalCode: row.postalCode,
     cityMunicipality: row.cityMunicipality,
     locality: row.locality,
+    destinationScope: row.destinationScope ?? 'postal_code',
+    routeKeyIncomplete: row.routeKeyIncomplete === true,
+    municipalityName: row.municipalityName ?? '',
+    stateName: row.stateName ?? '',
     destinationLatitude:
       row.destinationLatitude != null ? Number(row.destinationLatitude) : undefined,
     destinationLongitude:
@@ -107,6 +102,10 @@ export function serializeDestinationRate(
     postalCode: row.postalCode,
     cityMunicipality: row.cityMunicipality,
     locality: row.locality,
+    destinationScope: row.destinationScope ?? 'postal_code',
+    routeKeyIncomplete: row.routeKeyIncomplete === true,
+    municipalityName: row.municipalityName ?? '',
+    stateName: row.stateName ?? '',
     destinationLatitude:
       row.destinationLatitude != null ? Number(row.destinationLatitude) : undefined,
     destinationLongitude:
@@ -130,7 +129,6 @@ export function serializeDestinationRate(
       row.estimatedReturnTimeValue != null
         ? Number(row.estimatedReturnTimeValue)
         : undefined,
-    excludedTollPlazaKeys: normalizeExcludedTollPlazaKeys(row.excludedTollPlazaKeys),
     routeWaypoints: normalizeRouteWaypoints(row.routeWaypoints),
     routeTollPlazas: normalizeRouteTollPlazas(row.routeTollPlazas),
     maneuverCount:

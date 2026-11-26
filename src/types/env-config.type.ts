@@ -43,8 +43,12 @@ type EnvConfig = {
   EMAIL_FROM?: string;
   /** URL pública del FE para links de correo (fallback: primer ORIGIN). */
   APP_URL?: string;
-  /** Token SAKBÉ — API de Ruteo INEGI (casetas). */
-  INEGI_SAKBE_KEY?: string;
+  /**
+   * Base OSRM route API (sin slash final).
+   * Default: demo pública project-osrm.org.
+   * Ej. propio: https://osrm.tudominio.com/route/v1/driving
+   */
+  OSRM_BASE_URL?: string;
 };
 
 export default EnvConfig;

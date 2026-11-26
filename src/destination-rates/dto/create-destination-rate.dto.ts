@@ -10,6 +10,7 @@ import {
   IsString,
   Length,
   Min,
+  ValidateIf,
   ValidateNested,
 } from 'class-validator';
 import { DestinationRatePriceInputDto } from './destination-rate-price-input.dto';
@@ -20,18 +21,31 @@ export class CreateDestinationRateDto {
   @IsString()
   originOperationalCenterId: string;
 
-  @ApiProperty({ example: '77560' })
+  @ApiPropertyOptional({ example: '77560' })
+  @IsOptional()
+  @ValidateIf((_, v) => v != null && String(v).trim() !== '')
   @IsString()
   @Length(5, 5)
-  postalCode: string;
+  postalCode?: string;
 
   @ApiProperty({ example: 'Cancún, Quintana Roo' })
   @IsString()
   cityMunicipality: string;
 
-  @ApiProperty({ example: 'Alfredo V. Bonfil' })
+  @ApiPropertyOptional({ example: 'Alfredo V. Bonfil' })
+  @IsOptional()
   @IsString()
-  locality: string;
+  locality?: string;
+
+  @ApiPropertyOptional({ example: 'Zapopan' })
+  @IsOptional()
+  @IsString()
+  municipalityName?: string;
+
+  @ApiPropertyOptional({ example: 'Jalisco' })
+  @IsOptional()
+  @IsString()
+  stateName?: string;
 
   @ApiProperty({ type: [DestinationRatePriceInputDto] })
   @IsArray()
@@ -45,14 +59,6 @@ export class CreateDestinationRateDto {
   @IsNumber()
   @Min(0)
   routeDistanceKm?: number;
-
-  @ApiPropertyOptional({
-    default: true,
-    description: 'Ignorado: las maniobras siempre son ida+vuelta (×2).',
-  })
-  @IsOptional()
-  @IsBoolean()
-  isRoundTrip?: boolean;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -89,15 +95,6 @@ export class CreateDestinationRateDto {
   @IsOptional()
   @IsString()
   notes?: string;
-
-  @ApiPropertyOptional({
-    description: 'Claves INEGI de casetas excluidas en esta ruta (por libre).',
-    type: [String],
-  })
-  @IsOptional()
-  @IsArray()
-  @IsString({ each: true })
-  excludedTollPlazaKeys?: string[];
 
   @ApiPropertyOptional({
     description:

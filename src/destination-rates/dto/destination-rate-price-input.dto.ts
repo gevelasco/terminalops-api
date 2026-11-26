@@ -40,7 +40,7 @@ export class DestinationRatePriceInputDto {
 
   @ApiPropertyOptional({
     example: 5,
-    description: 'Ejes del tracto (referencia casetas INEGI)',
+    description: 'Ejes del tracto (tarifa de casetas)',
   })
   @IsOptional()
   @IsNumber()

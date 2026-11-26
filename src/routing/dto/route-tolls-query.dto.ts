@@ -54,8 +54,7 @@ export class RouteTollsQueryDto {
   axleCount?: number;
 
   @ApiPropertyOptional({
-    description:
-      'Texto para buscar el origen en SAKBÉ si no hay vialidad cercana (p. ej. localidad, municipio).',
+    description: 'Etiqueta opcional del origen (compat; OSRM usa coordenadas).',
     example: 'Manzanillo, Manzanillo',
   })
   @IsOptional()
@@ -64,8 +63,7 @@ export class RouteTollsQueryDto {
   originSearch?: string;
 
   @ApiPropertyOptional({
-    description:
-      'Texto para buscar el destino en SAKBÉ si no hay vialidad cercana.',
+    description: 'Etiqueta opcional del destino (compat; OSRM usa coordenadas).',
     example: 'Monterrey, Monterrey',
   })
   @IsOptional()
@@ -75,7 +73,7 @@ export class RouteTollsQueryDto {
 
   @ApiPropertyOptional({
     description:
-      'Casetas omitidas en la ruta (por libre); claves INEGI `plazaKey`.',
+      'Casetas omitidas en la ruta (por libre); claves `plaza:{id}`.',
     type: [String],
   })
   @IsOptional()
@@ -87,7 +85,7 @@ export class RouteTollsQueryDto {
 
   @ApiPropertyOptional({
     description:
-      'Puntos intermedios en orden de recorrido (origen → … → destino). Vacío = ruta directa INEGI.',
+      'Puntos intermedios en orden (origen → … → destino). Vacío = OSRM directo.',
     type: [RouteWaypointDto],
   })
   @IsOptional()

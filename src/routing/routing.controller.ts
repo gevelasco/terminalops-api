@@ -2,17 +2,21 @@ import {
   Body,
   Controller,
   ForbiddenException,
+  Get,
   Post,
   Put,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { LoggedUser } from '../decorators/logged-user.decorator';
 import { AuthGuard } from '../guards/auth/auth.guard';
 import type AuthUser from '../types/auth-user.type';
+import { TollPlazaCatalogService } from 'src/tolls/toll-plaza-catalog.service';
 import { RouteTollsQueryDto } from './dto/route-tolls-query.dto';
+import { SearchTollPlazasQueryDto } from './dto/search-toll-plazas-query.dto';
 import { UpsertTollPlazaAliasDto } from './dto/upsert-toll-plaza-alias.dto';
-import { SakbeService } from './sakbe.service';
+import { OsrmTollRouteService } from './osrm-toll-route.service';
 import { TollPlazaAliasService } from './toll-plaza-alias.service';
 
 @ApiTags('routing')
@@ -21,18 +25,32 @@ import { TollPlazaAliasService } from './toll-plaza-alias.service';
 @UseGuards(AuthGuard)
 export class RoutingController {
   constructor(
-    private readonly sakbe: SakbeService,
+    private readonly tollRoutes: OsrmTollRouteService,
     private readonly tollPlazaAliases: TollPlazaAliasService,
+    private readonly tollCatalog: TollPlazaCatalogService,
   ) {}
+
+  @Get('toll-plazas/search')
+  @ApiOperation({
+    summary: 'Autocomplete de casetas del catálogo (nombre / sección)',
+  })
+  async searchTollPlazas(@Query() dto: SearchTollPlazasQueryDto) {
+    const items = await this.tollCatalog.search(
+      dto.q,
+      dto.axleCount ?? 5,
+      dto.limit ?? 20,
+    );
+    return { items };
+  }
 
   @Post('toll-plazas')
   @ApiOperation({
     summary:
-      'Casetas en orden sobre ruta preferentemente cuota (INEGI SAKBÉ, caché temporal)',
+      'Casetas sobre ruta OSRM cruzadas con catálogo TerminalOps (por ejes)',
   })
   tollPlazas(@Body() dto: RouteTollsQueryDto, @LoggedUser() user: AuthUser) {
     const companyId = Number(user.companyId);
-    return this.sakbe.routeTollsOnTollRoad(
+    return this.tollRoutes.routeTollsOnTollRoad(
       {
         originLat: dto.originLat,
         originLon: dto.originLon,
@@ -50,7 +68,7 @@ export class RoutingController {
 
   @Put('toll-plaza-aliases')
   @ApiOperation({
-    summary: 'Catálogo: nombre legible para caseta cuando INEGI devuelve N/D',
+    summary: 'Catálogo: nombre legible opcional para una caseta',
   })
   async upsertTollPlazaAlias(
     @Body() dto: UpsertTollPlazaAliasDto,

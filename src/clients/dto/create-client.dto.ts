@@ -192,13 +192,6 @@ export class CreateClientDto {
   @Type(() => CreateClientDeliveryDto)
   deliveries?: CreateClientDeliveryDto[];
 
-  /** Primera ubicación; se ignora si `deliveries` está presente. */
-  @ApiPropertyOptional({ type: CreateClientDeliveryDto })
-  @IsOptional()
-  @ValidateNested()
-  @Type(() => CreateClientDeliveryDto)
-  delivery?: CreateClientDeliveryDto;
-
   @ApiPropertyOptional({ type: [CreateClientDocumentDto] })
   @IsOptional()
   @IsArray()

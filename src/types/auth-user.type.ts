@@ -48,6 +48,8 @@ export type AuthUser = {
   paymentReminderDaysBefore?: number;
   paymentReminderDaysChangedAt?: string;
   tripAutoPaymentsChangedAt?: string;
+  /** Política de tarifas: postal_code | municipality | state */
+  destinationRateScope?: string;
   /** ID público del centro operativo principal (único por empresa hoy). */
   operationalCenterId?: string;
   operationalCenterName?: string;

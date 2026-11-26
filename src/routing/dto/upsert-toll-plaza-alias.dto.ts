@@ -2,7 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { IsString, MaxLength, MinLength } from 'class-validator';
 
 export class UpsertTollPlazaAliasDto {
-  @ApiProperty({ description: 'Clave INEGI (`plazaKey` en /routing/toll-plazas)' })
+  @ApiProperty({ description: 'Clave de caseta (`plazaKey`, p. ej. plaza:123)' })
   @IsString()
   @MinLength(1)
   @MaxLength(128)

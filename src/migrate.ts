@@ -362,10 +362,11 @@ async function main() {
           );
       `);
       console.log('Schema ensure: destination_rate_prices.axle_count OK');
-      // Hard ensure: tarifas / mapa maniobras (JSONB casetas y ruta; drift post-175300).
+      // Hard ensure: tarifas / mapa maniobras (JSONB casetas y ruta).
+      // excluded_toll_plaza_keys eliminado: fuente única = route_toll_plazas.
       await dataSource.query(`
         ALTER TABLE terminalops.destination_rates
-          ADD COLUMN IF NOT EXISTS excluded_toll_plaza_keys jsonb NOT NULL DEFAULT '[]'::jsonb;
+          DROP COLUMN IF EXISTS excluded_toll_plaza_keys;
       `);
       await dataSource.query(`
         ALTER TABLE terminalops.destination_rates

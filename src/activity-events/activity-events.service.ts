@@ -67,9 +67,10 @@ export class ActivityEventsService {
         .orIgnore()
         .returning('id')
         .execute();
-      inserted =
-        (result.identifiers?.length ?? 0) > 0 ||
-        (result.generatedMaps?.length ?? 0) > 0;
+      // Postgres ON CONFLICT DO NOTHING RETURNING: solo hay filas si insertó de verdad.
+      // No usar identifiers/generatedMaps: TypeORM a veces los rellena aunque hubo conflicto.
+      const raw = result.raw as unknown;
+      inserted = Array.isArray(raw) && raw.length > 0;
     } else {
       await this.repo.save(row);
       inserted = true;

@@ -165,18 +165,6 @@ export function fleetMetaDtoToVerificationEntries(
     }));
 }
 
-function documentNamesByKind(
-  documents: UnitFleetDocument[] | undefined,
-  kind: string,
-): string[] | undefined {
-  const names = (documents ?? [])
-    .filter((d) => d.documentKind === kind)
-    .sort((a, b) => a.sortOrder - b.sortOrder)
-    .map((d) => d.fileName)
-    .filter(Boolean);
-  return names.length > 0 ? names : undefined;
-}
-
 function fleetDocumentsForApi(
   documents: UnitFleetDocument[] | undefined,
 ): Array<{ id: number; fileName: string; documentKind: string }> | undefined {
@@ -293,10 +281,6 @@ export function profileToFleetMeta(
       meta.verificationEntries = verificationRows;
     }
 
-    meta.documentMaintenanceNames = documentNamesByKind(documents, 'maintenance');
-    meta.documentVerificationNames = documentNamesByKind(documents, 'verification');
-    meta.documentPolicyNames = documentNamesByKind(documents, 'policy');
-    meta.documentOwnershipNames = documentNamesByKind(documents, 'ownership');
     meta.fleetDocuments = fleetDocumentsForApi(documents);
 
     const withTenure = mergeTenureIntoFleetMeta(

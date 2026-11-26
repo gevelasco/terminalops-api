@@ -42,7 +42,12 @@ describe('ActivityEventsService record + push fanout', () => {
       values: jest.fn().mockReturnThis(),
       orIgnore: jest.fn().mockReturnThis(),
       returning: jest.fn().mockReturnThis(),
-      execute: jest.fn(async () => ({ identifiers: [], generatedMaps: [] })),
+      // Conflicto: RETURNING vacío. identifiers/generatedMaps no deben disparar Push.
+      execute: jest.fn(async () => ({
+        identifiers: [{}],
+        generatedMaps: [{}],
+        raw: [],
+      })),
     };
     repo.createQueryBuilder.mockReturnValue(qb);
 
@@ -57,6 +62,34 @@ describe('ActivityEventsService record + push fanout', () => {
     });
     expect(inserted).toBe(false);
     expect(pushFanout.scheduleForRecordedActivity).not.toHaveBeenCalled();
+  });
+
+  it('programa Push solo si RETURNING trae fila nueva', async () => {
+    const qb = {
+      insert: jest.fn().mockReturnThis(),
+      into: jest.fn().mockReturnThis(),
+      values: jest.fn().mockReturnThis(),
+      orIgnore: jest.fn().mockReturnThis(),
+      returning: jest.fn().mockReturnThis(),
+      execute: jest.fn(async () => ({
+        identifiers: [{ id: '12' }],
+        generatedMaps: [{ id: '12' }],
+        raw: [{ id: '12' }],
+      })),
+    };
+    repo.createQueryBuilder.mockReturnValue(qb);
+
+    const inserted = await service.record({
+      companyId: 1,
+      kind: 'payment.due_today',
+      entityType: 'expense',
+      entityId: 42,
+      subjectLabel: 'Operador',
+      title: 'Pago a operador hoy',
+      dedupeKey: 'payment-reminder:42:2026-11-27',
+    });
+    expect(inserted).toBe(true);
+    expect(pushFanout.scheduleForRecordedActivity).toHaveBeenCalledTimes(1);
   });
 
   it('sigue devolviendo true aunque schedule falle', async () => {

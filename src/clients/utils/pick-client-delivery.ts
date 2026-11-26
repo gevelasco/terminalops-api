@@ -5,7 +5,6 @@ type DeliveryLike = {
 
 type ClientDeliveriesLike<T extends DeliveryLike> = {
   deliveries?: T[] | null;
-  delivery?: T | null;
 };
 
 export function clientDeliveryRows<T extends DeliveryLike>(
@@ -13,9 +12,6 @@ export function clientDeliveryRows<T extends DeliveryLike>(
 ): T[] {
   if (client?.deliveries && client.deliveries.length > 0) {
     return client.deliveries;
-  }
-  if (client?.delivery) {
-    return [client.delivery];
   }
   return [];
 }

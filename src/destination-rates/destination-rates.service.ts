@@ -7,13 +7,19 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import {
-  normalizeExcludedTollPlazaKeys,
+  normalizeDestinationRateScope,
+  normalizePlaceKey,
+  parseCityMunicipalityLine,
+  type DestinationRateScope,
+} from 'src/common/constants/destination-rate-scope';
+import {
   serializeDestinationRate,
   serializeDestinationRateSummary,
 } from 'src/common/serializers/destination-rate.serializer';
 import { normalizeRouteTollPlazas } from 'src/common/utils/route-toll-plazas.util';
 import { normalizeRouteWaypoints } from 'src/common/utils/route-waypoints.util';
 import { parseOptionalNumericId } from 'src/common/utils/tenant.util';
+import { Company } from 'src/companies/entities/company.entity';
 import { OperationalCentersService } from 'src/operational-centers/operational-centers.service';
 import { OperationConfigurationsService } from 'src/operation-configurations/operation-configurations.service';
 import { resolveTripOperationalDistance } from 'src/trips/trip-operational-distance.util';
@@ -21,8 +27,17 @@ import { CreateDestinationRateDto } from './dto/create-destination-rate.dto';
 import { DestinationRatePriceInputDto } from './dto/destination-rate-price-input.dto';
 import { UpdateDestinationRateDto } from './dto/update-destination-rate.dto';
 import { ClientDelivery } from '../clients/entities/client-delivery.entity';
+import { DestinationRateScopeMigrationService } from './destination-rate-scope-migration.service';
 import { DestinationRatePrice } from './entities/destination-rate-price.entity';
 import { DestinationRate } from './entities/destination-rate.entity';
+
+type DestinationRouteLookup = {
+  postalCode?: string;
+  locality?: string;
+  municipalityName?: string;
+  stateName?: string;
+  cityMunicipality?: string;
+};
 
 const RATE_RELATIONS = [
   'prices',
@@ -39,8 +54,11 @@ export class DestinationRatesService {
     private readonly pricesRepo: Repository<DestinationRatePrice>,
     @InjectRepository(ClientDelivery)
     private readonly clientDeliveryRepo: Repository<ClientDelivery>,
+    @InjectRepository(Company)
+    private readonly companyRepo: Repository<Company>,
     private readonly operationConfigurations: OperationConfigurationsService,
     private readonly operationalCenters: OperationalCentersService,
+    private readonly rateScopeMigration: DestinationRateScopeMigrationService,
   ) {}
 
   async create(companyId: number, dto: CreateDestinationRateDto) {
@@ -52,14 +70,9 @@ export class DestinationRatesService {
       companyId,
       originCenterId,
     );
-    const destPostal = dto.postalCode.trim();
-    const destLocality = dto.locality.trim();
-    await this.assertUniqueRoute(
-      companyId,
-      originCenter.id,
-      destPostal,
-      destLocality,
-    );
+    const scope = await this.companyDestinationRateScope(companyId);
+    const routeFields = this.resolveRouteFieldsForScope(scope, dto);
+    await this.assertUniqueRoute(companyId, originCenter.id, scope, routeFields);
     await this.assertUniquePriceConfigs(dto.prices);
     const priceRows = await this.buildPriceEntities(companyId, dto.prices);
     const distanceFields = this.resolveDistanceFieldsForPersist(dto.routeDistanceKm);
@@ -74,9 +87,13 @@ export class DestinationRatesService {
         originLocality: originSnapshot.originLocality,
         originLatitude: originSnapshot.originLatitude,
         originLongitude: originSnapshot.originLongitude,
-        postalCode: destPostal,
-        cityMunicipality: dto.cityMunicipality.trim(),
-        locality: destLocality,
+        postalCode: routeFields.postalCode,
+        cityMunicipality: routeFields.cityMunicipality,
+        locality: routeFields.locality,
+        destinationScope: scope,
+        routeKeyIncomplete: false,
+        municipalityName: routeFields.municipalityName,
+        stateName: routeFields.stateName,
         destinationLatitude:
           dto.destinationLatitude != null
             ? String(dto.destinationLatitude)
@@ -90,9 +107,6 @@ export class DestinationRatesService {
         ...estimatedTimeFields,
         active: dto.active ?? true,
         notes: dto.notes?.trim() || undefined,
-        excludedTollPlazaKeys: normalizeExcludedTollPlazaKeys(
-          dto.excludedTollPlazaKeys ?? [],
-        ),
         routeWaypoints: normalizeRouteWaypoints(dto.routeWaypoints ?? []),
         routeTollPlazas: normalizeRouteTollPlazas(dto.routeTollPlazas ?? []),
         prices: priceRows,
@@ -103,11 +117,19 @@ export class DestinationRatesService {
   }
 
   async findAll(companyId: number) {
+    const scope = await this.companyDestinationRateScope(companyId);
+    if (scope === 'state' || scope === 'municipality') {
+      await this.rateScopeMigration.deactivateDuplicateRatesForScope(
+        companyId,
+        scope,
+      );
+    }
     const rows = await this.repo
       .createQueryBuilder('rate')
       .leftJoinAndSelect('rate.prices', 'prices')
       .leftJoinAndSelect('prices.operationConfiguration', 'operationConfiguration')
       .where('rate.companyId = :companyId', { companyId })
+      .andWhere('rate.active = true')
       .orderBy('rate.postalCode', 'ASC')
       .addOrderBy('rate.locality', 'ASC')
       .getMany();
@@ -141,16 +163,26 @@ export class DestinationRatesService {
     companyId: number,
     params: {
       originOperationalCenterId: number;
-      destinationPostalCode: string;
-      destinationLocality: string;
+      destinationPostalCode?: string;
+      destinationLocality?: string;
+      municipalityName?: string;
+      stateName?: string;
+      cityMunicipality?: string;
       activeOnly?: boolean;
     },
   ): Promise<DestinationRate | null> {
+    const scope = await this.companyDestinationRateScope(companyId);
     return this.findRateByUniqueRoute(
       companyId,
       params.originOperationalCenterId,
-      params.destinationPostalCode,
-      params.destinationLocality,
+      scope,
+      {
+        postalCode: params.destinationPostalCode,
+        locality: params.destinationLocality,
+        municipalityName: params.municipalityName,
+        stateName: params.stateName,
+        cityMunicipality: params.cityMunicipality,
+      },
       params.activeOnly !== false,
     );
   }
@@ -256,22 +288,19 @@ export class DestinationRatesService {
 
   async checkRouteExists(
     companyId: number,
-    params: {
-      originOperationalCenterId: string;
-      postalCode: string;
-      locality: string;
-    },
+    params: DestinationRouteLookup & { originOperationalCenterId: string },
   ): Promise<{ exists: boolean; destinationRateId?: number }> {
     const originCenterId = parseOptionalNumericId(params.originOperationalCenterId);
     if (originCenterId == null) {
       return { exists: false };
     }
     await this.operationalCenters.resolveCenterId(companyId, originCenterId);
+    const scope = await this.companyDestinationRateScope(companyId);
     const row = await this.findRateByUniqueRoute(
       companyId,
       originCenterId,
-      params.postalCode,
-      params.locality,
+      scope,
+      params,
     );
     if (!row) {
       return { exists: false };
@@ -286,10 +315,8 @@ export class DestinationRatesService {
    */
   async matchManeuverRate(
     companyId: number,
-    params: {
+    params: DestinationRouteLookup & {
       originOperationalCenterId: string;
-      postalCode: string;
-      locality: string;
       clientDestinationRateId?: string;
     },
   ): Promise<{ rate: ReturnType<typeof serializeDestinationRate> | null }> {
@@ -298,11 +325,15 @@ export class DestinationRatesService {
       return { rate: null };
     }
     await this.operationalCenters.resolveCenterId(companyId, originCenterId);
+    const scope = await this.companyDestinationRateScope(companyId);
 
     const routeMatch = await this.findMatchingRate(companyId, {
       originOperationalCenterId: originCenterId,
       destinationPostalCode: params.postalCode,
       destinationLocality: params.locality,
+      municipalityName: params.municipalityName,
+      stateName: params.stateName,
+      cityMunicipality: params.cityMunicipality,
     });
 
     const linkedId = params.clientDestinationRateId
@@ -319,10 +350,7 @@ export class DestinationRatesService {
 
     const linkedMatchesRoute =
       linked.originOperationalCenterId === originCenterId &&
-      linked.postalCode ===
-        this.normalizeRouteDestinationPostalCode(params.postalCode) &&
-      linked.locality.trim().toLowerCase() ===
-        this.normalizeRouteDestinationLocality(params.locality).toLowerCase();
+      this.rateMatchesLookup(linked, scope, params);
     if (!linkedMatchesRoute) {
       // La entrega del cliente apunta a otra ruta: no sugerir tarifa distinta.
       return { rate: null };
@@ -339,41 +367,66 @@ export class DestinationRatesService {
     params: {
       postalCode?: string;
       locality?: string;
+      cityMunicipality?: string;
+      municipalityName?: string;
+      stateName?: string;
       originOperationalCenterId?: number;
     },
   ): Promise<DestinationRate | null> {
-    const postalCode = params.postalCode?.trim();
-    const locality = params.locality?.trim();
-    if (!postalCode || !locality) {
-      return null;
-    }
+    const lookup: DestinationRouteLookup = {
+      postalCode: params.postalCode?.trim() || undefined,
+      locality: params.locality?.trim() || undefined,
+      cityMunicipality: params.cityMunicipality?.trim() || undefined,
+      municipalityName: params.municipalityName?.trim() || undefined,
+      stateName: params.stateName?.trim() || undefined,
+    };
 
     const originCenterId =
       params.originOperationalCenterId ??
       (await this.operationalCenters.getDefaultEntity(companyId)).id;
 
+    const scope = await this.companyDestinationRateScope(companyId);
+    const fields = this.resolveRouteFieldsForScopeSafe(scope, lookup);
+    if (!fields) {
+      return null;
+    }
+
     const exact = await this.findRateByUniqueRoute(
       companyId,
       originCenterId,
-      postalCode,
-      locality,
+      scope,
+      lookup,
     );
     if (exact) {
       return exact;
     }
 
-    const normalizedPostalCode = this.normalizeRouteDestinationPostalCode(postalCode);
-    const normalizedLocality = this.normalizeRouteDestinationLocality(locality);
-    const matches = await this.repo
+    const qb = this.repo
       .createQueryBuilder('rate')
       .where('rate.companyId = :companyId', { companyId })
-      .andWhere('rate.postalCode = :postalCode', {
-        postalCode: normalizedPostalCode,
-      })
-      .andWhere('LOWER(BTRIM(rate.locality)) = LOWER(BTRIM(:locality))', {
-        locality: normalizedLocality,
-      })
-      .getMany();
+      .andWhere('rate.destinationScope = :scope', { scope })
+      .andWhere('rate.routeKeyIncomplete = false');
+
+    if (scope === 'postal_code') {
+      qb.andWhere('rate.postalCode = :postalCode', {
+        postalCode: fields.postalCode,
+      }).andWhere('LOWER(BTRIM(rate.locality)) = LOWER(BTRIM(:locality))', {
+        locality: fields.locality,
+      });
+    } else if (scope === 'municipality') {
+      qb.andWhere('LOWER(BTRIM(rate.stateName)) = LOWER(BTRIM(:stateName))', {
+        stateName: fields.stateName,
+      }).andWhere(
+        'LOWER(BTRIM(rate.municipalityName)) = LOWER(BTRIM(:municipalityName))',
+        { municipalityName: fields.municipalityName },
+      );
+    } else {
+      qb.andWhere('LOWER(BTRIM(rate.stateName)) = LOWER(BTRIM(:stateName))', {
+        stateName: fields.stateName,
+      });
+    }
+
+    const matches = await qb.getMany();
     if (matches.length === 1) {
       return matches[0];
     }
@@ -465,18 +518,31 @@ export class DestinationRatesService {
       companyId,
       nextOriginCenterId,
     );
-    const nextPostal = dto.postalCode?.trim() ?? existing.postalCode;
-    const nextLocality = dto.locality?.trim() ?? existing.locality;
-    if (
+    const scope = await this.companyDestinationRateScope(companyId);
+    const nextLookup: DestinationRouteLookup = {
+      postalCode: dto.postalCode?.trim() ?? existing.postalCode,
+      locality: dto.locality?.trim() ?? existing.locality,
+      municipalityName:
+        dto.municipalityName?.trim() ?? existing.municipalityName,
+      stateName: dto.stateName?.trim() ?? existing.stateName,
+      cityMunicipality:
+        dto.cityMunicipality?.trim() ?? existing.cityMunicipality,
+    };
+    const nextFields = this.resolveRouteFieldsForScope(scope, nextLookup);
+    const routeChanged =
       nextOriginCenterId !== existing.originOperationalCenterId ||
-      nextPostal !== existing.postalCode ||
-      nextLocality.toLowerCase() !== existing.locality.trim().toLowerCase()
-    ) {
+      nextFields.postalCode !== existing.postalCode ||
+      nextFields.locality.toLowerCase() !== existing.locality.trim().toLowerCase() ||
+      normalizePlaceKey(nextFields.municipalityName) !==
+        normalizePlaceKey(existing.municipalityName ?? '') ||
+      normalizePlaceKey(nextFields.stateName) !==
+        normalizePlaceKey(existing.stateName ?? '');
+    if (routeChanged) {
       await this.assertUniqueRoute(
         companyId,
         nextOriginCenterId,
-        nextPostal,
-        nextLocality,
+        scope,
+        nextLookup,
         rateId,
       );
     }
@@ -496,19 +562,34 @@ export class DestinationRatesService {
         originLocality: originSnapshot.originLocality,
         originLatitude: originSnapshot.originLatitude,
         originLongitude: originSnapshot.originLongitude,
-        ...(dto.postalCode !== undefined && { postalCode: dto.postalCode.trim() }),
-        ...(dto.cityMunicipality !== undefined && {
-          cityMunicipality: dto.cityMunicipality.trim(),
-        }),
-        ...(dto.locality !== undefined && { locality: dto.locality.trim() }),
+        ...(routeChanged
+          ? {
+              postalCode: nextFields.postalCode,
+              cityMunicipality: nextFields.cityMunicipality,
+              locality: nextFields.locality,
+              municipalityName: nextFields.municipalityName,
+              stateName: nextFields.stateName,
+              destinationScope: scope,
+              routeKeyIncomplete: false,
+            }
+          : {
+              ...(dto.postalCode !== undefined && {
+                postalCode: dto.postalCode.trim(),
+              }),
+              ...(dto.cityMunicipality !== undefined && {
+                cityMunicipality: dto.cityMunicipality.trim(),
+              }),
+              ...(dto.locality !== undefined && { locality: dto.locality.trim() }),
+              ...(dto.municipalityName !== undefined && {
+                municipalityName: dto.municipalityName.trim(),
+              }),
+              ...(dto.stateName !== undefined && {
+                stateName: dto.stateName.trim(),
+              }),
+            }),
         ...(dto.active !== undefined && { active: dto.active }),
         ...(dto.notes !== undefined && {
           notes: dto.notes.trim() || undefined,
-        }),
-        ...(dto.excludedTollPlazaKeys !== undefined && {
-          excludedTollPlazaKeys: normalizeExcludedTollPlazaKeys(
-            dto.excludedTollPlazaKeys,
-          ),
         }),
         ...(dto.routeWaypoints !== undefined && {
           routeWaypoints: normalizeRouteWaypoints(dto.routeWaypoints),
@@ -721,14 +802,148 @@ export class DestinationRatesService {
     return locality.trim();
   }
 
+  private async companyDestinationRateScope(
+    companyId: number,
+  ): Promise<DestinationRateScope> {
+    const company = await this.companyRepo.findOne({
+      where: { id: companyId },
+      select: ['id', 'destinationRateScope'],
+    });
+    return normalizeDestinationRateScope(company?.destinationRateScope);
+  }
+
+  private resolveRouteFieldsForScope(
+    scope: DestinationRateScope,
+    dto: DestinationRouteLookup,
+  ): {
+    postalCode: string;
+    locality: string;
+    cityMunicipality: string;
+    municipalityName: string;
+    stateName: string;
+  } {
+    const parsed = parseCityMunicipalityLine(dto.cityMunicipality ?? '');
+    const municipalityName = (
+      dto.municipalityName?.trim() || parsed.municipality
+    ).trim();
+    // Scope estado guarda cityMunicipality = "Puebla" (sin coma); parse la deja en municipality.
+    const stateName = (
+      dto.stateName?.trim() ||
+      parsed.state ||
+      (scope === 'state' && !parsed.state
+        ? (dto.cityMunicipality ?? '').trim()
+        : '')
+    ).trim();
+
+    if (scope === 'postal_code') {
+      const postalCode = this.normalizeRouteDestinationPostalCode(
+        dto.postalCode ?? '',
+      );
+      const locality = this.normalizeRouteDestinationLocality(dto.locality ?? '');
+      if (!postalCode || !locality) {
+        throw new BadRequestException(
+          'Código postal y localidad son obligatorios para tarifas por CP',
+        );
+      }
+      const cityMunicipality =
+        (dto.cityMunicipality ?? '').trim() ||
+        [municipalityName, stateName].filter(Boolean).join(', ');
+      return {
+        postalCode,
+        locality,
+        cityMunicipality,
+        municipalityName,
+        stateName,
+      };
+    }
+
+    if (scope === 'municipality') {
+      if (!municipalityName || !stateName) {
+        throw new BadRequestException(
+          'Municipio y estado son obligatorios para tarifas por municipio',
+        );
+      }
+      return {
+        postalCode: '',
+        locality: '',
+        cityMunicipality: `${municipalityName}, ${stateName}`,
+        municipalityName,
+        stateName,
+      };
+    }
+
+    if (!stateName) {
+      throw new BadRequestException(
+        'Estado es obligatorio para tarifas por estado',
+      );
+    }
+    return {
+      postalCode: '',
+      locality: '',
+      cityMunicipality: stateName,
+      municipalityName: '',
+      stateName,
+    };
+  }
+
+  private rateMatchesLookup(
+    rate: DestinationRate,
+    scope: DestinationRateScope,
+    lookup: DestinationRouteLookup,
+  ): boolean {
+    if (rate.routeKeyIncomplete) {
+      return false;
+    }
+    const fields = this.resolveRouteFieldsForScopeSafe(scope, lookup);
+    if (!fields) {
+      return false;
+    }
+    if (scope === 'postal_code') {
+      return (
+        rate.postalCode === fields.postalCode &&
+        rate.locality.trim().toLowerCase() === fields.locality.toLowerCase()
+      );
+    }
+    if (scope === 'municipality') {
+      return (
+        normalizePlaceKey(rate.stateName) === normalizePlaceKey(fields.stateName) &&
+        normalizePlaceKey(rate.municipalityName) ===
+          normalizePlaceKey(fields.municipalityName)
+      );
+    }
+    return (
+      normalizePlaceKey(rate.stateName) === normalizePlaceKey(fields.stateName)
+    );
+  }
+
+  private resolveRouteFieldsForScopeSafe(
+    scope: DestinationRateScope,
+    dto: DestinationRouteLookup,
+  ): {
+    postalCode: string;
+    locality: string;
+    municipalityName: string;
+    stateName: string;
+  } | null {
+    try {
+      return this.resolveRouteFieldsForScope(scope, dto);
+    } catch {
+      return null;
+    }
+  }
+
   /** Same lookup used by check-exists, assertUniqueRoute and DB UNIQUE constraint. */
   private async findRateByUniqueRoute(
     companyId: number,
     originOperationalCenterId: number,
-    destinationPostalCode: string,
-    destinationLocality: string,
+    scope: DestinationRateScope,
+    lookup: DestinationRouteLookup,
     activeOnly?: boolean,
   ): Promise<DestinationRate | null> {
+    const fields = this.resolveRouteFieldsForScopeSafe(scope, lookup);
+    if (!fields) {
+      return null;
+    }
     const qb = this.repo
       .createQueryBuilder('rate')
       .leftJoinAndSelect('rate.prices', 'prices')
@@ -738,12 +953,30 @@ export class DestinationRatesService {
       .andWhere('rate.originOperationalCenterId = :originOperationalCenterId', {
         originOperationalCenterId,
       })
-      .andWhere('rate.postalCode = :postalCode', {
-        postalCode: this.normalizeRouteDestinationPostalCode(destinationPostalCode),
-      })
-      .andWhere('LOWER(BTRIM(rate.locality)) = LOWER(BTRIM(:locality))', {
-        locality: this.normalizeRouteDestinationLocality(destinationLocality),
+      .andWhere('rate.destinationScope = :scope', { scope })
+      .andWhere('rate.routeKeyIncomplete = false');
+
+    if (scope === 'postal_code') {
+      qb.andWhere('rate.postalCode = :postalCode', {
+        postalCode: fields.postalCode,
+      }).andWhere('LOWER(BTRIM(rate.locality)) = LOWER(BTRIM(:locality))', {
+        locality: fields.locality,
       });
+    } else if (scope === 'municipality') {
+      qb.andWhere(
+        'LOWER(BTRIM(rate.stateName)) = LOWER(BTRIM(:stateName))',
+        { stateName: fields.stateName },
+      ).andWhere(
+        'LOWER(BTRIM(rate.municipalityName)) = LOWER(BTRIM(:municipalityName))',
+        { municipalityName: fields.municipalityName },
+      );
+    } else {
+      qb.andWhere(
+        'LOWER(BTRIM(rate.stateName)) = LOWER(BTRIM(:stateName))',
+        { stateName: fields.stateName },
+      );
+    }
+
     if (activeOnly === true) {
       qb.andWhere('rate.active = true');
     }
@@ -806,15 +1039,15 @@ export class DestinationRatesService {
   private async assertUniqueRoute(
     companyId: number,
     originOperationalCenterId: number,
-    destinationPostalCode: string,
-    destinationLocality: string,
+    scope: DestinationRateScope,
+    lookup: DestinationRouteLookup,
     excludeId?: number,
   ): Promise<void> {
     const row = await this.findRateByUniqueRoute(
       companyId,
       originOperationalCenterId,
-      destinationPostalCode,
-      destinationLocality,
+      scope,
+      lookup,
     );
     if (row && row.id !== excludeId) {
       throw new ConflictException('Ya existe una tarifa para esta ruta');

@@ -25,6 +25,10 @@ import {
   normalizeSubscriptionPlanId,
   type SubscriptionPlanId,
 } from 'src/common/billing/plan-entitlements';
+import {
+  normalizeDestinationRateScope,
+} from 'src/common/constants/destination-rate-scope';
+import { DestinationRateScopeMigrationService } from 'src/destination-rates/destination-rate-scope-migration.service';
 
 const PLAN_RANK: Record<SubscriptionPlanId, number> = {
   basic: 1,
@@ -46,6 +50,7 @@ export class CompaniesService {
     private readonly tenantContext: TenantContextService,
     private readonly operationalCenters: OperationalCentersService,
     private readonly invitationCodes: InvitationCodesService,
+    private readonly rateScopeMigration: DestinationRateScopeMigrationService,
   ) {}
 
   /** Elimina empresa creada en sign-up si falló el alta del usuario (sin usuarios). */
@@ -78,6 +83,7 @@ export class CompaniesService {
         subscriptionEndsAt: dto.subscriptionEndsAt,
         operationalAnalysisEnabled: true,
         operationalAnalysisChangedAt: now,
+        destinationRateScope: 'postal_code',
         tripAutoMaintenanceProvisionPercent: '5',
         tripAutoFuelPaymentMethod: 'cash',
         tripAutoTollsPaymentMethod: 'cash',
@@ -250,7 +256,27 @@ export class CompaniesService {
       company.maintenanceDatePeriodDefault = dto.maintenanceDatePeriodDefault;
     }
 
+    const previousRateScope = normalizeDestinationRateScope(
+      company.destinationRateScope,
+    );
+    let nextRateScope = previousRateScope;
+    if (dto.destinationRateScope !== undefined) {
+      nextRateScope = normalizeDestinationRateScope(dto.destinationRateScope);
+      company.destinationRateScope = nextRateScope;
+    }
+
     const saved = await this.repo.save(company);
+    if (
+      previousRateScope !== nextRateScope ||
+      nextRateScope === 'state' ||
+      nextRateScope === 'municipality'
+    ) {
+      await this.rateScopeMigration.migrateCompanyScope(
+        companyId,
+        previousRateScope,
+        nextRateScope,
+      );
+    }
     const primaryCenter =
       await this.operationalCenters.updatePrimaryCenterFromOperationalSettings(
         companyId,

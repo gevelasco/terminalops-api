@@ -4,7 +4,7 @@ import { buildScheduledPaymentNotificationSubject } from 'src/expenses/expense-f
 import { NOTIFICATION_COMPUTED_KIND } from 'src/activity-events/company-activity-event.kinds';
 import {
   classifyPaymentReminder,
-  dueYmdToIso,
+  feedOccurredAtForDueYmd,
   paymentReminderEventKind,
   paymentReminderTitle,
   paymentReminderTone,
@@ -80,7 +80,7 @@ export function buildComputedPaymentNotifications(
         relatedUnitId: item.relatedUnitId ?? null,
         relatedEquipmentId: item.relatedEquipmentId ?? null,
       }),
-      occurredAt: dueYmdToIso(dueYmd),
+      occurredAt: feedOccurredAtForDueYmd(dueYmd, range.today),
       actorLabel: 'Sistema',
       tone: paymentReminderTone(urgency),
       entityType: 'expense',
@@ -107,6 +107,7 @@ export interface ReceivableDueRow {
 
 export function buildReceivableDueNotifications(
   rows: readonly ReceivableDueRow[],
+  todayYmd: string,
 ): NotificationFeedItemDto[] {
   return rows.map((row) => ({
     id: `computed:receivable:${row.trip_id}:${row.due_date}`,
@@ -115,7 +116,7 @@ export function buildReceivableDueNotifications(
     icon: 'settlement',
     title: 'Cuenta por cobrar',
     subjectLabel: row.client_name?.trim() || row.maneuver_code?.trim() || '—',
-    occurredAt: dueYmdToIso(row.due_date),
+    occurredAt: feedOccurredAtForDueYmd(row.due_date, todayYmd),
     actorLabel: 'Sistema',
     tone: 'warning',
     entityType: 'trip',

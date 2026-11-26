@@ -33,9 +33,6 @@ export function serializeClient(client: Client): Record<string, unknown> {
         }
       : undefined,
     deliveries: deliveries.map(serializeClientDelivery),
-    delivery: deliveries[0]
-      ? serializeClientDelivery(deliveries[0])
-      : undefined,
     contacts: (client.contacts ?? []).map(serializeClientContact),
     documents: (client.documents ?? []).map(serializeClientDocument),
     createdAt: toIsoString(client.createdAt),
@@ -81,11 +78,15 @@ function serializeClientDelivery(delivery: ClientDelivery): Record<string, unkno
   const postalCode = delivery.postalCode?.trim() || undefined;
   const locality = delivery.locality?.trim() || undefined;
   const destinationRateId = delivery.destinationRateId ?? undefined;
-  const hasDestination = !!(postalCode && locality);
+  const cityMunicipality = delivery.cityMunicipality?.trim() || undefined;
+  const hasDestination = !!(
+    (postalCode && locality) ||
+    cityMunicipality
+  );
   return {
     id: delivery.id,
     postalCode,
-    cityMunicipality: delivery.cityMunicipality ?? undefined,
+    cityMunicipality,
     locality,
     settlementConsId: delivery.settlementConsId ?? undefined,
     latitude: lat != null && Number.isFinite(lat) ? lat : undefined,
