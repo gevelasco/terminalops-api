@@ -12,10 +12,16 @@ describe('tripActivitySubjectLabel', () => {
   it('falls back to the trip id', () => {
     expect(tripActivitySubjectLabel(null, 9)).toBe('M-9');
   });
+
+  it('appends the client name when present', () => {
+    expect(tripActivitySubjectLabel('M-1042', 9, '  Acme  ')).toBe(
+      'M-1042 · Acme',
+    );
+  });
 });
 
 describe('tripPatchActivity', () => {
-  it('labels empty-delivery patches as tracking', () => {
+  it('labels schedule-only patches as date updates', () => {
     expect(
       tripPatchActivity({
         emptyDeliveryAt: '2026-08-28T18:00:00.000Z',
@@ -24,7 +30,17 @@ describe('tripPatchActivity', () => {
       }),
     ).toEqual({
       kind: COMPANY_ACTIVITY_KIND.TRIP_TRACKING_UPDATED,
-      title: 'Seguimiento',
+      title: 'Actualización de fechas',
+    });
+    expect(
+      tripPatchActivity({
+        plannedDepartureAt: '2026-08-28T08:00:00.000Z',
+        plannedArrivalAt: '2026-08-28T16:00:00.000Z',
+        plannedDatesJustification: 'Cliente movió la cita',
+      }),
+    ).toEqual({
+      kind: COMPANY_ACTIVITY_KIND.TRIP_TRACKING_UPDATED,
+      title: 'Actualización de fechas',
     });
   });
 
@@ -40,7 +56,7 @@ describe('tripPatchActivity', () => {
     });
   });
 
-  it('does not treat a mixed patch as tracking', () => {
+  it('does not treat a mixed patch as a date update', () => {
     expect(
       tripPatchActivity({
         emptyDeliveryAt: '2026-08-28T18:00:00.000Z',

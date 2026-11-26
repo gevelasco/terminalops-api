@@ -628,7 +628,11 @@ export class TripsService {
       kind: TRIP_DOCUMENT_ADDED_ACTIVITY.kind,
       entityType: 'trip',
       entityId: tripId,
-      subjectLabel: tripActivitySubjectLabel(trip.maneuverCode, tripId),
+      subjectLabel: tripActivitySubjectLabel(
+        trip.maneuverCode,
+        tripId,
+        trip.clientName,
+      ),
       title: TRIP_DOCUMENT_ADDED_ACTIVITY.title,
       actor,
     });
@@ -1337,6 +1341,7 @@ export class TripsService {
       subjectLabel: tripActivitySubjectLabel(
         updatedTripEntity.maneuverCode,
         tripId,
+        updatedTripEntity.clientName,
       ),
       title: patchActivity.title,
       actor,
@@ -1636,7 +1641,11 @@ export class TripsService {
       kind: TRIP_TRACKING_UPDATED_ACTIVITY.kind,
       entityType: 'trip',
       entityId: tripId,
-      subjectLabel: tripActivitySubjectLabel(reloaded.maneuverCode, tripId),
+      subjectLabel: tripActivitySubjectLabel(
+        reloaded.maneuverCode,
+        tripId,
+        reloaded.clientName,
+      ),
       title: TRIP_TRACKING_UPDATED_ACTIVITY.title,
       actor: user,
     });

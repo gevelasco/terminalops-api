@@ -1188,9 +1188,13 @@ export class ExpensesService {
     if (entityType === 'trip' && expense.tripId != null) {
       const trip = await this.tripsRepo.findOne({
         where: { id: expense.tripId, companyId: expense.companyId, deletedAt: IsNull() },
-        select: ['id', 'maneuverCode'],
+        select: ['id', 'maneuverCode', 'clientName'],
       });
-      return tripActivitySubjectLabel(trip?.maneuverCode, expense.tripId);
+      return tripActivitySubjectLabel(
+        trip?.maneuverCode,
+        expense.tripId,
+        trip?.clientName,
+      );
     }
     const withRelations = await this.attachExpenseActivityRelations(expense);
     return buildExpenseCoverageNotificationSubject(withRelations);

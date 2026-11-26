@@ -1,6 +1,12 @@
 import { COMPANY_ACTIVITY_KIND } from './company-activity-event.kinds';
 
-const EMPTY_DELIVERY_PATCH_KEYS = new Set([
+/** Campos de programación / seguimiento que cuentan como cambio de fechas. */
+const SCHEDULE_PATCH_KEYS = new Set([
+  'plannedDepartureAt',
+  'plannedArrivalAt',
+  'plannedCompletionAt',
+  'loadDate',
+  'plannedDatesJustification',
   'emptyDeliveryAt',
   'emptyDeliveryPlace',
   'emptyDeliveryJustification',
@@ -9,8 +15,11 @@ const EMPTY_DELIVERY_PATCH_KEYS = new Set([
 export function tripActivitySubjectLabel(
   maneuverCode: string | null | undefined,
   tripId: number,
+  clientName?: string | null,
 ): string {
-  return maneuverCode?.trim() || `M-${tripId}`;
+  const code = maneuverCode?.trim() || `M-${tripId}`;
+  const client = clientName?.trim();
+  return client ? `${code} · ${client}` : code;
 }
 
 export function tripPatchActivity(dto: object): {
@@ -20,12 +29,12 @@ export function tripPatchActivity(dto: object): {
   const keys = Object.entries(dto as Record<string, unknown>)
     .filter(([, value]) => value !== undefined)
     .map(([key]) => key);
-  const onlyEmptyDelivery =
-    keys.length > 0 && keys.every((key) => EMPTY_DELIVERY_PATCH_KEYS.has(key));
-  if (onlyEmptyDelivery) {
+  const onlySchedule =
+    keys.length > 0 && keys.every((key) => SCHEDULE_PATCH_KEYS.has(key));
+  if (onlySchedule) {
     return {
       kind: COMPANY_ACTIVITY_KIND.TRIP_TRACKING_UPDATED,
-      title: 'Seguimiento',
+      title: 'Actualización de fechas',
     };
   }
   return {
@@ -41,5 +50,5 @@ export const TRIP_DOCUMENT_ADDED_ACTIVITY = {
 
 export const TRIP_TRACKING_UPDATED_ACTIVITY = {
   kind: COMPANY_ACTIVITY_KIND.TRIP_TRACKING_UPDATED,
-  title: 'Seguimiento',
+  title: 'Actualización de fechas',
 } as const;

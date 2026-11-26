@@ -35,20 +35,82 @@ function parseYmd(ymd: string): { y: number; m: number; d: number } | null {
   };
 }
 
-function formatYmd(date: Date): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, '0');
-  const d = String(date.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
+function formatYmdParts(y: number, m: number, d: number): string {
+  return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
 }
 
-/** Mediodía local MX como Date UTC-safe para comparaciones de día. */
-function mxNoonDate(ymd: string): Date {
+/** Offset de `timeZone` en `date`: wall-clock-as-UTC − instante real. */
+function timeZoneOffsetMs(date: Date, timeZone: string): number {
+  const dtf = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23',
+  });
+  const parts = dtf.formatToParts(date);
+  const map: Record<string, string> = {};
+  for (const part of parts) {
+    if (part.type !== 'literal') {
+      map[part.type] = part.value;
+    }
+  }
+  const asIfUtc = Date.UTC(
+    Number(map['year']),
+    Number(map['month']) - 1,
+    Number(map['day']),
+    Number(map['hour']),
+    Number(map['minute']),
+    Number(map['second']),
+  );
+  return asIfUtc - date.getTime();
+}
+
+/** Instant UTC del reloj civil `ymd` + hora en America/Mexico_City. */
+function mxWallTimeToUtc(
+  ymd: string,
+  hour: number,
+  minute: number,
+  second: number,
+  ms: number,
+): Date {
   const parts = parseYmd(ymd);
   if (!parts) {
     return new Date();
   }
-  return new Date(parts.y, parts.m - 1, parts.d, 12, 0, 0, 0);
+  const localAsUtc = Date.UTC(
+    parts.y,
+    parts.m - 1,
+    parts.d,
+    hour,
+    minute,
+    second,
+    ms,
+  );
+  let guess = localAsUtc;
+  for (let i = 0; i < 3; i += 1) {
+    const offset = timeZoneOffsetMs(new Date(guess), OPERATIONAL_TZ);
+    const next = localAsUtc - offset;
+    if (next === guess) {
+      break;
+    }
+    guess = next;
+  }
+  return new Date(guess);
+}
+
+/** Aritmética de calendario sobre YYYY-MM-DD (sin depender del TZ del host). */
+function ymdAddCalendarDays(ymd: string, days: number): string {
+  const parts = parseYmd(ymd);
+  if (!parts) {
+    return ymd;
+  }
+  const utc = Date.UTC(parts.y, parts.m - 1, parts.d + days, 12, 0, 0, 0);
+  const d = new Date(utc);
+  return formatYmdParts(d.getUTCFullYear(), d.getUTCMonth() + 1, d.getUTCDate());
 }
 
 function mxWeekday(now = new Date()): number {
@@ -69,9 +131,7 @@ function mxWeekday(now = new Date()): number {
 }
 
 export function ymdAddDays(ymd: string, days: number): string {
-  const base = mxNoonDate(ymd);
-  base.setDate(base.getDate() + days);
-  return formatYmd(base);
+  return ymdAddCalendarDays(ymd, days);
 }
 
 function ymdEndOfMonth(ymd: string): string {
@@ -79,8 +139,8 @@ function ymdEndOfMonth(ymd: string): string {
   if (!parts) {
     return ymd;
   }
-  const lastDay = new Date(parts.y, parts.m, 0).getDate();
-  return `${parts.y}-${String(parts.m).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+  const lastDay = new Date(Date.UTC(parts.y, parts.m, 0)).getUTCDate();
+  return formatYmdParts(parts.y, parts.m, lastDay);
 }
 
 function ymdStartOfMonth(ymd: string): string {
@@ -88,7 +148,7 @@ function ymdStartOfMonth(ymd: string): string {
   if (!parts) {
     return ymd;
   }
-  return `${parts.y}-${String(parts.m).padStart(2, '0')}-01`;
+  return formatYmdParts(parts.y, parts.m, 1);
 }
 
 /** Rango inclusivo YYYY-MM-DD según periodo (zona America/Mexico_City). */
@@ -109,10 +169,11 @@ export function resolveNotificationPeriodRange(
     to = ymdEndOfMonth(today);
   }
 
-  const fromAt = mxNoonDate(from);
-  fromAt.setHours(0, 0, 0, 0);
-  const toAt = mxNoonDate(to);
-  toAt.setHours(23, 59, 59, 999);
+  // Límites reales del día civil MX → UTC (Railway corre en UTC).
+  // Fin inclusivo = inicio del día siguiente MX − 1 ms (evita deriva de ms/DST).
+  const fromAt = mxWallTimeToUtc(from, 0, 0, 0, 0);
+  const nextDayStart = mxWallTimeToUtc(ymdAddDays(to, 1), 0, 0, 0, 0);
+  const toAt = new Date(nextDayStart.getTime() - 1);
 
   return { period, from, to, fromAt, toAt, today };
 }
@@ -123,7 +184,8 @@ export function notificationOverdueFetchFrom(todayYmd: string): string {
   if (!parts) {
     return todayYmd;
   }
-  const d = new Date(parts.y, parts.m - 1, parts.d, 12, 0, 0, 0);
-  d.setMonth(d.getMonth() - 12);
-  return formatYmd(d);
+  const utc = Date.UTC(parts.y, parts.m - 1, parts.d, 12, 0, 0, 0);
+  const d = new Date(utc);
+  d.setUTCMonth(d.getUTCMonth() - 12);
+  return formatYmdParts(d.getUTCFullYear(), d.getUTCMonth() + 1, d.getUTCDate());
 }
