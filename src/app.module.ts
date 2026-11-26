@@ -26,6 +26,7 @@ import { FileModule } from './common/file/file.module';
 import { ObservabilityModule } from './common/observability/observability.module';
 import { TenantModule } from './common/tenant/tenant.module';
 import { ActivityEventsModule } from './activity-events/activity-events.module';
+import { PushModule } from './push/push.module';
 import { typeOrmEntityGlobsFromDir } from './database/typeorm-entity-globs';
 import { typeOrmMigrationGlobsFromDir } from './database/typeorm-migration-globs';
 import EnvConfig from './types/env-config.type';
@@ -45,6 +46,7 @@ import EnvConfig from './types/env-config.type';
     ObservabilityModule,
     TenantModule,
     FileModule,
+    PushModule,
     ActivityEventsModule,
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],

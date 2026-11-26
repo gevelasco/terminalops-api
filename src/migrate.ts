@@ -613,6 +613,31 @@ async function main() {
           ADD COLUMN IF NOT EXISTS notification_feed_modules jsonb NULL;
       `);
       console.log('Schema ensure: user_preferences notification_feed_modules OK');
+      await dataSource.query(`
+        CREATE TABLE IF NOT EXISTS terminalops.user_push_subscriptions (
+          id SERIAL PRIMARY KEY,
+          user_id INT NOT NULL
+            REFERENCES terminalops.app_user(id) ON DELETE CASCADE,
+          company_id INT NOT NULL
+            REFERENCES terminalops.companies(id) ON DELETE CASCADE,
+          endpoint TEXT NOT NULL,
+          p256dh TEXT NOT NULL,
+          auth TEXT NOT NULL,
+          user_agent TEXT NULL,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+          CONSTRAINT uq_user_push_subscriptions_endpoint UNIQUE (endpoint)
+        );
+      `);
+      await dataSource.query(`
+        CREATE INDEX IF NOT EXISTS idx_user_push_subscriptions_user_id
+          ON terminalops.user_push_subscriptions (user_id);
+      `);
+      await dataSource.query(`
+        CREATE INDEX IF NOT EXISTS idx_user_push_subscriptions_company_id
+          ON terminalops.user_push_subscriptions (company_id);
+      `);
+      console.log('Schema ensure: user_push_subscriptions OK');
       await ensureUserModuleAccessGrantableSchema((sql) => dataSource.query(sql));
       console.log('Schema ensure: user_module_access grantable module codes OK');
     } finally {

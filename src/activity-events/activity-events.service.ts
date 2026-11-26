@@ -1,6 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, type EntityManager } from 'typeorm';
+import { ActivityPushFanoutService } from 'src/push/activity-push-fanout.service';
 import { CompanyActivityEvent } from './entities/company-activity-event.entity';
 import { activityActorFromUser } from './activity-events.actor.util';
 import type AuthUser from 'src/types/auth-user.type';
@@ -20,9 +21,12 @@ export interface RecordCompanyActivityParams {
 
 @Injectable()
 export class ActivityEventsService {
+  private readonly logger = new Logger(ActivityEventsService.name);
+
   constructor(
     @InjectRepository(CompanyActivityEvent)
     private readonly repo: Repository<CompanyActivityEvent>,
+    @Optional() private readonly pushFanout?: ActivityPushFanoutService,
   ) {}
 
   async record(params: RecordCompanyActivityParams): Promise<boolean> {
@@ -41,6 +45,7 @@ export class ActivityEventsService {
       dedupeKey: params.dedupeKey?.trim() || null,
     });
 
+    let inserted = false;
     if (row.dedupeKey) {
       const result = await this.repo
         .createQueryBuilder()
@@ -62,14 +67,29 @@ export class ActivityEventsService {
         .orIgnore()
         .returning('id')
         .execute();
-      return (
+      inserted =
         (result.identifiers?.length ?? 0) > 0 ||
-        (result.generatedMaps?.length ?? 0) > 0
-      );
+        (result.generatedMaps?.length ?? 0) > 0;
+    } else {
+      await this.repo.save(row);
+      inserted = true;
     }
 
-    await this.repo.save(row);
-    return true;
+    // Solo si el evento realmente se insertó (dedupe evita Push duplicado).
+    // Nunca await: el fallo de Push no afecta el record ni la API.
+    if (inserted) {
+      try {
+        this.pushFanout?.scheduleForRecordedActivity(params);
+      } catch (err: unknown) {
+        this.logger.warn(
+          `No se pudo programar Push: ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        );
+      }
+    }
+
+    return inserted;
   }
 
   /**

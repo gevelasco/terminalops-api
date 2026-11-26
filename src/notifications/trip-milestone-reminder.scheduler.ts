@@ -8,7 +8,7 @@ export class TripMilestoneReminderScheduler {
 
   constructor(private readonly reminders: TripMilestoneReminderService) {}
 
-  @Cron(CronExpression.EVERY_HOUR)
+  @Cron(CronExpression.EVERY_MINUTE)
   async handleTripMilestoneTick(): Promise<void> {
     try {
       const result = await this.reminders.runScheduledReminders();
