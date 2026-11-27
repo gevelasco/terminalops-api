@@ -555,11 +555,13 @@ async function main() {
           route_key_incomplete = true
         WHERE destination_scope = 'municipality'
           AND btrim(coalesce(municipality_name, '')) <> ''
+          -- Solo líneas sin "muni, estado" (leak de migración). No tocar
+          -- capitales homónimas válidas tipo Puebla / Puebla.
+          AND position(',' in coalesce(city_municipality, '')) = 0
           AND (
             lower(btrim(municipality_name)) = lower(btrim(coalesce(state_name, '')))
             OR (
               btrim(coalesce(state_name, '')) = ''
-              AND position(',' in coalesce(city_municipality, '')) = 0
               AND lower(btrim(municipality_name)) = lower(btrim(coalesce(city_municipality, '')))
             )
           );

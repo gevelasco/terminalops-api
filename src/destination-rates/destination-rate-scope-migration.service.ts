@@ -316,16 +316,11 @@ export class DestinationRateScopeMigrationService {
           rate.cityMunicipality = state;
           rate.routeKeyIncomplete = true;
         } else {
+          // Desde CP: conserva municipio aunque coincida con el estado
+          // (capitales homónimas: Puebla, Oaxaca, Guanajuato…).
           const names = displayNamesFromRate(rate);
-          let municipality = names.municipality;
-          let state = names.state || rate.stateName?.trim() || '';
-          if (
-            municipality &&
-            state &&
-            normalizePlaceKey(municipality) === normalizePlaceKey(state)
-          ) {
-            municipality = '';
-          }
+          const municipality = names.municipality;
+          const state = names.state || rate.stateName?.trim() || '';
           rate.municipalityName = municipality;
           rate.stateName = state;
           rate.cityMunicipality =
