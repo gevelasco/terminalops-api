@@ -498,7 +498,73 @@ async function main() {
         ALTER TABLE terminalops.destination_rates
           ADD COLUMN IF NOT EXISTS state_name text NOT NULL DEFAULT '';
       `);
-      console.log('Schema ensure: destination_rate_scope / rate geo columns OK');
+      // Reemplaza el unique viejo (CP+locality) por índices por scope.
+      // Sin esto, colapsar a estado/municipio (postal/locality vacíos) rompe el GET.
+      await dataSource.query(`
+        DROP INDEX IF EXISTS terminalops.uq_destination_rates_company_origin_dest_locality;
+      `);
+      await dataSource.query(`
+        CREATE UNIQUE INDEX IF NOT EXISTS uq_destination_rates_scope_postal
+        ON terminalops.destination_rates (
+          company_id,
+          origin_operational_center_id,
+          postal_code,
+          lower(btrim(locality))
+        )
+        WHERE destination_scope = 'postal_code'
+          AND route_key_incomplete = false;
+      `);
+      await dataSource.query(`
+        CREATE UNIQUE INDEX IF NOT EXISTS uq_destination_rates_scope_municipality
+        ON terminalops.destination_rates (
+          company_id,
+          origin_operational_center_id,
+          lower(btrim(state_name)),
+          lower(btrim(municipality_name))
+        )
+        WHERE destination_scope = 'municipality'
+          AND route_key_incomplete = false;
+      `);
+      await dataSource.query(`
+        CREATE UNIQUE INDEX IF NOT EXISTS uq_destination_rates_scope_state
+        ON terminalops.destination_rates (
+          company_id,
+          origin_operational_center_id,
+          lower(btrim(state_name))
+        )
+        WHERE destination_scope = 'state'
+          AND route_key_incomplete = false;
+      `);
+      console.log('Schema ensure: destination_rate_scope / rate geo columns + scope indexes OK');
+      // Repara tarifas municipio donde quedó el nombre del estado en municipality_name
+      // (migración estado → municipio previa).
+      await dataSource.query(`
+        UPDATE terminalops.destination_rates
+        SET
+          state_name = CASE
+            WHEN btrim(coalesce(state_name, '')) = ''
+              THEN btrim(municipality_name)
+            ELSE state_name
+          END,
+          municipality_name = '',
+          city_municipality = CASE
+            WHEN btrim(coalesce(state_name, '')) = ''
+              THEN btrim(municipality_name)
+            ELSE btrim(state_name)
+          END,
+          route_key_incomplete = true
+        WHERE destination_scope = 'municipality'
+          AND btrim(coalesce(municipality_name, '')) <> ''
+          AND (
+            lower(btrim(municipality_name)) = lower(btrim(coalesce(state_name, '')))
+            OR (
+              btrim(coalesce(state_name, '')) = ''
+              AND position(',' in coalesce(city_municipality, '')) = 0
+              AND lower(btrim(municipality_name)) = lower(btrim(coalesce(city_municipality, '')))
+            )
+          );
+      `);
+      console.log('Schema ensure: municipality_name state-leak repair OK');
       // Hard ensure: avisos de pagos (covers migrations_list drift / login SELECT).
       await dataSource.query(`
         ALTER TABLE terminalops.companies

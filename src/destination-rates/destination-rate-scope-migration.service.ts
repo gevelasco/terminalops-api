@@ -135,6 +135,7 @@ export class DestinationRateScopeMigrationService {
 
     const markedIncomplete = await this.markIncompleteForFinerScope(
       companyId,
+      from,
       to,
     );
     return { collapsedGroups: 0, markedIncomplete };
@@ -198,6 +199,17 @@ export class DestinationRateScopeMigrationService {
           if (!names.state && n.state) {
             names.state = n.state;
           }
+        }
+
+        // Desactiva perdedores antes de reescribir claves del survivor
+        // (evita choques con el unique legacy company/origin/CP/locality).
+        for (const member of members) {
+          if (member.id === survivor.id) {
+            continue;
+          }
+          member.active = false;
+          await rateRepo.save(member);
+          deactivated += 1;
         }
 
         survivor.destinationScope = scope;
@@ -266,15 +278,6 @@ export class DestinationRateScopeMigrationService {
             }),
           );
         }
-
-        for (const member of members) {
-          if (member.id === survivor.id) {
-            continue;
-          }
-          member.active = false;
-          await rateRepo.save(member);
-          deactivated += 1;
-        }
       }
     });
     return deactivated;
@@ -282,6 +285,7 @@ export class DestinationRateScopeMigrationService {
 
   private async markIncompleteForFinerScope(
     companyId: number,
+    from: DestinationRateScope,
     to: DestinationRateScope,
   ): Promise<number> {
     const rates = await this.ratesRepo.find({ where: { companyId } });
@@ -301,12 +305,34 @@ export class DestinationRateScopeMigrationService {
       } else if (to === 'municipality') {
         rate.postalCode = '';
         rate.locality = '';
-        const names = displayNamesFromRate(rate);
-        rate.municipalityName = names.municipality;
-        rate.stateName = names.state;
-        if (!rate.municipalityName) {
-          /* Sin municipio no se puede cotizar aún. */
+        if (from === 'state') {
+          // cityMunicipality era solo el estado: no copiarlo a municipio.
+          const state =
+            rate.stateName?.trim() ||
+            displayNamesFromRate(rate).state ||
+            (rate.cityMunicipality ?? '').trim();
+          rate.stateName = state;
+          rate.municipalityName = '';
+          rate.cityMunicipality = state;
           rate.routeKeyIncomplete = true;
+        } else {
+          const names = displayNamesFromRate(rate);
+          let municipality = names.municipality;
+          let state = names.state || rate.stateName?.trim() || '';
+          if (
+            municipality &&
+            state &&
+            normalizePlaceKey(municipality) === normalizePlaceKey(state)
+          ) {
+            municipality = '';
+          }
+          rate.municipalityName = municipality;
+          rate.stateName = state;
+          rate.cityMunicipality =
+            municipality && state
+              ? `${municipality}, ${state}`
+              : state || municipality;
+          rate.routeKeyIncomplete = !municipality || !state;
         }
       }
     }

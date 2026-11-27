@@ -27,7 +27,6 @@ import { CreateDestinationRateDto } from './dto/create-destination-rate.dto';
 import { DestinationRatePriceInputDto } from './dto/destination-rate-price-input.dto';
 import { UpdateDestinationRateDto } from './dto/update-destination-rate.dto';
 import { ClientDelivery } from '../clients/entities/client-delivery.entity';
-import { DestinationRateScopeMigrationService } from './destination-rate-scope-migration.service';
 import { DestinationRatePrice } from './entities/destination-rate-price.entity';
 import { DestinationRate } from './entities/destination-rate.entity';
 
@@ -58,7 +57,6 @@ export class DestinationRatesService {
     private readonly companyRepo: Repository<Company>,
     private readonly operationConfigurations: OperationConfigurationsService,
     private readonly operationalCenters: OperationalCentersService,
-    private readonly rateScopeMigration: DestinationRateScopeMigrationService,
   ) {}
 
   async create(companyId: number, dto: CreateDestinationRateDto) {
@@ -117,13 +115,8 @@ export class DestinationRatesService {
   }
 
   async findAll(companyId: number) {
-    const scope = await this.companyDestinationRateScope(companyId);
-    if (scope === 'state' || scope === 'municipality') {
-      await this.rateScopeMigration.deactivateDuplicateRatesForScope(
-        companyId,
-        scope,
-      );
-    }
+    // Solo lectura: el colapso de duplicados corre al cambiar la política
+    // (migrateCompanyScope), no en cada listado.
     const rows = await this.repo
       .createQueryBuilder('rate')
       .leftJoinAndSelect('rate.prices', 'prices')
