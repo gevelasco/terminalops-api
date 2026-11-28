@@ -341,14 +341,17 @@ export class DestinationRatesService {
       return { rate: routeMatch ? serializeDestinationRate(routeMatch) : null };
     }
 
-    const linkedMatchesRoute =
-      linked.originOperationalCenterId === originCenterId &&
-      this.rateMatchesLookup(linked, scope, params);
-    if (!linkedMatchesRoute) {
-      // Entrega con tarifa desalineada: usar match por ruta, no bloquear sugerencias.
-      return { rate: routeMatch ? serializeDestinationRate(routeMatch) : null };
+    /** Entrega del cliente con tarifa explícita: mismo origen → confiar en el vínculo (scope municipio/estado suele no alinear CP/localidad). */
+    if (linked.originOperationalCenterId === originCenterId) {
+      return { rate: serializeDestinationRate(linked) };
     }
-    return { rate: serializeDestinationRate(linked) };
+
+    const linkedMatchesRoute = this.rateMatchesLookup(linked, scope, params);
+    if (linkedMatchesRoute) {
+      return { rate: serializeDestinationRate(linked) };
+    }
+
+    return { rate: routeMatch ? serializeDestinationRate(routeMatch) : null };
   }
 
   /**
