@@ -297,6 +297,7 @@ export class UsersService {
       companyId: String(user.companyId),
       companyName: user.company?.name,
       companyTagline: user.company?.tagline ?? null,
+      companyLogoDataUrl: user.company?.logoDataUrl?.trim() || null,
       companyContactEmail: user.company?.contactEmail?.trim() || null,
       companyContactPhone: user.company?.contactPhone?.trim() || null,
       subscriptionPlan: user.company?.subscriptionPlan ?? 'basic',

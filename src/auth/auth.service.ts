@@ -268,8 +268,12 @@ export class AuthService {
       resolved.id,
     );
     const payloadUser = { ...authUser, openChecklistCount };
-    const { photoDataUrl: _photo, openChecklistCount: _open, ...jwtClaims } =
-      payloadUser;
+    const {
+      photoDataUrl: _photo,
+      companyLogoDataUrl: _logo,
+      openChecklistCount: _open,
+      ...jwtClaims
+    } = payloadUser;
     return {
       access_token: this.jwtService.sign(jwtClaims, { expiresIn: '1h' }),
       refresh_token: await this.issueRefreshToken(resolved.id),

@@ -23,6 +23,8 @@ export type AuthUser = {
   subscriptionPlan?: string | null;
   /** Lema / tagline de la empresa (companies.tagline). */
   companyTagline?: string | null;
+  /** Logo de la empresa (data URL); solo en cuerpo login/refresh, no en JWT. */
+  companyLogoDataUrl?: string | null;
   /** Contacto comercial para cotizaciones (companies.contact_email / contact_phone). */
   companyContactEmail?: string | null;
   companyContactPhone?: string | null;
