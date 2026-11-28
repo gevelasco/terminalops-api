@@ -345,8 +345,8 @@ export class DestinationRatesService {
       linked.originOperationalCenterId === originCenterId &&
       this.rateMatchesLookup(linked, scope, params);
     if (!linkedMatchesRoute) {
-      // La entrega del cliente apunta a otra ruta: no sugerir tarifa distinta.
-      return { rate: null };
+      // Entrega con tarifa desalineada: usar match por ruta, no bloquear sugerencias.
+      return { rate: routeMatch ? serializeDestinationRate(routeMatch) : null };
     }
     return { rate: serializeDestinationRate(linked) };
   }
