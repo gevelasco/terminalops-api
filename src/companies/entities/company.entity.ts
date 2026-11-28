@@ -24,6 +24,17 @@ export class Company {
   @Column({ nullable: true })
   tagline?: string;
 
+  /** Logo de empresa (data URL comprimida); vacío/null = sin logo. */
+  @Column({ name: 'logo_data_url', type: 'text', nullable: true })
+  logoDataUrl?: string | null;
+
+  /** Contacto comercial (cotizaciones PDF); opcional. */
+  @Column({ name: 'contact_email', type: 'varchar', length: 160, nullable: true })
+  contactEmail?: string | null;
+
+  @Column({ name: 'contact_phone', type: 'varchar', length: 40, nullable: true })
+  contactPhone?: string | null;
+
   @Column({ name: 'legal_name', nullable: true })
   legalName?: string;
 

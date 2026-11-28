@@ -116,6 +116,9 @@ export class CompaniesService {
         'id',
         'name',
         'tagline',
+        'logoDataUrl',
+        'contactEmail',
+        'contactPhone',
         'subscriptionStatus',
         'subscriptionPlan',
         'subscriptionEndsAt',
@@ -323,7 +326,13 @@ export class CompaniesService {
   async updateAccountInfo(
     user: AuthUser,
     companyId: number,
-    data: { name?: string; tagline?: string },
+    data: {
+      name?: string;
+      tagline?: string;
+      logoDataUrl?: string;
+      contactEmail?: string;
+      contactPhone?: string;
+    },
   ) {
     if (!isOwnerRole(user.role)) {
       throw new ForbiddenException(
@@ -342,6 +351,16 @@ export class CompaniesService {
     }
     if (data.tagline !== undefined) {
       company.tagline = data.tagline.trim() || undefined;
+    }
+    if (data.logoDataUrl !== undefined) {
+      const trimmed = data.logoDataUrl.trim();
+      company.logoDataUrl = trimmed || null;
+    }
+    if (data.contactEmail !== undefined) {
+      company.contactEmail = data.contactEmail.trim() || null;
+    }
+    if (data.contactPhone !== undefined) {
+      company.contactPhone = data.contactPhone.trim() || null;
     }
     return this.repo.save(company);
   }

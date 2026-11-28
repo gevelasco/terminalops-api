@@ -4,7 +4,6 @@ import { DataSource, Repository } from 'typeorm';
 import { ActivityEventsService } from 'src/activity-events/activity-events.service';
 import { Trip } from 'src/trips/entities/trip.entity';
 import {
-  TRIP_MILESTONE_REMINDER_FIRE_WINDOW_MS,
   tripMilestoneReminderWindowSql,
   tripMilestoneRemindersDue,
 } from './trip-milestone-reminder.util';
@@ -53,9 +52,6 @@ export class TripMilestoneReminderService {
   }> {
     const nowMs = now.getTime();
     const nowPlus1h = new Date(nowMs + ONE_HOUR_MS);
-    const nowPlus58m = new Date(
-      nowMs + ONE_HOUR_MS - TRIP_MILESTONE_REMINDER_FIRE_WINDOW_MS,
-    );
     const trips = await this.tripsRepo
       .createQueryBuilder('trip')
       .where('trip.status IN (:...statuses)', {
@@ -63,7 +59,7 @@ export class TripMilestoneReminderService {
       })
       .andWhere('trip.deletedAt IS NULL')
       .andWhere(tripMilestoneReminderWindowSql('trip'), {
-        nowPlus58m,
+        now,
         nowPlus1h,
       })
       .getMany();

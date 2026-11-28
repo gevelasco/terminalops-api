@@ -42,23 +42,24 @@ const FORBIDDEN = [
 const REQUIRED = [
   {
     file: 'trip-operational-distance.util.ts',
-    includes: ['ROUND_TRIP_FACTOR', 'operationalDistanceKm'],
+    includes: [
+      'ROUND_TRIP_FACTOR',
+      'operationalDistanceKm',
+      'operationalKmFromStoredTrip',
+    ],
   },
   {
     file: 'fuel/fuel-estimator.service.ts',
     includes: [
       'resolveTripOperationalDistance',
-      'operationalDistanceKm / adjustedKmPerLiter',
+      'outboundLiters',
+      'returnLiters',
       'fuelPriceService.getCurrentDieselPrice',
     ],
   },
   {
     file: 'trips.service.ts',
     includes: ['resolveTripOperationalDistance'],
-  },
-  {
-    file: 'trips.mapper.ts',
-    includes: ['operationalKmFromStoredTrip', 'dieselPricePerLiterAtCreation'],
   },
   {
     file: 'fuel/fuel-price.service.ts',

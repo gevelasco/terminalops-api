@@ -20,7 +20,7 @@ function tripFixture(partial: Partial<Trip>): Trip {
 }
 
 describe('trip-milestone-reminder.util', () => {
-  it('fires only in the ~2m window exactly 1h before the event', () => {
+  it('fires from T-1h until the event (retries until due is recorded)', () => {
     const eventAt = new Date('2026-11-23T17:00:00.000Z');
     expect(
       isInTripMilestoneReminderWindow(
@@ -37,15 +37,15 @@ describe('trip-milestone-reminder.util', () => {
     expect(
       isInTripMilestoneReminderWindow(
         eventAt,
-        new Date('2026-11-23T16:02:00.000Z').getTime(),
+        new Date('2026-11-23T16:30:00.000Z').getTime(),
       ),
-    ).toBe(false);
+    ).toBe(true);
     expect(
       isInTripMilestoneReminderWindow(
         eventAt,
-        new Date('2026-11-23T16:30:00.000Z').getTime(),
+        new Date('2026-11-23T16:59:59.000Z').getTime(),
       ),
-    ).toBe(false);
+    ).toBe(true);
     expect(
       isInTripMilestoneReminderWindow(
         eventAt,
@@ -55,16 +55,16 @@ describe('trip-milestone-reminder.util', () => {
     expect(
       isInTripMilestoneReminderWindow(
         eventAt,
-        new Date('2026-11-23T18:00:00.000Z').getTime(),
+        new Date('2026-11-23T17:00:00.000Z').getTime(),
       ),
     ).toBe(false);
   });
 
-  it('does not send a late reminder when the schedule is shortened past T-1h', () => {
-    // Event moved to 30 minutes from "now"; the 1h-before instant already passed.
+  it('still fires when the schedule is shortened inside the last hour', () => {
+    // Event moved to 30 minutes from "now"; T−1h already passed → due now.
     const rescheduledAt = new Date('2026-11-23T16:30:00.000Z');
     const nowMs = new Date('2026-11-23T16:00:00.000Z').getTime();
-    expect(isInTripMilestoneReminderWindow(rescheduledAt, nowMs)).toBe(false);
+    expect(isInTripMilestoneReminderWindow(rescheduledAt, nowMs)).toBe(true);
   });
 
   it('emits load reminder for scheduled trip at T-1h', () => {

@@ -297,6 +297,8 @@ export class UsersService {
       companyId: String(user.companyId),
       companyName: user.company?.name,
       companyTagline: user.company?.tagline ?? null,
+      companyContactEmail: user.company?.contactEmail?.trim() || null,
+      companyContactPhone: user.company?.contactPhone?.trim() || null,
       subscriptionPlan: user.company?.subscriptionPlan ?? 'basic',
       theme,
       memberSince: toIsoString(user.createdAt),
@@ -541,15 +543,22 @@ export class UsersService {
     id: number;
     name: string;
     tagline?: string | null;
+    logoDataUrl?: string | null;
+    contactEmail?: string | null;
+    contactPhone?: string | null;
     subscriptionStatus: string;
     subscriptionPlan?: string | null;
     subscriptionEndsAt?: Date | string | null;
     createdAt?: Date | string | null;
   }) {
+    const logo = company.logoDataUrl?.trim() || null;
     return {
       id: company.id,
       name: company.name,
       tagline: company.tagline ?? null,
+      logoDataUrl: logo,
+      contactEmail: company.contactEmail?.trim() || null,
+      contactPhone: company.contactPhone?.trim() || null,
       subscriptionStatus: company.subscriptionStatus,
       subscriptionPlan: company.subscriptionPlan ?? 'basic',
       subscriptionEndsAt: toIsoString(company.subscriptionEndsAt) ?? null,

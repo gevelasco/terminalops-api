@@ -13,8 +13,6 @@ export type TripMilestoneReminderId =
   | 'empty_delivery';
 
 const ONE_HOUR_MS = 60 * 60 * 1000;
-/** Grace for cron drift: fire only in [T−1h, T−1h + 2m). */
-export const TRIP_MILESTONE_REMINDER_FIRE_WINDOW_MS = 2 * 60 * 1000;
 
 export const TRIP_MILESTONE_REMINDER_KIND: Record<
   TripMilestoneReminderId,
@@ -53,9 +51,9 @@ export function tripMilestoneReminderDedupeKey(
 }
 
 /**
- * Recordatorio preventivo exactamente ~1 h antes del hito.
- * No dispara en el resto de la hora previa ni si el momento de envío ya pasó
- * (p. ej. horario acortado después de T−1h).
+ * Recordatorio preventivo desde T−1h hasta el hito.
+ * El cron puede reintentar cada minuto; `dedupeKey` evita duplicados.
+ * Si el horario se acorta a menos de 1 h, dispara en el siguiente tick.
  */
 export function isInTripMilestoneReminderWindow(
   eventAt: Date,
@@ -66,10 +64,7 @@ export function isInTripMilestoneReminderWindow(
     return false;
   }
   const remindAt = eventMs - ONE_HOUR_MS;
-  return (
-    nowMs >= remindAt &&
-    nowMs < remindAt + TRIP_MILESTONE_REMINDER_FIRE_WINDOW_MS
-  );
+  return nowMs >= remindAt;
 }
 
 type MilestoneCandidate = {
@@ -140,20 +135,20 @@ export function tripMilestoneRemindersDue(
 }
 
 /**
- * SQL: hito cuyo envío (T−1h) cae en (now − 2m, now] —
- * equivalente a event ∈ (now+1h−2m, now+1h].
+ * SQL: hitos en la hora previa (T−1h ya pasó y el evento aún no).
+ * event ∈ (now, now+1h]
  */
 export function tripMilestoneReminderWindowSql(alias: string): string {
   const a = alias;
   return `(
-    (${a}.status = 'scheduled' AND ${a}.load_date IS NOT NULL AND ${a}.load_date > :nowPlus58m AND ${a}.load_date <= :nowPlus1h)
-    OR (COALESCE(${a}.departure_at, ${a}.planned_departure_at) > :nowPlus58m AND COALESCE(${a}.departure_at, ${a}.planned_departure_at) <= :nowPlus1h)
-    OR (COALESCE(${a}.arrived_at, ${a}.planned_arrival_at) > :nowPlus58m AND COALESCE(${a}.arrived_at, ${a}.planned_arrival_at) <= :nowPlus1h)
-    OR (COALESCE(${a}.return_at, ${a}.planned_completion_at) > :nowPlus58m AND COALESCE(${a}.return_at, ${a}.planned_completion_at) <= :nowPlus1h)
+    (${a}.status = 'scheduled' AND ${a}.load_date IS NOT NULL AND ${a}.load_date > :now AND ${a}.load_date <= :nowPlus1h)
+    OR (COALESCE(${a}.departure_at, ${a}.planned_departure_at) > :now AND COALESCE(${a}.departure_at, ${a}.planned_departure_at) <= :nowPlus1h)
+    OR (COALESCE(${a}.arrived_at, ${a}.planned_arrival_at) > :now AND COALESCE(${a}.arrived_at, ${a}.planned_arrival_at) <= :nowPlus1h)
+    OR (COALESCE(${a}.return_at, ${a}.planned_completion_at) > :now AND COALESCE(${a}.return_at, ${a}.planned_completion_at) <= :nowPlus1h)
     OR (
       ${a}.empty_delivery_at IS NOT NULL
       AND NULLIF(TRIM(${a}.empty_delivery_place), '') IS NOT NULL
-      AND ${a}.empty_delivery_at > :nowPlus58m
+      AND ${a}.empty_delivery_at > :now
       AND ${a}.empty_delivery_at <= :nowPlus1h
     )
   )`;

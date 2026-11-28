@@ -474,6 +474,14 @@ async function main() {
           DROP COLUMN IF EXISTS toll_route_id;
       `);
       console.log('Schema ensure: legacy trip/rate distance columns dropped OK');
+      // Hard ensure: logo + contacto comercial en Cuenta (cotizaciones PDF).
+      await dataSource.query(`
+        ALTER TABLE terminalops.companies
+          ADD COLUMN IF NOT EXISTS logo_data_url text NULL,
+          ADD COLUMN IF NOT EXISTS contact_email varchar(160) NULL,
+          ADD COLUMN IF NOT EXISTS contact_phone varchar(40) NULL;
+      `);
+      console.log('Schema ensure: companies.logo_data_url/contact OK');
       // Hard ensure: política de tarifas (login SELECT company.destination_rate_scope).
       await dataSource.query(`
         ALTER TABLE terminalops.companies

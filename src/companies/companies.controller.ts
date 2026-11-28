@@ -904,7 +904,7 @@ export class CompaniesController {
   }
 
   @Patch(':companyId/account')
-  @ApiOperation({ summary: 'Actualizar nombre / leyenda de empresa' })
+  @ApiOperation({ summary: 'Actualizar nombre, leyenda o logo de empresa' })
   async updateCompanyAccount(
     @Param('companyId', ParseIntPipe) companyId: number,
     @Body() dto: UpdateCompanyAccountDto,

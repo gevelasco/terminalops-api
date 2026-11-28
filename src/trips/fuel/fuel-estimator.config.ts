@@ -1,16 +1,9 @@
 /** Perfiles heurísticos. Precio diesel: `FuelPriceService`. */
 
-/**
- * Rendimiento de referencia (km/L), no litros por km.
- *
- * Tractocamión 2021 afinado, operador bueno, foránea con tramos lentos
- * (“vuelta de rueda”): ~2.8 km/L. El llenado 500 L + 100 L − ~35 L ≈ 565 L
- * en 720 km ida es un aproximado de campo (~2.55 km/L); usamos 2.8 como
- * dijo el operador. Cada unidad consume distinto: esto es una heurística.
- */
+/** Rendimiento de referencia (km/L) para perfiles heurísticos sin rendimiento de unidad. */
 export const FIELD_CALIBRATION_KM_PER_LITER = 2.8;
 
-/** Relación entre perfiles respecto a sencillo vacío (antes 3.2 / 2.8 / 2.2 / 1.8). */
+/** Relación de perfiles respecto a sencillo vacío. */
 const PROFILE_RATIO_TO_SENCILLO_VACIO = {
   sencillo_vacio: 1,
   sencillo_loaded: 2.8 / 3.2,
@@ -36,13 +29,22 @@ export const LOCAL_ROUTE_MAX_KM = 25;
 export const ROUTE_FACTOR_LOCAL = 0.9;
 export const ROUTE_FACTOR_FORANEA = 1.0;
 
+/** Tara de contenedor vacío (t). El peso de maniobra se trata como mercancía. */
+export const EMPTY_CONTAINER_TONS = 3.5;
+
+/**
+ * Derating por tonelada: km/L = base / (1 + coeficiente × t).
+ * Configurable; calibrar con km OSRM reales de operación.
+ */
+export const WEIGHT_LOAD_COEFFICIENT = 0.025;
+
 export type WeightBucket = {
   minTons: number;
   maxTons: number | null;
   factor: number;
 };
 
-/** Factor multiplicador sobre km/L (menor = más consumo). */
+/** Factor multiplicador sobre km/L (menor = más consumo). Solo path heurístico sin rendimiento de unidad. */
 export const WEIGHT_BUCKETS: WeightBucket[] = [
   { minTons: 0, maxTons: 5, factor: 1.0 },
   { minTons: 5, maxTons: 15, factor: 0.92 },
